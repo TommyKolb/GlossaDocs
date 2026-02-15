@@ -157,12 +157,13 @@ classDiagram
   - Thin wrapper around the rich text editor engine (ProseMirror/Tiptap), exposing commands and change events.
 - **`DocumentService`**
   - Owns document lifecycle and “dirty/saved” state transitions; provides list/create/open/rename/delete/duplicate; initiates persistence.
+  - Stores `inputLocale` on documents (default `en-US` in Story 1; made user-configurable in Story 2).
 - **`IndexedDbRepository`**
   - Persistence boundary; hides IndexedDB details (stores, transactions, migrations).
 - **`AutosaveScheduler`**
   - Timer-based trigger that asks `DocumentService` to flush the current doc if dirty. Interval is global & user-configurable.
 - **`SettingsService`**
-  - Loads/saves global app settings (autosave interval in v1).
+  - Loads/saves global app settings (autosave interval in Story 1; extended with `lastUsedLocale` in Story 2 and `keyboardVisible` in Story 3).
 - **`PasteSanitizer`**
   - Sanitizes pasted HTML to an allowlisted subset compatible with the editor schema and safe for re-rendering.
 
@@ -287,6 +288,7 @@ These are the “public” interfaces between modules (TypeScript types).
 
 ```ts
 export type DocumentId = string;
+export type LocaleTag = string; // BCP 47, e.g. "en-US"
 
 export type Unsubscribe = () => void;
 
@@ -305,6 +307,8 @@ export interface DocumentMeta {
   createdAt: number; // epoch ms
   updatedAt: number; // epoch ms (last edit/change in editor)
   savedAt: number;   // epoch ms (last successful persistence to IndexedDB)
+  // Added/used starting Story 2 (language selection). For Story 1-only builds, default to "en-US".
+  inputLocale: LocaleTag;
 }
 
 // Canonical editor document representation (ProseMirror/Tiptap JSON)
@@ -329,6 +333,10 @@ export interface DocumentRecord extends DocumentMeta {
 
 export interface AppSettings {
   autosaveIntervalMs: number;
+  // Added/used starting Story 2. For Story 1-only builds, default to "en-US".
+  lastUsedLocale: LocaleTag;
+  // Added/used starting Story 3. For Story 1-only builds, default to true.
+  keyboardVisible: boolean;
 }
 
 export interface SanitizedContent {
@@ -352,6 +360,7 @@ Rationale (formatting model choice):
 ### Object stores
 - **`documents`** (key: `id`)
   - Value: `DocumentRecord`
+  - Includes: `title`, timestamps, **`inputLocale`** (default `en-US`), and canonical editor content (`doc`)
   - Indexes:
     - `updatedAt` (for sorting recents)
     - `title` (for searching/filtering)
@@ -363,6 +372,9 @@ Rationale (formatting model choice):
 - Default autosave interval: `10000` ms
 - New document initial content: empty ProseMirror doc (schema-compliant root)
 - Document ids: generate a new unique `DocumentId` (e.g., UUID v4) for each create/duplicate.
+- Default document input locale: `en-US` (Story 2 uses this as migration/backfill default)
+- Default last used locale: `en-US` (used starting Story 2)
+- Default keyboard visibility: `true` (used starting Story 3)
 
 Rationale:
 - Sidebar listing should load only `DocumentMeta` (via indexes) and avoid loading full document bodies for every record to keep the UI fast with many documents.

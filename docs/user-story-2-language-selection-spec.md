@@ -312,6 +312,8 @@ export interface LoadedDocument {
 export interface AppSettings {
   autosaveIntervalMs: number;
   lastUsedLocale: LocaleTag; // used as default for new docs
+  // Added/used starting Story 3. If absent (older db), default to true.
+  keyboardVisible?: boolean;
 }
 ```
 

@@ -3,6 +3,8 @@
 
 **Scope (v1)**: Browser-only. Implement **Russian Cyrillic** first (locale `ru-RU`) using a **phonetic mapping** on-screen keyboard. Keyboard is **on by default** and can be toggled via a **button**; visibility is a **global** setting. Keyboard supports **uppercase** (Shift/Caps behavior), **punctuation**, and **long-press variants**. Clicking a key inserts at the cursor / replaces selection and integrates with **undo/redo** as a single operation.
 
+Note: Locale expresses language intent; the keyboard layout is an input method. For extensibility, the keyboard is driven by an `inputMethodId` (default derived from `inputLocale`).
+
 ---
 
 ## Header
@@ -15,7 +17,7 @@
 - Ensure keyboard input behaves like normal typing: inserts at cursor, replaces selection, participates in undo/redo.
 
 ### Key design decisions (with rationale)
-- **Show keyboard only when the active document locale is supported** (v1: `ru-RU`) and the global setting is enabled:
+- **Show keyboard only when the active document has a supported input method** (v1 default: `keyboard.ru-phonetic` for `ru-RU`) and the global setting is enabled:
   - Rationale: avoids UI clutter for users writing in `en-US`/`de-DE` while still being “on by default” for the target locale.
 - **Phonetic mapping vs ЙЦУКЕН**:
   - Rationale: users without a Russian OS layout can still type; users who know ЙЦУКЕН likely already have a native layout available.
@@ -50,8 +52,9 @@ flowchart LR
     UI["UI Shell<br/>- Keyboard toggle button<br/>- Keyboard panel<br/>- Toolbar"]
     Editor["Rich Text Editor Engine<br/>(ProseMirror/Tiptap)"]
     LocaleSvc["Locale Selection Service<br/>- active doc locale"]
+    InputMethod["Input Method Controller<br/>- locale + inputMethodId<br/>- commitText()"]
     KeyboardCtrl["OnScreenKeyboardController<br/>- visibility state (global)<br/>- shift/caps state<br/>- insert text into editor"]
-    Layouts["KeyboardLayoutRegistry<br/>- layouts by LocaleTag<br/>(v1: ru-RU)"]
+    Layouts["KeyboardLayoutRegistry<br/>- layouts by InputMethodId<br/>(v1: keyboard.ru-phonetic)"]
     LongPress["LongPressManager<br/>- detect hold<br/>- show variants popover"]
     SettingsSvc["SettingsService<br/>- keyboardVisible"]
     DocSvc["DocumentService<br/>- active doc meta"]
@@ -64,10 +67,11 @@ flowchart LR
 
   UI --> KeyboardCtrl
   UI --> LongPress
-  KeyboardCtrl --> Editor
+  KeyboardCtrl --> InputMethod
   KeyboardCtrl --> Layouts
 
   LocaleSvc --> KeyboardCtrl
+  LocaleSvc --> InputMethod
   DocSvc <--> Docs
   SettingsSvc <--> Settings
   KeyboardCtrl <--> SettingsSvc
@@ -79,9 +83,9 @@ flowchart LR
 - **Document open/switch → Locale Selection Service**: active document locale changes.
 - **Locale Selection Service → Keyboard Controller**: provides current `LocaleTag` so controller can select a layout (or disable keyboard UI when unsupported).
 - **UI → Keyboard Controller**: toggle keyboard visible/hidden; press Shift/Caps; click keys; select long-press variants.
-- **Keyboard Controller → Editor**: inserts characters via editor command/transaction (single undo step).
+- **Keyboard Controller → Input Method Controller**: commits characters via `commitText(...)` (single undo step).
 - **Keyboard Controller ↔ SettingsService ↔ IndexedDB**: read/write global `keyboardVisible`.
-- **Keyboard Controller → KeyboardLayoutRegistry**: fetch layout for `ru-RU`.
+- **Keyboard Controller → KeyboardLayoutRegistry**: fetch layout for the active `inputMethodId` (derived from locale in v1).
 - **LongPressManager → UI/Controller**: on hold, show variants and commit chosen variant.
 
 Rationale:
@@ -98,16 +102,17 @@ classDiagram
     +getVisible(): boolean
     +setVisible(visible: boolean): Promise<void>
     +setLocale(locale: LocaleTag): void
-    +getActiveLayout(): KeyboardLayout?
+    +setInputMethod(inputMethodId: InputMethodId | null): void
+    +getActiveLayout(): KeyboardLayout | null
     +toggleShift(): void
     +toggleCapsLock(): void
     +pressKey(keyId: string): void
-    +commitText(text: string): void
   }
 
   class KeyboardLayoutRegistry {
-    +getLayout(locale: LocaleTag): KeyboardLayout?
-    +listSupportedLocales(): LocaleTag[]
+    +getLayout(inputMethodId: InputMethodId): KeyboardLayout | null
+    +getDefaultInputMethod(locale: LocaleTag): InputMethodId | null
+    +listSupportedInputMethods(): InputMethodId[]
   }
 
   class LongPressManager {
@@ -126,14 +131,16 @@ classDiagram
     +onLocaleChanged(callback): Unsubscribe
   }
 
-  class EditorAdapter {
-    +insertText(text: string): void
-    +replaceSelection(text: string): void
+  class InputMethodController {
+    +setLocale(locale: LocaleTag): void
+    +setInputMethod(inputMethodId: InputMethodId | null): void
+    +cancelCompose(): void
+    +commitText(text: string): void
   }
 
   OnScreenKeyboardController --> KeyboardLayoutRegistry
   OnScreenKeyboardController --> SettingsService
-  OnScreenKeyboardController --> EditorAdapter
+  OnScreenKeyboardController --> InputMethodController
   OnScreenKeyboardController --> LocaleSelectionService
   LongPressManager --> OnScreenKeyboardController
 ```
@@ -144,12 +151,12 @@ classDiagram
 
 - **`OnScreenKeyboardController`**
   - Owns keyboard visibility (global), current locale, selected layout, and shift/caps state.
-  - Converts “key pressed” into text insertion via the editor adapter.
+  - Converts “key pressed” into text committed through the shared input pipeline (`InputMethodController.commitText`).
   - Persists global visibility preference.
   - Ensures each committed key/variant is a single undo step.
 
 - **`KeyboardLayoutRegistry`**
-  - Stores keyboard layouts keyed by locale tag (v1: `ru-RU` only).
+  - Stores keyboard layouts keyed by input method id (v1: `keyboard.ru-phonetic` only).
   - Layout is declarative: rows of keys; each key has labels and optional variants.
 
 - **`LongPressManager`**
@@ -160,11 +167,12 @@ classDiagram
   - Reads/writes `keyboardVisible` in IndexedDB settings store.
 
 - **`LocaleSelectionService`**
-  - Provides active document locale (per Story 2).
+  - Provides active document locale (per Story 2) and optional `inputMethodId` override (future-ready).
   - Notifies controller when the active locale changes so the keyboard can update.
 
-- **`EditorAdapter`**
-  - Boundary to editor engine; provides safe insertion operations that respect selection and history.
+- **`InputMethodController`**
+  - Single insertion point for all input sources (physical keyboard compose rules later + on-screen keyboard now).
+  - Responsible for committing plain text into the editor with correct selection replacement and undo grouping.
 
 ---
 
@@ -231,7 +239,7 @@ flowchart TD
 flowchart TD
   A[User clicks key] --> B[Controller resolves key from layout]
   B --> C[Apply shift/caps to choose output glyph]
-  C --> D[EditorAdapter.replaceSelection or insertText]
+  C --> D[InputMethodController.commitText]
   D --> E[Editor history records as one undo step]
   E --> F[If ShiftOnce, clear shift]
 ```
@@ -299,8 +307,9 @@ Additional UI utilities (optional):
 - `commitText(text: string): void` (commit arbitrary text, e.g., variant)
 
 #### KeyboardLayoutRegistry
-- `getLayout(locale: LocaleTag): KeyboardLayout | null`
-- `listSupportedLocales(): LocaleTag[]` (v1 returns `["ru-RU"]`)
+- `getLayout(inputMethodId: InputMethodId): KeyboardLayout | null`
+- `getDefaultInputMethod(locale: LocaleTag): InputMethodId | null` (v1 returns `keyboard.ru-phonetic` for `ru-RU`)
+- `listSupportedInputMethods(): InputMethodId[]` (v1 returns `["keyboard.ru-phonetic"]`)
 
 #### SettingsService (additions)
 - `getKeyboardVisible(): Promise<boolean>`
@@ -319,8 +328,10 @@ Additional UI utilities (optional):
 export type LocaleTag = string; // BCP 47, e.g. "ru-RU"
 export type DocumentId = string;
 export type Unsubscribe = () => void;
+export type InputMethodId = string; // e.g., "keyboard.ru-phonetic"
 
 export interface KeyboardLayout {
+  inputMethodId: InputMethodId; // stable id for layout selection and future customization
   locale: LocaleTag;          // "ru-RU"
   displayName: string;        // "Russian (phonetic)"
   rows: KeyboardRow[];
@@ -341,8 +352,11 @@ export interface KeyboardKey {
 }
 
 export interface KeyOutput {
-  lower: string;              // output when lowercase
-  upper: string;              // output when uppercase
+  base: string;               // default output (lowercase for letters)
+  shift?: string;             // shift layer
+  caps?: string;              // caps layer (optional override)
+  alt?: string;               // optional future layer
+  shiftAlt?: string;          // optional future layer
 }
 
 export interface KeyboardState {
@@ -370,7 +384,7 @@ Rationale:
 ### IndexedDB database
 - **DB name**: `glossadocs`
 - **dbVersion**: integer used for migrations.
-  - If Story 2 ships at `dbVersion = 2`, then Story 3 likely bumps to `dbVersion = 3` to add `keyboardVisible` to settings.
+  - Example: if Story 2 ships at `dbVersion = 2`, then Story 3 can bump to `dbVersion = 3` to add `keyboardVisible` to settings.
 
 ### Schema changes relative to Story 2
 - `settings` store: add `keyboardVisible: boolean`
@@ -380,7 +394,7 @@ Rationale:
 
 ### Default values
 - `keyboardVisible = true`
-- When `keyboardVisible = true`, keyboard panel renders only if the active document locale has a supported layout (v1: `ru-RU`).
+- When `keyboardVisible = true`, keyboard panel renders only if the active document has a supported input method (v1: `keyboard.ru-phonetic`, derived from `ru-RU`).
 
 ---
 

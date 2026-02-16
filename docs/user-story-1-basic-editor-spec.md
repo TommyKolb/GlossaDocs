@@ -289,6 +289,7 @@ These are the “public” interfaces between modules (TypeScript types).
 ```ts
 export type DocumentId = string;
 export type LocaleTag = string; // BCP 47, e.g. "en-US"
+export type InputMethodId = string; // e.g., "keyboard.ru-phonetic"
 
 export type Unsubscribe = () => void;
 
@@ -309,6 +310,9 @@ export interface DocumentMeta {
   savedAt: number;   // epoch ms (last successful persistence to IndexedDB)
   // Added/used starting Story 2 (language selection). For Story 1-only builds, default to "en-US".
   inputLocale: LocaleTag;
+  // Added/used starting Story 3+ (input method/layout selection). If omitted, derive from inputLocale.
+  // This prevents conflating "language intent" with "keyboard layout" as the project grows.
+  inputMethodId?: InputMethodId;
 }
 
 // Canonical editor document representation (ProseMirror/Tiptap JSON)
@@ -360,7 +364,7 @@ Rationale (formatting model choice):
 ### Object stores
 - **`documents`** (key: `id`)
   - Value: `DocumentRecord`
-  - Includes: `title`, timestamps, **`inputLocale`** (default `en-US`), and canonical editor content (`doc`)
+  - Includes: `title`, timestamps, **`inputLocale`** (default `en-US`), optional `inputMethodId`, and canonical editor content (`doc`)
   - Indexes:
     - `updatedAt` (for sorting recents)
     - `title` (for searching/filtering)

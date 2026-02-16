@@ -3,6 +3,8 @@
 
 **Scope (v1)**: Browser-only. Language selection is **per document**, uses real **BCP 47 locale tags** (e.g., `en-US`, `de-DE`, `ru-RU`), affects **future input only** (no retroactive changes), and is quickly changeable via a **toolbar dropdown** (hotkey placeholder). The app remembers the **last selected language** (used as default for newly created documents). Switching language **cancels any in-progress compose sequence**.
 
+Note: Locale expresses **language intent**, not a specific keyboard layout. As the project grows (Story 3+), a separate `inputMethodId` can override the default layout derived from `inputLocale`.
+
 **Initial selectable locales (proof of concept)**:
 - `en-US` (English — United States) **default**
 - `de-DE` (German — Germany)
@@ -104,6 +106,7 @@ classDiagram
     +setLocale(locale: LocaleTag): void
     +cancelCompose(): void
     +getComposeState(): ComposeState
+    +commitText(text: string): void
   }
 
   class SettingsService {
@@ -264,6 +267,7 @@ Additional (optional) utilities:
 - `setLocale(locale: LocaleTag): void`
 - `cancelCompose(): void`
 - `getComposeState(): ComposeState`
+- `commitText(text: string): void` (single insertion point used by on-screen keyboard in Story 3 and compose rules later)
 
 Hotkey placeholder:
 - Define an internal command name (unbound in v1): `language.switch.next` (cycles through available locales).
@@ -275,6 +279,7 @@ Hotkey placeholder:
 ```ts
 export type DocumentId = string;
 export type LocaleTag = string; // must be a valid BCP 47 tag (e.g., "en-US")
+export type InputMethodId = string; // e.g., "keyboard.ru-phonetic"
 
 export interface LocaleInfo {
   tag: LocaleTag;
@@ -295,6 +300,7 @@ export interface DocumentMeta {
   updatedAt: number;
   savedAt: number;
   inputLocale: LocaleTag; // per-document language intent for input
+  inputMethodId?: InputMethodId; // optional override of derived input method/layout (used starting Story 3+)
 }
 
 export interface DocumentRecord extends DocumentMeta {
@@ -328,11 +334,14 @@ Rationale:
 ### IndexedDB database
 - **DB name**: `glossadocs`
 - **dbVersion**: integer used for migrations.
-  - If Story 1 ships first at `dbVersion = 1`, then Story 2 bumps to `dbVersion = 2` to add `inputLocale` and `lastUsedLocale`.
+  - Example: if Story 1 ships first at `dbVersion = 1`, then Story 2 can bump to `dbVersion = 2` to add `inputLocale` and `lastUsedLocale`.
 
 ### Schema changes relative to Story 1
 - `documents` store: add `inputLocale` to stored `DocumentRecord` / metadata.
 - `settings` store: add `lastUsedLocale`.
+
+Reserved for future:
+- `documents` store may later include `inputMethodId` to decouple language intent from keyboard layout.
 
 ### Settings keys (suggested)
 - `lastUsedLocale`: `LocaleTag` (e.g., `"de-DE"`)

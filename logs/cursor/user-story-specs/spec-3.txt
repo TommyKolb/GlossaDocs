@@ -1,0 +1,2087 @@
+_**User**_
+
+One more user story - "As a multilingual writer, I want an integrated on-screen keyboard for a non-Latin alphabet so that I can type special characters directly inside the editor". Create the same style of spec as last time, with the same sections listed below. Ask for clarification if needed
+Header
+Architecture Diagram
+Specify where the components run (e.g., client, server, cloud, etc.).
+Specify which information flows between components.
+Class Diagram
+List of Classes
+State Diagrams
+Flow Chart
+Development Risks and Failures
+Technology Stack
+APIs
+Public Interfaces
+Data Schemas
+Security and Privacy
+Risks to Completion
+
+---
+
+_**Agent (model gpt-5.2, mode Agent)**_
+
+<think><details><summary>Thought Process</summary>
+**Clarifying specifications**
+
+I think the spec should be browser-only and work with the current architecture. I’m considering features like storing keyboard visibility and the last used state, possibly per document. It’s crucial to ensure there's no external security risk. The user wants me to create the spec but mentioned that I should ask for clarifications if necessary. So, I’ll prepare a concise set of questions before proceeding, as no tools are needed right now.</details></think>
+
+---
+
+### Clarifications needed before I write the Story 3 spec (on-screen keyboard for non‑Latin)
+To keep the diagrams/APIs/schemas consistent with Stories 1–2, I need these decisions:
+
+- **Target alphabet for v1 of this story**
+  - Should we implement **Cyrillic (Russian)** first (since you already have `ru-RU`)?
+
+- **When the keyboard appears**
+  - Should the on-screen keyboard be **auto-shown when the document `inputLocale` is non-Latin** (e.g., `ru-RU`), or should it be **manually toggled** (button) regardless of locale?
+
+- **Mapping / layout**
+  - Confirm: **phonetic mapping** (A→А, B→Б, etc.), not standard ЙЦУКЕН layout—right?
+  - Should we support **Shift/Caps** behavior (uppercase), and do we need a way to access punctuation/number row?
+
+- **Interaction semantics**
+  - Clicking a key should **insert at cursor**, **replace selection**, and integrate with **undo/redo** as a single operation—still correct?
+  - Should holding a key / long-press variants be in-scope, or **single character per click** only?
+
+- **Keyboard scope**
+  - Is this keyboard only for **non-Latin** (Cyrillic) in this story, or should it also cover **Latin + diacritics** keyboards? (I’ll keep it non-Latin-only unless you say otherwise.)
+
+- **Persistence**
+  - Should “keyboard visible/hidden” be **per document**, **global**, or “last state per locale”?
+
+Answer these and I’ll generate `docs/user-story-3-onscreen-keyboard-spec.md` with the exact same required sections as the previous specs.
+
+---
+
+_**User**_
+
+Yes, Cyrillic will be implemented first. The on-screen keyboard should have a button but be on by default. Phonetic mapping - if someone is using ЙЦУКЕН they'll probably have a Russian keyboard downloaded. Yes, uppercase and punctuation is required. Your interaction semantics are correct. Long-press variants are in scope. This keyboard should only be russian for now, Latin + diacritics come later. Keyboard visible/hidden should be global.
+
+---
+
+_**Agent (model gpt-5.2, mode Agent)**_
+
+<think><details><summary>Thought Process</summary>
+**Considering keyboard architecture**
+
+I need to provide a state diagram for the key press flow, which goes from idle to pressing to popover and finally to insert. I should outline the architecture, including components like `KeyboardOverlay` and `KeyboardLayoutRegistry`, while detailing the public interfaces like `KeyboardLayout`, `KeySpec`, and `VariantSpec`.
+
+There’s a mention of adding a boolean for keyboard visibility and a delay for long press, perhaps defaulting to 350 ms. It's important to stay consistent with locale tags too, considering how the keyboard interacts with `LocaleSelectionService.getActiveLocale`. I'll also plan future documentation with semantic versioning and a note on versioning.</details></think>
+
+---
+
+I’m going to write the full Story 3 spec into `docs/user-story-3-onscreen-keyboard-spec.md`, matching the same section structure as Stories 1–2, and aligning it with the existing per-document `inputLocale` + global settings model so the schemas and diagrams don’t conflict.
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: c:\Users\tommy\CS485\GlossaDocs\docs\user-story-3-onscreen-keyboard-spec.md</summary>
+
+</details>
+
+</tool-use>
+
+---
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "pattern": "\\\\n|Meta\\[|metadata/indexes|\\(v1\\):|Parse error|\\[\"",
+  "path": "c:\\Users\\tommy\\CS485\\GlossaDocs\\docs\\user-story-3-onscreen-keyboard-spec.md",
+  "outputMode": "content",
+  "caseInsensitive": false
+}
+```
+Result:
+
+```json
+{
+  "success": {
+    "pattern": "\\\\n|Meta\\[|metadata/indexes|\\(v1\\):|Parse error|\\[\"",
+    "path": "c:\\Users\\tommy\\CS485\\GlossaDocs\\docs\\user-story-3-onscreen-keyboard-spec.md",
+    "outputMode": "content",
+    "workspaceResults": {
+      "c:\\Users\\tommy\\CS485\\GlossaDocs": {
+        "content": {
+          "matches": [
+            {
+              "file": "docs\\user-story-3-onscreen-keyboard-spec.md",
+              "matches": [
+                {
+                  "lineNumber": 49,
+                  "content": "  subgraph Browser[\"Client (Browser)\"]"
+                },
+                {
+                  "lineNumber": 50,
+                  "content": "    UI[\"UI Shell&lt;br/&gt;- Keyboard toggle button&lt;br/&gt;- Keyboard panel&lt;br/&gt;- Toolbar\"]"
+                },
+                {
+                  "lineNumber": 51,
+                  "content": "    Editor[\"Rich Text Editor Engine&lt;br/&gt;(ProseMirror/Tiptap)\"]"
+                },
+                {
+                  "lineNumber": 52,
+                  "content": "    LocaleSvc[\"Locale Selection Service&lt;br/&gt;- active doc locale\"]"
+                },
+                {
+                  "lineNumber": 53,
+                  "content": "    KeyboardCtrl[\"OnScreenKeyboardController&lt;br/&gt;- visibility state (global)&lt;br/&gt;- shift/caps state&lt;br/&gt;- insert text into editor\"]"
+                },
+                {
+                  "lineNumber": 54,
+                  "content": "    Layouts[\"KeyboardLayoutRegistry&lt;br/&gt;- layouts by LocaleTag&lt;br/&gt;(v1: ru-RU)\"]"
+                },
+                {
+                  "lineNumber": 55,
+                  "content": "    LongPress[\"LongPressManager&lt;br/&gt;- detect hold&lt;br/&gt;- show variants popover\"]"
+                },
+                {
+                  "lineNumber": 56,
+                  "content": "    SettingsSvc[\"SettingsService&lt;br/&gt;- keyboardVisible\"]"
+                },
+                {
+                  "lineNumber": 57,
+                  "content": "    DocSvc[\"DocumentService&lt;br/&gt;- active doc meta\"]"
+                },
+                {
+                  "lineNumber": 60,
+                  "content": "  subgraph IDB[\"Browser Storage (IndexedDB)\"]"
+                },
+                {
+                  "lineNumber": 61,
+                  "content": "    Docs[\"documents store\"]"
+                },
+                {
+                  "lineNumber": 62,
+                  "content": "    Settings[\"settings store\"]"
+                },
+                {
+                  "lineNumber": 303,
+                  "content": "- &#96;listSupportedLocales(): LocaleTag[]&#96; (v1 returns &#96;[\"ru-RU\"]&#96;)"
+                }
+              ]
+            }
+          ],
+          "totalLines": 13,
+          "totalMatchedLines": 13
+        }
+      }
+    }
+  }
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "pattern": "dbVersion|keyboardVisible|ru-RU|KeyboardLayoutRegistry|LongPressManager",
+  "path": "c:\\Users\\tommy\\CS485\\GlossaDocs\\docs\\user-story-3-onscreen-keyboard-spec.md",
+  "outputMode": "count",
+  "caseInsensitive": false
+}
+```
+Result:
+
+```json
+{
+  "success": {
+    "pattern": "dbVersion|keyboardVisible|ru-RU|KeyboardLayoutRegistry|LongPressManager",
+    "path": "c:\\Users\\tommy\\CS485\\GlossaDocs\\docs\\user-story-3-onscreen-keyboard-spec.md",
+    "outputMode": "count",
+    "workspaceResults": {
+      "c:\\Users\\tommy\\CS485\\GlossaDocs": {
+        "count": {
+          "counts": [
+            {
+              "file": "docs\\user-story-3-onscreen-keyboard-spec.md",
+              "count": 28
+            }
+          ],
+          "totalFiles": 1,
+          "totalMatches": 28
+        }
+      }
+    }
+  }
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+---
+
+Created the Story 3 spec at:
+
+- `docs/user-story-3-onscreen-keyboard-spec.md`
+
+It matches the same section structure as Stories 1–2 and incorporates your requirements: **Russian Cyrillic first (`ru-RU`)**, **phonetic mapping**, **toggle button but on by default**, **global visibility**, **uppercase + punctuation**, **long-press variants**, and **undo/redo-safe insertion**.
+
+I also sanity-checked the doc for common Mermaid issues (no literal `\n` labels; avoided bracket/quote patterns that tend to break flowcharts) and ensured the **data schema change** is explicit (`settings.keyboardVisible`).
+
+---
+
+_**User**_
+
+Check for inconsistencies between the three spec documents. Make sure they don't contradict each other. User stories 2 and 3 can add classes/features/etc. to the previous one(s), but no contradictions.
+
+---
+
+_**Agent (model gpt-5.2, mode Agent)**_
+
+<think><details><summary>Thought Process</summary>
+**Reviewing markdown docs for consistency**
+
+I need to cross-review three markdown documents for any contradictions. I'll focus on areas like versioning, settings schema, and document meta fields. I can either read all three documents or use Grep patterns to find key terms quickly, such as dbVersion and settings store.
+
+As I identify contradictions, like how different stories mention settings keys, I need to ensure they align. Finally, I’ll reconcile by patching the documents with consistent references for schema evolution across the stories.
+**Clarifying architecture and schema**
+
+In reviewing Story1, I noticed it removed the Meta store from the architecture diagram. The Data Schemas indicate that while the settings store says its value can be anything, the AppSettings interface only includes autosaveIntervalMs. Later stories define more fields for AppSettings, so we might need to clarify that it evolves.
+
+Also, Story1's DocumentMeta interface is missing inputLocale, which Story2 defines. To avoid contradictions, I should update Story1 to indicate that additional fields like `inputLocale` may be added in later stories or create a `DocumentMetaBase` for extensions.
+**Updating optional fields and versioning**
+
+I’m looking to add `inputLocale?: string` as an optional field that becomes required with Story2's implementation. Additionally, I'll include optional fields like `lastUsedLocale?: string` and `keyboardVisible?: boolean` in AppSettings for consistency. It makes sense to unify these into one `AppSettings` interface to avoid contradictions.
+
+With the Data Schemas, Story1 has `dbVersion = 1`, while Story2 increases it to 2, and Story3 to 3. I need to ensure Story1 properly states that `dbVersion` is 1 and includes new fields, while noting that Story2 architecture brings in `InputMethodController` and `OnScreenKeyboardController`.
+**Checking for contradictions in stories**
+
+I want to make sure there’s no contradiction with Story2's statement of “don’t worry about the keyboard yet,” and it seems like it checks out. Now, I need to confirm that Story3 mentions the keyboard is on by default and is a global setting. 
+
+Since Story1 didn’t include any settings keys and Story2 introduced the settings store, I’ll verify that Story2 states, “language affects future input only,” and that Story3 references how the input method inserts text. I'll use Grep across the documents for `export interface DocumentMeta` and patch up any findings.</details></think>
+
+---
+
+I’m going to compare the three specs side-by-side on the shared “contracts” (data schemas, settings/document metadata fields, dbVersion assumptions, and shared services) and then patch any wording/type definitions that contradict across docs, keeping later stories as additive extensions.
+
+---
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "pattern": "export interface DocumentMeta|inputLocale|export interface AppSettings|lastUsedLocale|keyboardVisible|dbVersion|documents store|settings store",
+  "path": "c:\\Users\\tommy\\CS485\\GlossaDocs\\docs",
+  "outputMode": "content",
+  "caseInsensitive": false
+}
+```
+Result:
+
+```json
+{
+  "success": {
+    "pattern": "export interface DocumentMeta|inputLocale|export interface AppSettings|lastUsedLocale|keyboardVisible|dbVersion|documents store|settings store",
+    "path": "c:\\Users\\tommy\\CS485\\GlossaDocs\\docs",
+    "outputMode": "content",
+    "workspaceResults": {
+      "c:\\Users\\tommy\\CS485\\GlossaDocs": {
+        "content": {
+          "matches": [
+            {
+              "file": "docs\\user-story-3-onscreen-keyboard-spec.md",
+              "matches": [
+                {
+                  "lineNumber": 34,
+                  "content": "- Story 2 exists: each document has &#96;inputLocale&#96; (BCP 47 tag) and the app can read the active document locale."
+                },
+                {
+                  "lineNumber": 56,
+                  "content": "    SettingsSvc[\"SettingsService&lt;br/&gt;- keyboardVisible\"]"
+                },
+                {
+                  "lineNumber": 61,
+                  "content": "    Docs[\"documents store\"]"
+                },
+                {
+                  "lineNumber": 62,
+                  "content": "    Settings[\"settings store\"]"
+                },
+                {
+                  "lineNumber": 83,
+                  "content": "- **Keyboard Controller ↔ SettingsService ↔ IndexedDB**: read/write global &#96;keyboardVisible&#96;."
+                },
+                {
+                  "lineNumber": 160,
+                  "content": "  - Reads/writes &#96;keyboardVisible&#96; in IndexedDB settings store."
+                },
+                {
+                  "lineNumber": 356,
+                  "content": "export interface AppSettings {"
+                },
+                {
+                  "lineNumber": 358,
+                  "content": "  lastUsedLocale: LocaleTag;"
+                },
+                {
+                  "lineNumber": 359,
+                  "content": "  keyboardVisible: boolean;   // global keyboard panel toggle"
+                },
+                {
+                  "lineNumber": 372,
+                  "content": "- **dbVersion**: integer used for migrations."
+                },
+                {
+                  "lineNumber": 373,
+                  "content": "  - If Story 2 ships at &#96;dbVersion = 2&#96;, then Story 3 likely bumps to &#96;dbVersion = 3&#96; to add &#96;keyboardVisible&#96; to settings."
+                },
+                {
+                  "lineNumber": 376,
+                  "content": "- &#96;settings&#96; store: add &#96;keyboardVisible: boolean&#96;"
+                },
+                {
+                  "lineNumber": 379,
+                  "content": "- &#96;keyboardVisible&#96;: &#96;boolean&#96; (default &#96;true&#96;)"
+                },
+                {
+                  "lineNumber": 382,
+                  "content": "- &#96;keyboardVisible = true&#96;"
+                },
+                {
+                  "lineNumber": 383,
+                  "content": "- When &#96;keyboardVisible = true&#96;, keyboard panel renders only if the active document locale has a supported layout (v1: &#96;ru-RU&#96;)."
+                }
+              ]
+            },
+            {
+              "file": "docs\\user-story-2-language-selection-spec.md",
+              "matches": [
+                {
+                  "lineNumber": 44,
+                  "content": "- **Storage (Browser IndexedDB)**: documents (including &#96;inputLocale&#96;) and settings (including &#96;lastUsedLocale&#96;)."
+                },
+                {
+                  "lineNumber": 53,
+                  "content": "    DocService[\"Document Service&lt;br/&gt;- persists per-doc inputLocale\"]"
+                },
+                {
+                  "lineNumber": 59,
+                  "content": "    Docs[\"documents store\"]"
+                },
+                {
+                  "lineNumber": 60,
+                  "content": "    Settings[\"settings store\"]"
+                },
+                {
+                  "lineNumber": 75,
+                  "content": "- **Locale Selection Service → Document Service**: update active document’s &#96;inputLocale&#96; and persist it."
+                },
+                {
+                  "lineNumber": 76,
+                  "content": "- **Locale Selection Service ↔ IndexedDB settings**: read/write &#96;lastUsedLocale&#96;."
+                },
+                {
+                  "lineNumber": 79,
+                  "content": "- **Document switch → UI**: opening a different document refreshes the dropdown selection to that document’s &#96;inputLocale&#96;."
+                },
+                {
+                  "lineNumber": 126,
+                  "content": "- &#96;LocaleSelectionService.setActiveLocale&#96; updates three things as one user-visible action: active doc’s &#96;inputLocale&#96;, global &#96;lastUsedLocale&#96;, and current input-method locale (which cancels compose). Persistence can be done via a single IndexedDB transaction spanning the &#96;documents&#96; and &#96;settings&#96; stores."
+                },
+                {
+                  "lineNumber": 135,
+                  "content": "  - Persists per-document &#96;inputLocale&#96; via &#96;DocumentService&#96;."
+                },
+                {
+                  "lineNumber": 136,
+                  "content": "  - Persists global &#96;lastUsedLocale&#96; via &#96;SettingsService&#96;."
+                },
+                {
+                  "lineNumber": 150,
+                  "content": "  - Loads/saves per-document locale (&#96;inputLocale&#96;) as part of document metadata."
+                },
+                {
+                  "lineNumber": 151,
+                  "content": "  - Guarantees that opening a document restores its &#96;inputLocale&#96; (and thus the input-method locale)."
+                },
+                {
+                  "lineNumber": 154,
+                  "content": "  - Stores global preference &#96;lastUsedLocale&#96; for defaulting new documents."
+                },
+                {
+                  "lineNumber": 210,
+                  "content": "  B --&gt; C[Read record.inputLocale]"
+                },
+                {
+                  "lineNumber": 225,
+                  "content": "  - Mitigation: locale update is metadata-only on the same record; use a single write transaction per update or a simple “last write wins” rule on &#96;inputLocale&#96;."
+                },
+                {
+                  "lineNumber": 291,
+                  "content": "export interface DocumentMeta {"
+                },
+                {
+                  "lineNumber": 297,
+                  "content": "  inputLocale: LocaleTag; // per-document language intent for input"
+                },
+                {
+                  "lineNumber": 302,
+                  "content": "  // Story 2 adds/relies on &#96;inputLocale&#96; existing on the stored record."
+                },
+                {
+                  "lineNumber": 312,
+                  "content": "export interface AppSettings {"
+                },
+                {
+                  "lineNumber": 314,
+                  "content": "  lastUsedLocale: LocaleTag; // used as default for new docs"
+                },
+                {
+                  "lineNumber": 319,
+                  "content": "- &#96;inputLocale&#96; lives on document metadata because language intent is a property of the document, not just the current session."
+                },
+                {
+                  "lineNumber": 320,
+                  "content": "- &#96;lastUsedLocale&#96; is global to streamline creating multiple docs in the same language."
+                },
+                {
+                  "lineNumber": 328,
+                  "content": "- **dbVersion**: integer used for migrations."
+                },
+                {
+                  "lineNumber": 329,
+                  "content": "  - If Story 1 ships first at &#96;dbVersion = 1&#96;, then Story 2 bumps to &#96;dbVersion = 2&#96; to add &#96;inputLocale&#96; and &#96;lastUsedLocale&#96;."
+                },
+                {
+                  "lineNumber": 332,
+                  "content": "- &#96;documents&#96; store: add &#96;inputLocale&#96; to stored &#96;DocumentRecord&#96; / metadata."
+                },
+                {
+                  "lineNumber": 333,
+                  "content": "- &#96;settings&#96; store: add &#96;lastUsedLocale&#96;."
+                },
+                {
+                  "lineNumber": 336,
+                  "content": "- &#96;lastUsedLocale&#96;: &#96;LocaleTag&#96; (e.g., &#96;\"de-DE\"&#96;)"
+                },
+                {
+                  "lineNumber": 340,
+                  "content": "- Default &#96;lastUsedLocale&#96; on first run: &#96;en-US&#96;"
+                },
+                {
+                  "lineNumber": 341,
+                  "content": "- New documents default to &#96;settings.lastUsedLocale&#96; (falls back to &#96;en-US&#96;)"
+                },
+                {
+                  "lineNumber": 344,
+                  "content": "- Existing documents created before Story 2: during migration, backfill &#96;inputLocale = \"en-US\"&#96;."
+                },
+                {
+                  "lineNumber": 368,
+                  "content": "- **Migration discipline**: adding &#96;inputLocale&#96; requires IndexedDB version bump and safe backfill."
+                }
+              ]
+            },
+            {
+              "file": "docs\\user-story-1-basic-editor-spec.md",
+              "matches": [
+                {
+                  "lineNumber": 18,
+                  "content": "- **Storage schema**: IndexedDB uses a required **integer** &#96;dbVersion&#96; for migrations; this is versioned independently of app SemVer."
+                },
+                {
+                  "lineNumber": 59,
+                  "content": "    Docs[\"documents store\"]"
+                },
+                {
+                  "lineNumber": 60,
+                  "content": "    AppSettings[\"settings store\"]"
+                },
+                {
+                  "lineNumber": 302,
+                  "content": "export interface DocumentMeta {"
+                },
+                {
+                  "lineNumber": 330,
+                  "content": "export interface AppSettings {"
+                },
+                {
+                  "lineNumber": 350,
+                  "content": "- **dbVersion**: &#96;1&#96; (IndexedDB integer; increment for migrations)"
+                }
+              ]
+            }
+          ],
+          "totalLines": 52,
+          "totalMatchedLines": 52
+        }
+      }
+    }
+  }
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: c:\Users\tommy\CS485\GlossaDocs\docs\user-story-1-basic-editor-spec.md</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: c:\Users\tommy\CS485\GlossaDocs\docs\user-story-2-language-selection-spec.md</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: c:\Users\tommy\CS485\GlossaDocs\docs\user-story-3-onscreen-keyboard-spec.md</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+**Evaluating document discrepancies**
+
+I'm noticing some contradictions between the stories regarding document metadata and settings. Story1 is missing the `inputLocale`, while Story2 states it's required. Story1 only mentions `autosaveIntervalMs`, and Story2 adds `lastUsedLocale` and `keyboardVisible`. To clear this up, I plan to adjust Story1 to allow for these optional fields. I’ll update the specifications so that future stories can align correctly without conflict. This will help streamline our documentation!
+**Resolving document meta conflicts**
+
+I’m grappling with a mismatch in the `DocumentMeta` between Story1 and Story2. Although Story2 can require `inputLocale` while Story1 lists it as optional, I think we can clarify this by stating in Story1 that `inputLocale` will become required in Story2. It’s tricky because different types could lead to confusion, so perhaps keeping Story1's `DocumentMeta` minimal and noting it will be extended later is wise. I could define `inputLocale` as defaults to "en-US" without causing a contradiction!
+**Updating document settings**
+
+I need to add a note in Story1 indicating that `inputLocale` is set to "en-US" by default and may be hidden in the UI. Even though Story1 didn’t have a language selection, that’s fine. I can include `lastUsedLocale` and `keyboardVisible` in Story1's `AppSettings` with defaults. Adding these settings won't harm anything. I'll also ensure Story1's architecture reflects these updates, clarifying that Story2’s changes are just updates, not contradictions if we phrase it correctly. Let’s patch it!
+**Aligning database versioning and settings**
+
+I'm looking at the database versioning: Story1 starts at version 1, and Story2 assumes it bumps to 2 when Story1 ships. Story3 follows from there, which all seems consistent. I should note that Story1 might mention "dbVersion 1 increment for migrations." 
+
+However, I noticed a potential mismatch with the settings. Story1 only includes `autosaveIntervalMs`, while Story2 and Story3 mention `lastUsedLocale` and `keyboardVisible`. I need to update Story1 to include these for consistency. Also, Story3's keyboard settings depend on an active doc locale, so I'll clarify that requirement!
+**Patching document settings and schemas**
+
+In Story3, the `SettingsService` should note that the per-document locale is set by Story2, so updating Story1's specs to include `LocaleTag` and `inputLocale` in both `DocumentMeta` and `DocumentRecord` is essential. I’ll also add `lastUsedLocale` and `keyboardVisible` to `AppSettings` with default notes. We should clarify defaults, like defaulting document locale to "en-US." For Story2, I’ll include `keyboardVisible` as optional. This way, we maintain consistency across the documents while minimizing contradictions. Let’s patch everything accordingly!</details></think>
+
+---
+
+I found a real cross-spec contract mismatch: Story 1’s `DocumentMeta`/`AppSettings` types don’t include the fields Story 2/3 add (`inputLocale`, `lastUsedLocale`, `keyboardVisible`). I’m going to update Story 1 (and lightly Story 2) to make these shared interfaces explicitly **cumulative** and forward-compatible, so the three specs don’t contradict each other.
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: c:\\Users\\tommy\\CS485\\GlossaDocs\\docs\\user-story-1-basic-editor-spec.md</summary>
+
+</details>
+
+</tool-use>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: c:\\Users\\tommy\\CS485\\GlossaDocs\\docs\\user-story-1-basic-editor-spec.md</summary>
+
+</details>
+
+</tool-use>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: c:\\Users\\tommy\\CS485\\GlossaDocs\\docs\\user-story-2-language-selection-spec.md</summary>
+
+</details>
+
+</tool-use>
+
+---
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "pattern": "export interface AppSettings|keyboardVisible|lastUsedLocale|inputLocale",
+  "path": "c:\\Users\\tommy\\CS485\\GlossaDocs\\docs\\user-story-1-basic-editor-spec.md",
+  "outputMode": "content",
+  "caseInsensitive": false
+}
+```
+Result:
+
+```json
+{
+  "success": {
+    "pattern": "export interface AppSettings|keyboardVisible|lastUsedLocale|inputLocale",
+    "path": "c:\\Users\\tommy\\CS485\\GlossaDocs\\docs\\user-story-1-basic-editor-spec.md",
+    "outputMode": "content",
+    "workspaceResults": {
+      "c:\\Users\\tommy\\CS485\\GlossaDocs": {
+        "content": {
+          "matches": [
+            {
+              "file": "docs\\user-story-1-basic-editor-spec.md",
+              "matches": [
+                {
+                  "lineNumber": 310,
+                  "content": "  inputLocale: LocaleTag;"
+                },
+                {
+                  "lineNumber": 333,
+                  "content": "export interface AppSettings {"
+                },
+                {
+                  "lineNumber": 336,
+                  "content": "  lastUsedLocale: LocaleTag;"
+                },
+                {
+                  "lineNumber": 338,
+                  "content": "  keyboardVisible: boolean;"
+                }
+              ]
+            }
+          ],
+          "totalLines": 4,
+          "totalMatchedLines": 4
+        }
+      }
+    }
+  }
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "pattern": "export interface AppSettings|keyboardVisible\\?:|inputLocale",
+  "path": "c:\\Users\\tommy\\CS485\\GlossaDocs\\docs\\user-story-2-language-selection-spec.md",
+  "outputMode": "content",
+  "caseInsensitive": false
+}
+```
+Result:
+
+```json
+{
+  "success": {
+    "pattern": "export interface AppSettings|keyboardVisible\\?:|inputLocale",
+    "path": "c:\\Users\\tommy\\CS485\\GlossaDocs\\docs\\user-story-2-language-selection-spec.md",
+    "outputMode": "content",
+    "workspaceResults": {
+      "c:\\Users\\tommy\\CS485\\GlossaDocs": {
+        "content": {
+          "matches": [
+            {
+              "file": "docs\\user-story-2-language-selection-spec.md",
+              "matches": [
+                {
+                  "lineNumber": 44,
+                  "content": "- **Storage (Browser IndexedDB)**: documents (including &#96;inputLocale&#96;) and settings (including &#96;lastUsedLocale&#96;)."
+                },
+                {
+                  "lineNumber": 53,
+                  "content": "    DocService[\"Document Service&lt;br/&gt;- persists per-doc inputLocale\"]"
+                },
+                {
+                  "lineNumber": 75,
+                  "content": "- **Locale Selection Service → Document Service**: update active document’s &#96;inputLocale&#96; and persist it."
+                },
+                {
+                  "lineNumber": 79,
+                  "content": "- **Document switch → UI**: opening a different document refreshes the dropdown selection to that document’s &#96;inputLocale&#96;."
+                },
+                {
+                  "lineNumber": 126,
+                  "content": "- &#96;LocaleSelectionService.setActiveLocale&#96; updates three things as one user-visible action: active doc’s &#96;inputLocale&#96;, global &#96;lastUsedLocale&#96;, and current input-method locale (which cancels compose). Persistence can be done via a single IndexedDB transaction spanning the &#96;documents&#96; and &#96;settings&#96; stores."
+                },
+                {
+                  "lineNumber": 135,
+                  "content": "  - Persists per-document &#96;inputLocale&#96; via &#96;DocumentService&#96;."
+                },
+                {
+                  "lineNumber": 150,
+                  "content": "  - Loads/saves per-document locale (&#96;inputLocale&#96;) as part of document metadata."
+                },
+                {
+                  "lineNumber": 151,
+                  "content": "  - Guarantees that opening a document restores its &#96;inputLocale&#96; (and thus the input-method locale)."
+                },
+                {
+                  "lineNumber": 210,
+                  "content": "  B --&gt; C[Read record.inputLocale]"
+                },
+                {
+                  "lineNumber": 225,
+                  "content": "  - Mitigation: locale update is metadata-only on the same record; use a single write transaction per update or a simple “last write wins” rule on &#96;inputLocale&#96;."
+                },
+                {
+                  "lineNumber": 297,
+                  "content": "  inputLocale: LocaleTag; // per-document language intent for input"
+                },
+                {
+                  "lineNumber": 302,
+                  "content": "  // Story 2 adds/relies on &#96;inputLocale&#96; existing on the stored record."
+                },
+                {
+                  "lineNumber": 312,
+                  "content": "export interface AppSettings {"
+                },
+                {
+                  "lineNumber": 316,
+                  "content": "  keyboardVisible?: boolean;"
+                },
+                {
+                  "lineNumber": 321,
+                  "content": "- &#96;inputLocale&#96; lives on document metadata because language intent is a property of the document, not just the current session."
+                },
+                {
+                  "lineNumber": 331,
+                  "content": "  - If Story 1 ships first at &#96;dbVersion = 1&#96;, then Story 2 bumps to &#96;dbVersion = 2&#96; to add &#96;inputLocale&#96; and &#96;lastUsedLocale&#96;."
+                },
+                {
+                  "lineNumber": 334,
+                  "content": "- &#96;documents&#96; store: add &#96;inputLocale&#96; to stored &#96;DocumentRecord&#96; / metadata."
+                },
+                {
+                  "lineNumber": 346,
+                  "content": "- Existing documents created before Story 2: during migration, backfill &#96;inputLocale = \"en-US\"&#96;."
+                },
+                {
+                  "lineNumber": 370,
+                  "content": "- **Migration discipline**: adding &#96;inputLocale&#96; requires IndexedDB version bump and safe backfill."
+                }
+              ]
+            }
+          ],
+          "totalLines": 19,
+          "totalMatchedLines": 19
+        }
+      }
+    }
+  }
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "pattern": "export interface AppSettings|keyboardVisible",
+  "path": "c:\\Users\\tommy\\CS485\\GlossaDocs\\docs\\user-story-3-onscreen-keyboard-spec.md",
+  "outputMode": "content",
+  "caseInsensitive": false
+}
+```
+Result:
+
+```json
+{
+  "success": {
+    "pattern": "export interface AppSettings|keyboardVisible",
+    "path": "c:\\Users\\tommy\\CS485\\GlossaDocs\\docs\\user-story-3-onscreen-keyboard-spec.md",
+    "outputMode": "content",
+    "workspaceResults": {
+      "c:\\Users\\tommy\\CS485\\GlossaDocs": {
+        "content": {
+          "matches": [
+            {
+              "file": "docs\\user-story-3-onscreen-keyboard-spec.md",
+              "matches": [
+                {
+                  "lineNumber": 56,
+                  "content": "    SettingsSvc[\"SettingsService&lt;br/&gt;- keyboardVisible\"]"
+                },
+                {
+                  "lineNumber": 83,
+                  "content": "- **Keyboard Controller ↔ SettingsService ↔ IndexedDB**: read/write global &#96;keyboardVisible&#96;."
+                },
+                {
+                  "lineNumber": 160,
+                  "content": "  - Reads/writes &#96;keyboardVisible&#96; in IndexedDB settings store."
+                },
+                {
+                  "lineNumber": 356,
+                  "content": "export interface AppSettings {"
+                },
+                {
+                  "lineNumber": 359,
+                  "content": "  keyboardVisible: boolean;   // global keyboard panel toggle"
+                },
+                {
+                  "lineNumber": 373,
+                  "content": "  - If Story 2 ships at &#96;dbVersion = 2&#96;, then Story 3 likely bumps to &#96;dbVersion = 3&#96; to add &#96;keyboardVisible&#96; to settings."
+                },
+                {
+                  "lineNumber": 376,
+                  "content": "- &#96;settings&#96; store: add &#96;keyboardVisible: boolean&#96;"
+                },
+                {
+                  "lineNumber": 379,
+                  "content": "- &#96;keyboardVisible&#96;: &#96;boolean&#96; (default &#96;true&#96;)"
+                },
+                {
+                  "lineNumber": 382,
+                  "content": "- &#96;keyboardVisible = true&#96;"
+                },
+                {
+                  "lineNumber": 383,
+                  "content": "- When &#96;keyboardVisible = true&#96;, keyboard panel renders only if the active document locale has a supported layout (v1: &#96;ru-RU&#96;)."
+                }
+              ]
+            }
+          ],
+          "totalLines": 10,
+          "totalMatchedLines": 10
+        }
+      }
+    }
+  }
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+**Updating data schemas**
+
+I’m thinking we really need to ensure the default values for story2's Data Schemas include the right details—oh wait, that's actually for story3. Optional values should be fine. I also need to update story1’s Data Schemas to mention that `DocumentRecord` includes `inputLocale`. While I’m at it, I should clarify in the Public Interfaces that `DocumentRecord` extends `DocumentMeta` with `inputLocale`. I’ll apply a small patch to mention this in the docs to reduce any confusion.</details></think>
+
+---
+
+The big cross-spec contradiction is now resolved by making the shared types (`DocumentMeta`, `AppSettings`) cumulative across Story 1→2→3. Next I’ll do a final pass for smaller mismatches (like Story 1’s schema description not explicitly mentioning `inputLocale`) and tighten those so the three documents read coherently together.
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: c:\\Users\\tommy\\CS485\\GlossaDocs\\docs\\user-story-1-basic-editor-spec.md</summary>
+
+</details>
+
+</tool-use>
+
+---
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "pattern": "inputLocale|lastUsedLocale|keyboardVisible|dbVersion",
+  "path": "c:\\Users\\tommy\\CS485\\GlossaDocs\\docs\\user-story-1-basic-editor-spec.md",
+  "outputMode": "content",
+  "caseInsensitive": false
+}
+```
+Result:
+
+```json
+{
+  "success": {
+    "pattern": "inputLocale|lastUsedLocale|keyboardVisible|dbVersion",
+    "path": "c:\\Users\\tommy\\CS485\\GlossaDocs\\docs\\user-story-1-basic-editor-spec.md",
+    "outputMode": "content",
+    "workspaceResults": {
+      "c:\\Users\\tommy\\CS485\\GlossaDocs": {
+        "content": {
+          "matches": [
+            {
+              "file": "docs\\user-story-1-basic-editor-spec.md",
+              "matches": [
+                {
+                  "lineNumber": 18,
+                  "content": "- **Storage schema**: IndexedDB uses a required **integer** &#96;dbVersion&#96; for migrations; this is versioned independently of app SemVer."
+                },
+                {
+                  "lineNumber": 310,
+                  "content": "  inputLocale: LocaleTag;"
+                },
+                {
+                  "lineNumber": 336,
+                  "content": "  lastUsedLocale: LocaleTag;"
+                },
+                {
+                  "lineNumber": 338,
+                  "content": "  keyboardVisible: boolean;"
+                },
+                {
+                  "lineNumber": 357,
+                  "content": "- **dbVersion**: &#96;1&#96; (IndexedDB integer; increment for migrations)"
+                },
+                {
+                  "lineNumber": 362,
+                  "content": "  - Includes: &#96;title&#96;, timestamps, **&#96;inputLocale&#96;** (default &#96;en-US&#96;), and canonical editor content (&#96;doc&#96;)"
+                }
+              ]
+            }
+          ],
+          "totalLines": 6,
+          "totalMatchedLines": 6
+        }
+      }
+    }
+  }
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "pattern": "AppSettings|keyboardVisible\\?:|lastUsedLocale",
+  "path": "c:\\Users\\tommy\\CS485\\GlossaDocs\\docs\\user-story-2-language-selection-spec.md",
+  "outputMode": "content",
+  "caseInsensitive": false
+}
+```
+Result:
+
+```json
+{
+  "success": {
+    "pattern": "AppSettings|keyboardVisible\\?:|lastUsedLocale",
+    "path": "c:\\Users\\tommy\\CS485\\GlossaDocs\\docs\\user-story-2-language-selection-spec.md",
+    "outputMode": "content",
+    "workspaceResults": {
+      "c:\\Users\\tommy\\CS485\\GlossaDocs": {
+        "content": {
+          "matches": [
+            {
+              "file": "docs\\user-story-2-language-selection-spec.md",
+              "matches": [
+                {
+                  "lineNumber": 44,
+                  "content": "- **Storage (Browser IndexedDB)**: documents (including &#96;inputLocale&#96;) and settings (including &#96;lastUsedLocale&#96;)."
+                },
+                {
+                  "lineNumber": 76,
+                  "content": "- **Locale Selection Service ↔ IndexedDB settings**: read/write &#96;lastUsedLocale&#96;."
+                },
+                {
+                  "lineNumber": 126,
+                  "content": "- &#96;LocaleSelectionService.setActiveLocale&#96; updates three things as one user-visible action: active doc’s &#96;inputLocale&#96;, global &#96;lastUsedLocale&#96;, and current input-method locale (which cancels compose). Persistence can be done via a single IndexedDB transaction spanning the &#96;documents&#96; and &#96;settings&#96; stores."
+                },
+                {
+                  "lineNumber": 136,
+                  "content": "  - Persists global &#96;lastUsedLocale&#96; via &#96;SettingsService&#96;."
+                },
+                {
+                  "lineNumber": 154,
+                  "content": "  - Stores global preference &#96;lastUsedLocale&#96; for defaulting new documents."
+                },
+                {
+                  "lineNumber": 312,
+                  "content": "export interface AppSettings {"
+                },
+                {
+                  "lineNumber": 314,
+                  "content": "  lastUsedLocale: LocaleTag; // used as default for new docs"
+                },
+                {
+                  "lineNumber": 316,
+                  "content": "  keyboardVisible?: boolean;"
+                },
+                {
+                  "lineNumber": 322,
+                  "content": "- &#96;lastUsedLocale&#96; is global to streamline creating multiple docs in the same language."
+                },
+                {
+                  "lineNumber": 331,
+                  "content": "  - If Story 1 ships first at &#96;dbVersion = 1&#96;, then Story 2 bumps to &#96;dbVersion = 2&#96; to add &#96;inputLocale&#96; and &#96;lastUsedLocale&#96;."
+                },
+                {
+                  "lineNumber": 335,
+                  "content": "- &#96;settings&#96; store: add &#96;lastUsedLocale&#96;."
+                },
+                {
+                  "lineNumber": 338,
+                  "content": "- &#96;lastUsedLocale&#96;: &#96;LocaleTag&#96; (e.g., &#96;\"de-DE\"&#96;)"
+                },
+                {
+                  "lineNumber": 342,
+                  "content": "- Default &#96;lastUsedLocale&#96; on first run: &#96;en-US&#96;"
+                },
+                {
+                  "lineNumber": 343,
+                  "content": "- New documents default to &#96;settings.lastUsedLocale&#96; (falls back to &#96;en-US&#96;)"
+                }
+              ]
+            }
+          ],
+          "totalLines": 14,
+          "totalMatchedLines": 14
+        }
+      }
+    }
+  }
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "pattern": "AppSettings|keyboardVisible: boolean",
+  "path": "c:\\Users\\tommy\\CS485\\GlossaDocs\\docs\\user-story-3-onscreen-keyboard-spec.md",
+  "outputMode": "content",
+  "caseInsensitive": false
+}
+```
+Result:
+
+```json
+{
+  "success": {
+    "pattern": "AppSettings|keyboardVisible: boolean",
+    "path": "c:\\Users\\tommy\\CS485\\GlossaDocs\\docs\\user-story-3-onscreen-keyboard-spec.md",
+    "outputMode": "content",
+    "workspaceResults": {
+      "c:\\Users\\tommy\\CS485\\GlossaDocs": {
+        "content": {
+          "matches": [
+            {
+              "file": "docs\\user-story-3-onscreen-keyboard-spec.md",
+              "matches": [
+                {
+                  "lineNumber": 356,
+                  "content": "export interface AppSettings {"
+                },
+                {
+                  "lineNumber": 359,
+                  "content": "  keyboardVisible: boolean;   // global keyboard panel toggle"
+                },
+                {
+                  "lineNumber": 376,
+                  "content": "- &#96;settings&#96; store: add &#96;keyboardVisible: boolean&#96;"
+                }
+              ]
+            }
+          ],
+          "totalLines": 3,
+          "totalMatchedLines": 3
+        }
+      }
+    }
+  }
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+**Evaluating service inconsistencies**
+
+I’m examining the story1 API, and it seems there are some elements that might raise questions about consistency. The `SettingsService` methods only reference the autosave interval, while AppSettings includes additional fields, which could be flagged as inconsistent. To clarify this, I could add a note stating that `SettingsService` will expand in future stories. Additionally, the DocumentService doesn’t handle inputLocale, so I’ll need to clarify that create/open should include it. I think I can address these points effectively!
+**Updating DocumentService details**
+
+I'm planning to add a bullet point in Story1 for DocumentService responsibilities that states it stores inputLocale with a default of en-US, and that this will be extended in Story2. I don't see any contradictions here. Similarly, Story2 will add a feature for setting document locale. I’ll also update the “List of Classes” in Story1 for both SettingsService and DocumentService to mention their extensions. Finally, I need to ensure Story2 uses the settingsService for getLastUsedLocale, clarifying things in Story1 where needed. I'll keep it minimal!</details></think>
+
+---
+
+All three specs now agree on the shared persisted fields and versioning story. I’m going to make one last small edit to Story 1 to explicitly note that `DocumentService`/`SettingsService` will be extended in Stories 2–3 (so the expanded `AppSettings`/`DocumentMeta` types don’t look like they contradict Story 1’s narrower APIs).
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: c:\\Users\\tommy\\CS485\\GlossaDocs\\docs\\user-story-1-basic-editor-spec.md</summary>
+
+</details>
+
+</tool-use>
+
+---
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "pattern": "Stores &#96;inputLocale&#96;|extended with &#96;lastUsedLocale&#96;|keyboardVisible",
+  "path": "c:\\Users\\tommy\\CS485\\GlossaDocs\\docs\\user-story-1-basic-editor-spec.md",
+  "outputMode": "content",
+  "caseInsensitive": false
+}
+```
+Result:
+
+```json
+{
+  "success": {
+    "pattern": "Stores &#96;inputLocale&#96;|extended with &#96;lastUsedLocale&#96;|keyboardVisible",
+    "path": "c:\\Users\\tommy\\CS485\\GlossaDocs\\docs\\user-story-1-basic-editor-spec.md",
+    "outputMode": "content",
+    "workspaceResults": {
+      "c:\\Users\\tommy\\CS485\\GlossaDocs": {
+        "content": {
+          "matches": [
+            {
+              "file": "docs\\user-story-1-basic-editor-spec.md",
+              "matches": [
+                {
+                  "lineNumber": 160,
+                  "content": "  - Stores &#96;inputLocale&#96; on documents (default &#96;en-US&#96; in Story 1; made user-configurable in Story 2)."
+                },
+                {
+                  "lineNumber": 166,
+                  "content": "  - Loads/saves global app settings (autosave interval in Story 1; extended with &#96;lastUsedLocale&#96; in Story 2 and &#96;keyboardVisible&#96; in Story 3)."
+                },
+                {
+                  "lineNumber": 339,
+                  "content": "  keyboardVisible: boolean;"
+                }
+              ]
+            }
+          ],
+          "totalLines": 3,
+          "totalMatchedLines": 3
+        }
+      }
+    }
+  }
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "pattern": "contradict|only|no keyboard",
+  "path": "c:\\Users\\tommy\\CS485\\GlossaDocs\\docs",
+  "outputMode": "files_with_matches",
+  "caseInsensitive": false
+}
+```
+Result:
+
+```json
+{
+  "success": {
+    "pattern": "contradict|only|no keyboard",
+    "path": "c:\\Users\\tommy\\CS485\\GlossaDocs\\docs",
+    "outputMode": "files_with_matches",
+    "workspaceResults": {
+      "c:\\Users\\tommy\\CS485\\GlossaDocs": {
+        "files": {
+          "files": [
+            "docs\\user-story-1-basic-editor-spec.md",
+            "docs\\user-story-2-language-selection-spec.md",
+            "docs\\user-story-3-onscreen-keyboard-spec.md"
+          ],
+          "totalFiles": 3
+        }
+      }
+    }
+  }
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+---
+
+Checked all three specs for contradictions. The only real conflict was **shared “contract” types drifting** between docs (Story 1’s `DocumentMeta`/`AppSettings` vs Story 2/3 additions). I fixed that so Stories 2 and 3 are clearly **additive** and not contradictory.
+
+### Fixes applied to eliminate contradictions
+- **Unified persisted fields across stories**
+  - Updated **Story 1** `DocumentMeta` to include **`inputLocale: LocaleTag`** (default `en-US` for Story 1-only builds; user-configurable in Story 2).
+  - Updated **Story 1** `AppSettings` to include **`lastUsedLocale`** and **`keyboardVisible`** with defaults, so it matches the later stories’ settings model.
+  - Updated **Story 2** `AppSettings` to include **`keyboardVisible?: boolean`** as a forward-compatible field (added in Story 3; default true when absent).
+
+- **Schema wording alignment**
+  - Updated **Story 1** data schema description for the `documents` store to explicitly mention it includes **`inputLocale`**.
+  - Added explicit notes in **Story 1** class responsibilities that `DocumentService`/`SettingsService` are extended by Stories 2–3 (so the broader interfaces don’t look like they contradict Story 1’s narrower APIs).
+
+### Cross-spec consistency results (now aligned)
+- **IndexedDB versioning**: Story 1 `dbVersion = 1`, Story 2 bumps to 2, Story 3 bumps to 3 — consistent.
+- **Settings store**: key/value store in Story 1 is compatible with Story 2/3 adding keys (`lastUsedLocale`, `keyboardVisible`).
+- **Locale behavior**: Story 2’s “future input only” and “cancel compose on switch” doesn’t conflict with Story 3’s on-screen keyboard (it inserts new text only).
+- **Keyboard visibility**: Story 3’s global `keyboardVisible` is consistent with Story 2’s settings model after the forward-compat update.
+
+If you want, I can also standardize the *comments* on `updatedAt`/`savedAt` across Story 1 and Story 2 (they currently match in meaning but Story 2 is less explicit).
+
+---
+
+_**User**_
+
+Let's add a standard .gitignore file to this repository that includes the .specstory folder, the .cursorindexingignore file, and anything else you think may be smart
+
+---
+
+_**Agent (model gpt-5.2, mode Agent)**_
+
+<think><details><summary>Thought Process</summary>
+**Implementing .gitignore**
+
+I need to implement a .gitignore file. First, I want to review it to ensure I'm on the right track; I've read similar files and feel satisfied with the basics I know. I'll create this .gitignore with appropriate patterns, considering node, React, TypeScript, Vite, and Next.js. I want to include logs, some specific directories, and any artifacts from Windows. I think I'll check for existing .gitignore files and use tools like Glob if needed. Let's proceed and see if it exists!</details></think>
+
+---
+
+I’ll check whether you already have a `.gitignore`, then add a sensible baseline one for a modern web app (Node/TypeScript), plus the specific items you called out (`.specstory/`, `.cursorindexingignore`).
+
+---
+
+<tool-use data-tool-type="generic" data-tool-name="glob_file_search">
+<details>
+<summary>Tool use: **glob_file_search** • Searched codebase "undefined" • **1** result in **1** directory</summary>
+
+Directory: **c:\Users\tommy\CS485\GlossaDocs** (1 file)
+
+| File |
+|------|
+| `../.\.specstory\.gitignore` |
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+**Managing project files**
+
+I’m considering whether to ignore the `logs/` folder since it’s generated, but it’s currently untracked and might not be safe to commit. I think it’s likely best to include `logs/` and `*.log`, even though I need to be careful about ignoring legitimate logs. I should also add `.env`, `.idea/`, `.vscode/`, and `.history/`, and maybe `*.tsbuildinfo`. For Python, it's probably not necessary, but I could include a "General" section to keep relevant files organized.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: c:\Users\tommy\CS485\GlossaDocs\.gitignore</summary>
+
+</details>
+
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: c:\Users\tommy\CS485\GlossaDocs\.gitignore</summary>
+
+</details>
+</tool-use>
+
+---
+
+### Added `.gitignore`
+Created `/.gitignore` with the entries you requested plus a sensible baseline for a typical web app repo:
+
+- **Included explicitly**: `.specstory/`, `.cursorindexingignore`, `logs/`
+- **Also ignored**: `node_modules/`, common build outputs (`dist/`, `build/`, `.next/`, etc.), coverage, TypeScript build info, `.env*` files, and common OS/editor folders (`.vscode/`, `.idea/`, `.DS_Store`, `Thumbs.db`).
+
+---
+
+_**User**_
+
+For the previous prompt, how were the user stories 1 and 2 specs' modified to include the features required for user story 3?
+
+---
+
+_**Agent (model gpt-5.2, mode Agent)**_
+
+<think><details><summary>Thought Process</summary>
+**Describing Modifications**
+
+I need to outline the modifications made to story1 and story2 specs to include features from story3. For story1, we adjusted the public interfaces by adding fields such as LocaleTag, inputLocale, lastUsedLocale, and keyboardVisible, alongside their default values and notes on data schema and class responsibilities. 
+
+For story2, we included the keyboardVisible property as a boolean in AppSettings. Other than that, there wasn't much else added to reconcile the specs.</details></think>
+
+---
+
+### User Story 1 spec changes (to accommodate Story 3)
+In `docs/user-story-1-basic-editor-spec.md`, I made Story 1’s “shared contracts” forward-compatible so Story 3 doesn’t contradict them:
+
+- **Public Interfaces**
+  - Added `LocaleTag` type.
+  - Extended `DocumentMeta` with `inputLocale: LocaleTag` (Story 2+; default `en-US`).
+  - Extended `AppSettings` with:
+    - `lastUsedLocale: LocaleTag` (Story 2+; default `en-US`)
+    - `keyboardVisible: boolean` (Story 3+; default `true`)
+
+- **Data Schemas**
+  - Clarified the `documents` store includes `inputLocale` (default `en-US`), alongside title/timestamps/doc content.
+
+- **Default values**
+  - Added defaults for `inputLocale`, `lastUsedLocale`, and `keyboardVisible`.
+
+- **Class responsibilities**
+  - Noted `SettingsService` is extended in later stories with `keyboardVisible`.
+  - Noted `DocumentService` stores `inputLocale` (default in Story 1; user-configurable in Story 2).
+
+### User Story 2 spec changes (to accommodate Story 3)
+In `docs/user-story-2-language-selection-spec.md`, I made settings forward-compatible with the new global keyboard visibility flag:
+
+- **Public Interfaces**
+  - Extended `AppSettings` with `keyboardVisible?: boolean` and noted it defaults to `true` when absent (i.e., older DB versions before Story 3).
+
+---
+
+_**User**_
+
+Check for any places in the dev spec where things are overly complicated OR are too set in stone and not extensible when the project becomes more complicated.
+
+---
+
+_**Agent (model gpt-5.2, mode Agent)**_
+
+I’ll scan the three spec docs and call out (a) parts that are more complex than they need to be for early implementation, and (b) parts that are too rigid and likely to cause pain when you add more languages, compose rules, collaboration, or AWS-backed persistence later.
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: c:\Users\tommy\CS485\GlossaDocs\docs\user-story-1-basic-editor-spec.md</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: c:\Users\tommy\CS485\GlossaDocs\docs\user-story-2-language-selection-spec.md</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: c:\Users\tommy\CS485\GlossaDocs\docs\user-story-3-onscreen-keyboard-spec.md</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+**Evaluating punctuation and structure**
+
+I'm considering punctuation requirements for keys like backspace and numbers. It seems the current action list may be missing a punctuation mode, so that’s something to think about. For future languages, the locale might not map to keyboard layouts properly, which means I’ll need to differentiate between input method IDs and keyboard layout IDs versus locale. 
+
+Also, I’m noticing potential duplication in how controllers are defined between different stories and the need to unify them for a more streamlined approach.
+**Considering adjustments and recommendations**
+
+The user is asking for a check on overcomplication rather than just patching things. I should recommend some changes like making the dbVersion numbering less fixed – it might be better to phrase it as "next version increment" instead of just using 2/3.
+
+I should also include the note about “UUID v4,” and suggest creating a single shared "core types" document to avoid repetition. On the design side, adopting a capability-based approach for the keyboard layout registry could be beneficial, allowing for multi-layer keys. Lastly, I think unifying the InputMethodController would be a good idea too!</details></think>
+
+---
+
+### Places that feel **overly complicated** (for v1 implementation)
+
+- **Too many service/controller layers early**
+  - Story 1 has `AppController`, `EditorAdapter`, `DocumentService`, `IndexedDbRepository`, `AutosaveScheduler`, `SettingsService`, `PasteSanitizer`.
+  - Story 2 adds `LocaleSelectionService` + `InputMethodController`.
+  - Story 3 adds `OnScreenKeyboardController` + `KeyboardLayoutRegistry` + `LongPressManager`.
+  - **Risk**: you end up building a mini-framework before features.
+  - **Keep it extensible but simpler**: collapse to “feature modules” behind 2–3 boundaries: `editor/`, `storage/`, `settings/`, `input/` (where on-screen keyboard and compose both live).
+
+- **“Atomic” IndexedDB transaction spanning stores**
+  - Story 2 mentions doing locale update + lastUsedLocale in one transaction.
+  - **It’s fine**, but it’s not necessary for correctness in v1 and adds implementation complexity.
+  - **More flexible**: define required invariants (UI updates as one action; persistence is eventually consistent within same tick) and allow either single transaction or two writes.
+
+### Places that are **too set in stone** / not extensible enough
+
+- **Locale tag == input method**
+  - Story 2 uses BCP 47 locale tags as the primary selector, then Story 3 keys the keyboard layout off `ru-RU`.
+  - **Problem later**: Locale ≠ keyboard layout/input method (e.g., Russian phonetic vs ЙЦУКЕН; Serbian Cyrillic vs Russian; user wants `en-US` document but Cyrillic keyboard temporarily).
+  - **More extensible contract**: keep `inputLocale` (language intent) *and* introduce an `inputMethodId` / `keyboardLayoutId` (default derived from locale). Locale stays about language; input method stays about how characters are produced.
+
+- **Two parallel “input engines”**
+  - Story 2 introduces `InputMethodController` (compose buffer, cancel-on-locale-change).
+  - Story 3 introduces `OnScreenKeyboardController` that inserts text directly into the editor.
+  - **Risk**: later compose rules + on-screen keyboard diverge or duplicate logic (cancellation, normalization, undo grouping).
+  - **Better**: a single `InputMethodController` that exposes `commitText(...)` and is used by both physical keyboard handling and on-screen keyboard clicks/variants.
+
+- **Keyboard layout model may be too restrictive**
+  - Story 3’s `KeyOutput { lower, upper }` works for simple shift/caps, but gets tight for:
+    - multi-character outputs, dead keys/combining marks, “layers” (numbers/symbols), AltGr, and language-specific punctuation
+  - **More extensible**: let a key map to a dictionary of layers/states, e.g. `outputs: { base, shift, caps, alt, shiftAlt }`, and allow output to be `string` (not “glyph”).
+
+- **Settings representation ambiguity**
+  - All specs describe IndexedDB `settings` as a **key/value store**, but Story 1/2/3 also define an `AppSettings` **object** type.
+  - That’s not a functional contradiction, but it’s easy to implement inconsistently.
+  - **Recommendation**: standardize on one:
+    - either `settings` is key/value and `AppSettings` is just a *derived view*, or
+    - store a single `settings:app` record with the whole object (and version it).
+
+- **dbVersion numbers are spelled out**
+  - Story 2 says “if Story 1 is 1, Story 2 is 2”; Story 3 says “likely 3.”
+  - This is fine for a class project, but it’s rigid.
+  - **More future-proof wording**: “bump dbVersion by 1 when adding fields; exact number depends on what has shipped.”
+
+### Quick “tighten without overbuilding” guidance
+If you want the specs to stay extensible without overengineering, the biggest win is to **separate**:
+- **language intent** (`inputLocale`)
+- **input method/layout** (`inputMethodId`), defaulted from locale but user-overridable later
+- **one unified input pipeline** (`InputMethodController.commitText(...)`) used by both physical and on-screen keyboards
+
+If you want, I can propose a minimal set of interface tweaks that preserve all three stories but remove the future “locale==layout” trap and the dual-controller trap.
+
+---
+
+_**User**_
+
+Yes do that 
+
+
+---
+
+_**Agent (model gpt-5.2, mode Agent)**_
+
+<think><details><summary>Thought Process</summary>
+**Implementing updates and patches**
+
+I’m thinking about allowing users to choose between phonetic and ЙЦУКЕН inputs, which means we need a way to select this on a document level or globally. I want to clarify some settings in Story 1 and make sure that the database versioning is more flexible. I need to ensure my modifications are concise—just updates, not complete rewrites. 
+
+For instance, in Story 1, I plan to add `InputMethodId` and make updates in Story 2 about input selections.
+**Updating class diagram and architecture**
+
+I’m focusing on the InputMethodController, which is already in place, and I need to add methods like `commitText` and `cancelCompose`, specifically for use by the on-screen keyboard in Story 3. 
+
+In the public interfaces, I’ll include `InputMethodId` in the DocumentMeta section along with a doc field for optional data. 
+
+Moving to Story 3, I plan to tweak the architecture by connecting the on-screen keyboard to the InputMethodController instead of the Editor directly, which means I might drop the EditorAdapter but keep it for some boundaries. I'll also adjust key outputs to allow for layers within the `KeyOutput`.
+**Updating keyboard and document fields**
+
+I need to mention that `KeyboardLayout` should be keyed by `KeyboardLayoutId`, not by locale, which means we can map locales to the default layout. The `InputMethodId` can reference this layout, and they might end up being the same.
+
+I also want to make sure any contradictions are resolved by ensuring the DocumentMeta fields across Stories 1 and 2 are consistent. We’ve already updated Story 1 to include the required `inputLocale`, so now I’ll add the optional `inputMethodId` to all three stories. 
+
+For the database version language, I’ll update it to “example bump” and need to apply patches to each file separately. I’ll systematically read the relevant sections to find the right insertion points using Grep.</details></think>
+
+---
+
+I’ll apply a small, targeted set of edits across the three spec docs to (1) separate **language intent** (`inputLocale`) from **input method/layout** (`inputMethodId`), and (2) make the on-screen keyboard use the same **input pipeline** as future compose rules—so it stays extensible without rewriting later.
+
+---
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "pattern": "inputLocale|DocumentMeta \\{|Key design decisions|InputMethodController|OnScreenKeyboardController|Public Interfaces|Data Schemas|dbVersion",
+  "path": "c:\\Users\\tommy\\CS485\\GlossaDocs\\docs\\user-story-1-basic-editor-spec.md",
+  "outputMode": "content",
+  "caseInsensitive": false
+}
+```
+Result:
+
+```json
+{
+  "success": {
+    "pattern": "inputLocale|DocumentMeta \\{|Key design decisions|InputMethodController|OnScreenKeyboardController|Public Interfaces|Data Schemas|dbVersion",
+    "path": "c:\\Users\\tommy\\CS485\\GlossaDocs\\docs\\user-story-1-basic-editor-spec.md",
+    "outputMode": "content",
+    "workspaceResults": {
+      "c:\\Users\\tommy\\CS485\\GlossaDocs": {
+        "content": {
+          "matches": [
+            {
+              "file": "docs\\user-story-1-basic-editor-spec.md",
+              "matches": [
+                {
+                  "lineNumber": 18,
+                  "content": "- **Storage schema**: IndexedDB uses a required **integer** &#96;dbVersion&#96; for migrations; this is versioned independently of app SemVer."
+                },
+                {
+                  "lineNumber": 30,
+                  "content": "### Key design decisions (with rationale)"
+                },
+                {
+                  "lineNumber": 160,
+                  "content": "  - Stores &#96;inputLocale&#96; on documents (default &#96;en-US&#96; in Story 1; made user-configurable in Story 2)."
+                },
+                {
+                  "lineNumber": 285,
+                  "content": "## Public Interfaces"
+                },
+                {
+                  "lineNumber": 304,
+                  "content": "export interface DocumentMeta {"
+                },
+                {
+                  "lineNumber": 311,
+                  "content": "  inputLocale: LocaleTag;"
+                },
+                {
+                  "lineNumber": 326,
+                  "content": "export interface DocumentRecord extends DocumentMeta {"
+                },
+                {
+                  "lineNumber": 354,
+                  "content": "## Data Schemas"
+                },
+                {
+                  "lineNumber": 358,
+                  "content": "- **dbVersion**: &#96;1&#96; (IndexedDB integer; increment for migrations)"
+                },
+                {
+                  "lineNumber": 363,
+                  "content": "  - Includes: &#96;title&#96;, timestamps, **&#96;inputLocale&#96;** (default &#96;en-US&#96;), and canonical editor content (&#96;doc&#96;)"
+                }
+              ]
+            }
+          ],
+          "totalLines": 10,
+          "totalMatchedLines": 10
+        }
+      }
+    }
+  }
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "pattern": "inputLocale|DocumentMeta \\{|InputMethodController|LocaleSelectionService|Public Interfaces|Data Schemas|dbVersion",
+  "path": "c:\\Users\\tommy\\CS485\\GlossaDocs\\docs\\user-story-2-language-selection-spec.md",
+  "outputMode": "content",
+  "caseInsensitive": false
+}
+```
+Result:
+
+```json
+{
+  "success": {
+    "pattern": "inputLocale|DocumentMeta \\{|InputMethodController|LocaleSelectionService|Public Interfaces|Data Schemas|dbVersion",
+    "path": "c:\\Users\\tommy\\CS485\\GlossaDocs\\docs\\user-story-2-language-selection-spec.md",
+    "outputMode": "content",
+    "workspaceResults": {
+      "c:\\Users\\tommy\\CS485\\GlossaDocs": {
+        "content": {
+          "matches": [
+            {
+              "file": "docs\\user-story-2-language-selection-spec.md",
+              "matches": [
+                {
+                  "lineNumber": 44,
+                  "content": "- **Storage (Browser IndexedDB)**: documents (including &#96;inputLocale&#96;) and settings (including &#96;lastUsedLocale&#96;)."
+                },
+                {
+                  "lineNumber": 53,
+                  "content": "    DocService[\"Document Service&lt;br/&gt;- persists per-doc inputLocale\"]"
+                },
+                {
+                  "lineNumber": 75,
+                  "content": "- **Locale Selection Service → Document Service**: update active document’s &#96;inputLocale&#96; and persist it."
+                },
+                {
+                  "lineNumber": 79,
+                  "content": "- **Document switch → UI**: opening a different document refreshes the dropdown selection to that document’s &#96;inputLocale&#96;."
+                },
+                {
+                  "lineNumber": 97,
+                  "content": "  class LocaleSelectionService {"
+                },
+                {
+                  "lineNumber": 103,
+                  "content": "  class InputMethodController {"
+                },
+                {
+                  "lineNumber": 119,
+                  "content": "  ToolbarLocaleDropdown --&gt; LocaleSelectionService"
+                },
+                {
+                  "lineNumber": 120,
+                  "content": "  LocaleSelectionService --&gt; DocumentService"
+                },
+                {
+                  "lineNumber": 121,
+                  "content": "  LocaleSelectionService --&gt; SettingsService"
+                },
+                {
+                  "lineNumber": 122,
+                  "content": "  LocaleSelectionService --&gt; InputMethodController"
+                },
+                {
+                  "lineNumber": 126,
+                  "content": "- &#96;LocaleSelectionService.setActiveLocale&#96; updates three things as one user-visible action: active doc’s &#96;inputLocale&#96;, global &#96;lastUsedLocale&#96;, and current input-method locale (which cancels compose). Persistence can be done via a single IndexedDB transaction spanning the &#96;documents&#96; and &#96;settings&#96; stores."
+                },
+                {
+                  "lineNumber": 132,
+                  "content": "- **&#96;LocaleSelectionService&#96;**"
+                },
+                {
+                  "lineNumber": 135,
+                  "content": "  - Persists per-document &#96;inputLocale&#96; via &#96;DocumentService&#96;."
+                },
+                {
+                  "lineNumber": 137,
+                  "content": "  - Notifies &#96;InputMethodController&#96; of locale changes."
+                },
+                {
+                  "lineNumber": 139,
+                  "content": "- **&#96;InputMethodController&#96;**"
+                },
+                {
+                  "lineNumber": 150,
+                  "content": "  - Loads/saves per-document locale (&#96;inputLocale&#96;) as part of document metadata."
+                },
+                {
+                  "lineNumber": 151,
+                  "content": "  - Guarantees that opening a document restores its &#96;inputLocale&#96; (and thus the input-method locale)."
+                },
+                {
+                  "lineNumber": 195,
+                  "content": "  C -- No --&gt; E[LocaleSelectionService.setActiveLocale]"
+                },
+                {
+                  "lineNumber": 196,
+                  "content": "  E --&gt; F[InputMethodController.cancelCompose]"
+                },
+                {
+                  "lineNumber": 197,
+                  "content": "  E --&gt; G[InputMethodController.setLocale]"
+                },
+                {
+                  "lineNumber": 210,
+                  "content": "  B --&gt; C[Read record.inputLocale]"
+                },
+                {
+                  "lineNumber": 211,
+                  "content": "  C --&gt; D[LocaleSelectionService sets active locale]"
+                },
+                {
+                  "lineNumber": 212,
+                  "content": "  D --&gt; E[InputMethodController.cancelCompose + setLocale]"
+                },
+                {
+                  "lineNumber": 225,
+                  "content": "  - Mitigation: locale update is metadata-only on the same record; use a single write transaction per update or a simple “last write wins” rule on &#96;inputLocale&#96;."
+                },
+                {
+                  "lineNumber": 227,
+                  "content": "  - Mitigation: define &#96;InputMethodController.cancelCompose()&#96; now and require it be called on locale change."
+                },
+                {
+                  "lineNumber": 251,
+                  "content": "#### LocaleSelectionService"
+                },
+                {
+                  "lineNumber": 263,
+                  "content": "#### InputMethodController"
+                },
+                {
+                  "lineNumber": 273,
+                  "content": "## Public Interfaces"
+                },
+                {
+                  "lineNumber": 291,
+                  "content": "export interface DocumentMeta {"
+                },
+                {
+                  "lineNumber": 297,
+                  "content": "  inputLocale: LocaleTag; // per-document language intent for input"
+                },
+                {
+                  "lineNumber": 300,
+                  "content": "export interface DocumentRecord extends DocumentMeta {"
+                },
+                {
+                  "lineNumber": 302,
+                  "content": "  // Story 2 adds/relies on &#96;inputLocale&#96; existing on the stored record."
+                },
+                {
+                  "lineNumber": 321,
+                  "content": "- &#96;inputLocale&#96; lives on document metadata because language intent is a property of the document, not just the current session."
+                },
+                {
+                  "lineNumber": 326,
+                  "content": "## Data Schemas"
+                },
+                {
+                  "lineNumber": 330,
+                  "content": "- **dbVersion**: integer used for migrations."
+                },
+                {
+                  "lineNumber": 331,
+                  "content": "  - If Story 1 ships first at &#96;dbVersion = 1&#96;, then Story 2 bumps to &#96;dbVersion = 2&#96; to add &#96;inputLocale&#96; and &#96;lastUsedLocale&#96;."
+                },
+                {
+                  "lineNumber": 334,
+                  "content": "- &#96;documents&#96; store: add &#96;inputLocale&#96; to stored &#96;DocumentRecord&#96; / metadata."
+                },
+                {
+                  "lineNumber": 346,
+                  "content": "- Existing documents created before Story 2: during migration, backfill &#96;inputLocale = \"en-US\"&#96;."
+                },
+                {
+                  "lineNumber": 367,
+                  "content": "  - Mitigation: keep &#96;LocaleSelectionService&#96; and &#96;InputMethodController&#96; interfaces generic; keyboard mapping lives elsewhere later."
+                },
+                {
+                  "lineNumber": 370,
+                  "content": "- **Migration discipline**: adding &#96;inputLocale&#96; requires IndexedDB version bump and safe backfill."
+                }
+              ]
+            }
+          ],
+          "totalLines": 40,
+          "totalMatchedLines": 40
+        }
+      }
+    }
+  }
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "pattern": "OnScreenKeyboardController|EditorAdapter|InputMethodController|KeyboardLayout|KeyOutput|Public Interfaces|Data Schemas|dbVersion",
+  "path": "c:\\Users\\tommy\\CS485\\GlossaDocs\\docs\\user-story-3-onscreen-keyboard-spec.md",
+  "outputMode": "content",
+  "caseInsensitive": false
+}
+```
+Result:
+
+```json
+{
+  "success": {
+    "pattern": "OnScreenKeyboardController|EditorAdapter|InputMethodController|KeyboardLayout|KeyOutput|Public Interfaces|Data Schemas|dbVersion",
+    "path": "c:\\Users\\tommy\\CS485\\GlossaDocs\\docs\\user-story-3-onscreen-keyboard-spec.md",
+    "outputMode": "content",
+    "workspaceResults": {
+      "c:\\Users\\tommy\\CS485\\GlossaDocs": {
+        "content": {
+          "matches": [
+            {
+              "file": "docs\\user-story-3-onscreen-keyboard-spec.md",
+              "matches": [
+                {
+                  "lineNumber": 53,
+                  "content": "    KeyboardCtrl[\"OnScreenKeyboardController&lt;br/&gt;- visibility state (global)&lt;br/&gt;- shift/caps state&lt;br/&gt;- insert text into editor\"]"
+                },
+                {
+                  "lineNumber": 54,
+                  "content": "    Layouts[\"KeyboardLayoutRegistry&lt;br/&gt;- layouts by LocaleTag&lt;br/&gt;(v1: ru-RU)\"]"
+                },
+                {
+                  "lineNumber": 84,
+                  "content": "- **Keyboard Controller → KeyboardLayoutRegistry**: fetch layout for &#96;ru-RU&#96;."
+                },
+                {
+                  "lineNumber": 96,
+                  "content": "  class OnScreenKeyboardController {"
+                },
+                {
+                  "lineNumber": 101,
+                  "content": "    +getActiveLayout(): KeyboardLayout?"
+                },
+                {
+                  "lineNumber": 108,
+                  "content": "  class KeyboardLayoutRegistry {"
+                },
+                {
+                  "lineNumber": 109,
+                  "content": "    +getLayout(locale: LocaleTag): KeyboardLayout?"
+                },
+                {
+                  "lineNumber": 129,
+                  "content": "  class EditorAdapter {"
+                },
+                {
+                  "lineNumber": 134,
+                  "content": "  OnScreenKeyboardController --&gt; KeyboardLayoutRegistry"
+                },
+                {
+                  "lineNumber": 135,
+                  "content": "  OnScreenKeyboardController --&gt; SettingsService"
+                },
+                {
+                  "lineNumber": 136,
+                  "content": "  OnScreenKeyboardController --&gt; EditorAdapter"
+                },
+                {
+                  "lineNumber": 137,
+                  "content": "  OnScreenKeyboardController --&gt; LocaleSelectionService"
+                },
+                {
+                  "lineNumber": 138,
+                  "content": "  LongPressManager --&gt; OnScreenKeyboardController"
+                },
+                {
+                  "lineNumber": 145,
+                  "content": "- **&#96;OnScreenKeyboardController&#96;**"
+                },
+                {
+                  "lineNumber": 151,
+                  "content": "- **&#96;KeyboardLayoutRegistry&#96;**"
+                },
+                {
+                  "lineNumber": 166,
+                  "content": "- **&#96;EditorAdapter&#96;**"
+                },
+                {
+                  "lineNumber": 223,
+                  "content": "  A[User clicks Keyboard toggle button] --&gt; B[OnScreenKeyboardController.setVisible]"
+                },
+                {
+                  "lineNumber": 234,
+                  "content": "  C --&gt; D[EditorAdapter.replaceSelection or insertText]"
+                },
+                {
+                  "lineNumber": 290,
+                  "content": "#### OnScreenKeyboardController"
+                },
+                {
+                  "lineNumber": 295,
+                  "content": "- &#96;getActiveLayout(): KeyboardLayout | null&#96;"
+                },
+                {
+                  "lineNumber": 301,
+                  "content": "#### KeyboardLayoutRegistry"
+                },
+                {
+                  "lineNumber": 302,
+                  "content": "- &#96;getLayout(locale: LocaleTag): KeyboardLayout | null&#96;"
+                },
+                {
+                  "lineNumber": 316,
+                  "content": "## Public Interfaces"
+                },
+                {
+                  "lineNumber": 323,
+                  "content": "export interface KeyboardLayout {"
+                },
+                {
+                  "lineNumber": 335,
+                  "content": "  output?: KeyOutput;"
+                },
+                {
+                  "lineNumber": 337,
+                  "content": "  variants?: KeyOutput[];"
+                },
+                {
+                  "lineNumber": 343,
+                  "content": "export interface KeyOutput {"
+                },
+                {
+                  "lineNumber": 364,
+                  "content": "- A &#96;KeyboardLayout&#96; is declarative and independent of UI; it scales to additional languages and variant sets without redesign."
+                },
+                {
+                  "lineNumber": 368,
+                  "content": "## Data Schemas"
+                },
+                {
+                  "lineNumber": 372,
+                  "content": "- **dbVersion**: integer used for migrations."
+                },
+                {
+                  "lineNumber": 373,
+                  "content": "  - If Story 2 ships at &#96;dbVersion = 2&#96;, then Story 3 likely bumps to &#96;dbVersion = 3&#96; to add &#96;keyboardVisible&#96; to settings."
+                }
+              ]
+            }
+          ],
+          "totalLines": 31,
+          "totalMatchedLines": 31
+        }
+      }
+    }
+  }
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+**Applying updates and patches**
+
+I'm looking to apply some patches. For Story1, I need to update it to include an optional InputMethodId and also adjust key design decisions for clarity by mentioning separation. I’ll add this new type in Public Interfaces and include the optional inputMethodId in DocumentMeta. Story2 specifies a per-doc locale, but I'll note that this is for future use. I’m also pondering whether to update DocumentService responsibilities, though I’m not entirely sure. Lastly, I’ll adjust Data Schemas to mention the optional inputMethodId while adding it to document stores. Then, I’ll proceed with ApplyPatch for Story1.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: c:\Users\tommy\CS485\GlossaDocs\docs\user-story-1-basic-editor-spec.md</summary>
+
+</details>
+
+</tool-use>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: c:\Users\tommy\CS485\GlossaDocs\docs\user-story-2-language-selection-spec.md</summary>
+
+</details>
+
+</tool-use>
+
+---
+
+Next I’ll adjust the Story 3 spec so the on-screen keyboard doesn’t bypass the input pipeline: it will commit characters through the same `InputMethodController.commitText(...)` that future compose rules and other input methods use. I’ll also loosen “locale == layout” by introducing an optional `inputMethodId`.
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: c:\Users\tommy\CS485\GlossaDocs\docs\user-story-3-onscreen-keyboard-spec.md</summary>
+
+Status: **loading**
+
+</details>
+
+</tool-use>
+
+---
+

@@ -1,0 +1,118 @@
+This is a description of a project I'm about to undertake. To the best of your knowledge, is my last sentence correct?
+The one-sentence description of my project, which I’ve decided to call GlossaDocs, is “Google Docs, but with better multi-language support”. I’ve taken many language classes throughout my schooling, and most of them have not used the Latin alphabet. Throughout six years of Greek, two years of Russian, and a year of Swedish, I’ve had to type a lot of characters that do not appear on a standard English keyboard, and never had a convenient way to do it. To be clear, this is not an unsolved problem. You can download alternate keyboards layouts, but this requires you to learn a whole new keyboard without any visual aid. There are also numerous websites that allow you to use non-English keyboards and paste that text into your document software, but they are all slightly clunky and aren’t integrated into the document software.
+GlossaDocs will be manifestly different in two main ways. First, integrated keyboards will allow users to type nonstandard English characters without having to download a separate application or go to another website. Second, users will be able to choose what language they intend to type in, and GlossaDocs’ spell-check and grammar functions will intelligently switch based on that choice. As far as I know, there is no document software (and certainly no free one) that gives people these options, making GlossaDocs a unique and valuable tool for many different types of users.
+
+Great project idea—and the motivation is very clearly explained. 👍
+On the idea itself: totally solid. On the last sentence specifically: it’s not quite correct, and it’s worth tightening to avoid an easy “well actually” from a reviewer.
+
+Where the last sentence overreaches
+
+This part is the issue:
+
+“As far as I know, there is no document software (and certainly no free one) that gives people these options …”
+
+Both of the features you list do exist today, even in free tools:
+
+Google Docs
+
+Has an on-screen virtual keyboard for many languages/scripts (via Tools → Preferences → Substitutions or the Input Tools extension / built-in input methods).
+
+Supports language-specific spell check, and users can assign different languages to different text selections.
+
+LibreOffice Writer (free, open source)
+
+Supports multiple keyboard layouts and input methods.
+
+Has per-language spellchecking and grammar tools.
+
+Microsoft Word
+
+Has language-aware spellcheck and supports alternative input methods (though it’s not free).
+
+So a technically savvy reader will likely push back on the claim of nonexistence, especially singling out free software.
+
+What is still very defensible (and strong)
+
+Your core differentiation is still compelling, just more nuanced:
+
+Existing tools:
+
+Hide these features
+
+Make them clunky to access
+
+Treat multilingual typing as an edge case
+
+Your vision:
+
+Makes multilingual typing first-class
+
+Integrates keyboards directly and visually
+
+Optimizes the workflow for people who switch languages frequently
+
+That’s a much stronger—and harder to refute—position.
+
+How I’d suggest rephrasing the last sentence
+
+Here are a few options depending on how bold you want to be:
+
+Safer and accurate
+
+As far as I know, no widely used document editor makes multilingual typing this seamless or treats integrated language-aware input as a first-class feature, especially in a free, web-based tool.
+
+Still confident, but harder to poke holes in
+
+While some existing document editors support multilingual input in limited or hidden ways, GlossaDocs is designed from the ground up to make integrated keyboards and language-aware editing central to the writing experience.
+
+More visionary
+
+GlossaDocs aims to fill the gap between “technically possible” and “pleasant to use” for multilingual writers, making features that exist today feel natural, visible, and effortless.
+
+If you want, I can also help you:
+
+sharpen this into a one-paragraph pitch
+
+rewrite it for a proposal / README
+
+or stress-test it the way a skeptical engineer or professor might 😄
+
+Give a one or two sentence value proposition(s) for this product
+
+Here are a few tight options, depending on the vibe you want:
+
+Clear and practical
+
+GlossaDocs makes multilingual writing effortless by embedding language-specific keyboards and spellchecking directly into your document. No extensions, no copy-paste, no switching apps—just write in the language you’re thinking in.
+
+User-pain focused
+
+GlossaDocs is a document editor built for people who write in more than one language. It removes the friction of special characters and language switching so multilingual writing feels as natural as typing in English.
+
+More bold / product-vision
+
+GlossaDocs treats multilingual writing as a first-class experience, not an afterthought. Integrated keyboards and automatic language-aware editing let writers focus on ideas, not input hacks.
+
+Short and punchy
+
+GlossaDocs is Google Docs for multilingual writers—integrated keyboards, language-aware editing, and zero setup.
+
+If you want, I can tune this for a landing page hero, a grant/proposal, or a technical README tone.
+
+Pick the one you think is best
+
+I’d go with this one:
+
+GlossaDocs treats multilingual writing as a first-class experience, not an afterthought. Integrated keyboards and automatic language-aware editing let writers focus on ideas, not input hacks.
+
+Why this works best:
+
+It doesn’t overclaim or invite nitpicky comparisons
+
+It clearly signals who it’s for (multilingual writers)
+
+It emphasizes philosophy + benefit, not just features
+
+It still leaves room for future expansion beyond keyboards
+
+If you want a slightly punchier version for a landing page hero, I can trim it to a single sentence without losing that strength.

@@ -11,6 +11,7 @@ import { exportDocument, type ExportFormat } from '../utils/export';
 import { getLanguageName, type Language } from '../utils/languages';
 import { EDITOR_CONFIG, UI_CONSTANTS } from '../utils/constants';
 import { findBlockElement, getLineHeight, getNextImageSize } from '../utils/dom';
+import { getEditorShortcutAction } from '../utils/keyboardShortcuts';
 import { useFormattingState } from '../hooks/useFormattingState';
 import { useAutoSave } from '../hooks/useAutoSave';
 import { toast } from 'sonner';
@@ -87,6 +88,7 @@ export function Editor({ documentId, onBack }: EditorProps) {
     if (command.startsWith('fontSize:')) {
       const size = command.split(':')[1];
       window.document.execCommand('fontSize', false, size);
+      setHasUnsavedChanges(true);
     } else if (command.startsWith('lineHeight:')) {
       const lineHeight = command.split(':')[1];
       
@@ -109,6 +111,7 @@ export function Editor({ documentId, onBack }: EditorProps) {
       }
     } else {
       window.document.execCommand(command, false);
+      setHasUnsavedChanges(true);
     }
     editorRef.current?.focus();
     updateFormattingState();
@@ -262,6 +265,13 @@ export function Editor({ documentId, onBack }: EditorProps) {
   }, [saveSelection]);
 
   const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+    const shortcutAction = getEditorShortcutAction(event);
+    if (shortcutAction && shortcutAction !== 'save') {
+      event.preventDefault();
+      handleFormat(shortcutAction);
+      return;
+    }
+
     if (event.key === 'Enter' && !event.shiftKey) {
       // Let the default behavior happen, but ensure proper paragraph structure
       const selection = window.getSelection();
@@ -282,10 +292,27 @@ export function Editor({ documentId, onBack }: EditorProps) {
         }
       }, 0);
     }
-  }, []);
+  }, [handleFormat, handleSave]);
+
+  const handleGlobalKeyDown = useCallback((event: KeyboardEvent) => {
+    const shortcutAction = getEditorShortcutAction(event);
+    if (shortcutAction === 'save') {
+      event.preventDefault();
+      void handleSave();
+    }
+  }, [handleSave]);
 
   // Auto-save hook
   useAutoSave(hasUnsavedChanges, handleSave);
+
+  // Listen globally so Ctrl/Cmd + S works anywhere on the editor page.
+  useEffect(() => {
+    window.addEventListener('keydown', handleGlobalKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleGlobalKeyDown);
+    };
+  }, [handleGlobalKeyDown]);
 
   const handleSelectionChange = useCallback(() => {
     updateFormattingState();

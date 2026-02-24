@@ -209,7 +209,661 @@ You can now run:
 
 and access it from Chrome at `http://localhost:5173/` (or `http://127.0.0.1:5173/`).
 
-If you want, I can also pin the port in the script (`
+If you want, I can also pin the port in the script (`--port 5173`) so it never auto-switches when occupied.
+
+---
+
+_**User**_
+
+This project is GlossaDocs - basically Google Docs, but with better multi-language support. There is a mostly complete UI in this code. The specs located in the docs file do not have any accurate technical details, but the user stories and general descriptions are correct. Use these and the code to edit the readme file to explain what this project is. Ask for clarification when needed
+
+---
+
+_**Agent (model gpt-5.3-codex, mode Agent)**_
+
+<think><details><summary>Thought Process</summary>
+**Preparing to inspect README**</details></think>
+
+---
+
+I’ll gather the current `README`, key user-story sections from the docs spec, and a quick scan of the UI code to make sure the project description is accurate before I rewrite it.
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: C:\Users\tommy\CS485\GlossaDocs\README.md</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: C:\Users\tommy\CS485\GlossaDocs\docs\user-story-1-basic-editor-spec.md</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="generic" data-tool-name="glob_file_search">
+<details>
+<summary>Tool use: **glob_file_search** • Searched codebase "undefined" • **148** results in **1** directory</summary>
+
+Directory: **C:\Users\tommy\CS485\GlossaDocs\src** (148 files)
+
+| File |
+|------|
+| `../src/app/components/LanguageBadge.tsx` |
+| `../src/app/components/Login.tsx` |
+| `../src\app\components\ui\input.tsx` |
+| `../src/app/components/LoadingSpinner.tsx` |
+| `../src\app\components\ui\slider.tsx` |
+| `../src\app\components\ui\navigation-menu.tsx` |
+| `../src/app/hooks/useFormattingState.ts` |
+| `../src\app\components\DocumentCard.tsx` |
+| `../src/app/components/ui/separator.tsx` |
+| `../src/app/utils/export.ts` |
+| `../src\app\components\ui\progress.tsx` |
+| `../src\app\utils\db.ts` |
+| `../src\app\components\ui\utils.ts` |
+| `../src\app\components\ui\tooltip.tsx` |
+| `../src/app/components/EditorToolbar.tsx` |
+| `../src\app\components\ui\popover.tsx` |
+| `../src/app/components/ui/drawer.tsx` |
+| `../src/app/components/ui/hover-card.tsx` |
+| `../src/app/components/ui/button.tsx` |
+| `../src/app/components/ui/pagination.tsx` |
+| `../src/app/components/ui/badge.tsx` |
+| `../src/app/components/ui/sonner.tsx` |
+| `../src\app\components\ui\input-otp.tsx` |
+| `../src/app/components/ui/checkbox.tsx` |
+| `../src\app\components\EmptyDocumentState.tsx` |
+| `../src/app/components/ui/dropdown-menu.tsx` |
+| `../src\app\components\ui\toggle-group.tsx` |
+| `../src/app/components/DocumentList.tsx` |
+| `../src/app/components/ui/carousel.tsx` |
+| `../src\app\components\ui\drawer.tsx` |
+| `../src\app\components\ui\checkbox.tsx` |
+| `../src\app\utils\export.ts` |
+| `../src/app/components/ui/switch.tsx` |
+| `../src/app/components/ui/calendar.tsx` |
+| `../src\app\components\ui\avatar.tsx` |
+| `../src\app\components\ui\resizable.tsx` |
+| `../src/app/App.tsx` |
+| `../src\app\components\Login.tsx` |
+| `../src/app/components/ui/command.tsx` |
+| `../src\app\components\ui\accordion.tsx` |
+| `../src\app\hooks\useAutoSave.ts` |
+| `../src\app\components\ui\toggle.tsx` |
+| `../src\app\components\DocumentListHero.tsx` |
+| `../src/app/components/ui/select.tsx` |
+| `../src/app/components/ui/input.tsx` |
+| `../src\app\components\ui\switch.tsx` |
+| `../src\app\components\ui\scroll-area.tsx` |
+| `../src\app\components\ui\form.tsx` |
+| `../src\app\components\Editor.tsx` |
+| `../src\app\components\ui\sonner.tsx` |
+| `../src/app/utils/db.ts` |
+| `../src/app/components/ui/dialog.tsx` |
+| `../src/app/components/ui/progress.tsx` |
+| `../src\app\components\ui\skeleton.tsx` |
+| `../src\app\components\ui\menubar.tsx` |
+| `../src/main.tsx` |
+| `../src/app/components/ui/use-mobile.ts` |
+| `../src\app\components\ui\dialog.tsx` |
+| `../src/app/components/ui/toggle-group.tsx` |
+| `../src/app/components/ui/label.tsx` |
+| `../src\app\components\EditorToolbar.tsx` |
+| `../src\app\components\ui\card.tsx` |
+| `../src/app/components/ui/popover.tsx` |
+| `../src/app/components/ui/toggle.tsx` |
+| `../src/app/components/ui/alert-dialog.tsx` |
+| `../src/app/components/ui/breadcrumb.tsx` |
+| `../src/app/components/ui/table.tsx` |
+| `../src\app\components\ui\pagination.tsx` |
+| `../src/app/utils/dom.ts` |
+| `../src/app/utils/auth.ts` |
+| `../src/app/components/ui/aspect-ratio.tsx` |
+| `../src\app\components\ui\badge.tsx` |
+| `../src/app/components/figma/ImageWithFallback.tsx` |
+| `../src/app/components/ui/tooltip.tsx` |
+| `../src\app\utils\types.ts` |
+| `../src/app/components/DocumentListHero.tsx` |
+| `../src\app\utils\constants.ts` |
+| `../src\app\utils\date.ts` |
+| `../src/app/components/Editor.tsx` |
+| `../src/app/utils/languages.ts` |
+| `../src\app\components\ui\alert-dialog.tsx` |
+| `../src/app/components/ui/menubar.tsx` |
+| `../src/app/components/ui/radio-group.tsx` |
+| `../src/app/components/ui/form.tsx` |
+| `../src/app/components/DocumentCard.tsx` |
+| `../src/app/components/ui/input-otp.tsx` |
+| `../src/app/components/ui/sidebar.tsx` |
+| `../src/app/utils/constants.ts` |
+| `../src/app/components/ui/utils.ts` |
+| `../src/app/components/EmptyDocumentState.tsx` |
+| `../src\app\components\ui\alert.tsx` |
+| `../src\app\utils\auth.ts` |
+| `../src/app/components/ui/resizable.tsx` |
+| `../src/app/utils/import.ts` |
+| `../src/app/components/ui/context-menu.tsx` |
+| `../src/app/components/ui/card.tsx` |
+| `../src/app/components/ui/collapsible.tsx` |
+| `../src/app/components/ui/scroll-area.tsx` |
+| `../src\app\components\DocumentList.tsx` |
+| `../src\app\hooks\useFormattingState.ts` |
+| `../src\app\components\ui\calendar.tsx` |
+| `../src\app\components\ui\hover-card.tsx` |
+| `../src\app\components\ui\use-mobile.ts` |
+| `../src\app\components\ui\label.tsx` |
+| `../src\app\components\CreateDocumentButton.tsx` |
+| `../src\app\components\ui\breadcrumb.tsx` |
+| `../src\app\components\LoadingSpinner.tsx` |
+| `../src\app\components\ui\textarea.tsx` |
+| `../src\app\utils\import.ts` |
+| `../src\app\utils\dom.ts` |
+| `../src\app\components\ui\chart.tsx` |
+| `../src/app/components/ui/avatar.tsx` |
+| `../src/app/components/CreateDocumentButton.tsx` |
+| `../src\app\components\ui\table.tsx` |
+| `../src/app/components/ui/alert.tsx` |
+| `../src\app\components\ui\radio-group.tsx` |
+| `../src/app/components/ui/navigation-menu.tsx` |
+| `../src\app\components\ui\sheet.tsx` |
+| `../src\app\components\ui\command.tsx` |
+| `../src\app\utils\languages.ts` |
+| `../src\main.tsx` |
+| `../src/app/components/ui/tabs.tsx` |
+| `../src\app\components\ui\separator.tsx` |
+| `../src\app\components\ui\collapsible.tsx` |
+| `../src\app\hooks\useLanguageCycling.ts` |
+| `../src\app\components\ui\context-menu.tsx` |
+| `../src\app\components\ui\select.tsx` |
+| `../src\app\components\LanguageBadge.tsx` |
+| `../src/app/components/ui/accordion.tsx` |
+| `../src/app/hooks/useLanguageCycling.ts` |
+| `../src\app\components\ui\sidebar.tsx` |
+| `../src\app\components\ui\tabs.tsx` |
+| `../src\app\components\ui\button.tsx` |
+| `../src/app/components/ui/chart.tsx` |
+| `../src\app\components\ui\dropdown-menu.tsx` |
+| `../src\app\components\figma\ImageWithFallback.tsx` |
+| `../src/app/utils/types.ts` |
+| `../src\app\components\ui\aspect-ratio.tsx` |
+| `../src/app/components/ui/skeleton.tsx` |
+| `../src/app/components/ui/sheet.tsx` |
+| `../src\app\components\GreekDecoration.tsx` |
+| `../src/app/utils/date.ts` |
+| `../src/app/components/GreekDecoration.tsx` |
+| `../src\app\App.tsx` |
+| `../src\app\components\ui\carousel.tsx` |
+| `../src/app/components/ui/slider.tsx` |
+| `../src/app/components/ui/textarea.tsx` |
+| `../src/app/hooks/useAutoSave.ts` |
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+**Identifying glob duplication cause**</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: C:\Users\tommy\CS485\GlossaDocs\src\app\App.tsx</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: C:\Users\tommy\CS485\GlossaDocs\src\app\components\Editor.tsx</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: C:\Users\tommy\CS485\GlossaDocs\src\app\utils\db.ts</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: C:\Users\tommy\CS485\GlossaDocs\src\app\utils\constants.ts</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+**Planning feature inspection**</details></think>
+
+---
+
+I found concrete technical behavior in the UI code (IndexedDB persistence, autosave, editor formatting, export, language switching). Next I’m extracting feature-level details from `DocumentList`, `EditorToolbar`, and auth flow so the README reflects what currently exists, not just planned specs.
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: C:\Users\tommy\CS485\GlossaDocs\src\app\components\DocumentList.tsx</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: C:\Users\tommy\CS485\GlossaDocs\src\app\components\EditorToolbar.tsx</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: C:\Users\tommy\CS485\GlossaDocs\src\app\hooks\useAutoSave.ts</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: C:\Users\tommy\CS485\GlossaDocs\src\app\utils\languages.ts</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: C:\Users\tommy\CS485\GlossaDocs\src\app\utils\auth.ts</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: C:\Users\tommy\CS485\GlossaDocs\src\app\components\Login.tsx</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: C:\Users\tommy\CS485\GlossaDocs\src\app\utils\export.ts</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: C:\Users\tommy\CS485\GlossaDocs\src\app\utils\import.ts</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+**Planning README enhancement**</details></think>
+
+---
+
+<tool-use data-tool-type="generic" data-tool-name="glob_file_search">
+<details>
+<summary>Tool use: **glob_file_search** • Searched codebase "undefined" • **3** results in **1** directory</summary>
+
+Directory: **C:\Users\tommy\CS485\GlossaDocs\docs** (3 files)
+
+| File |
+|------|
+| `../docs\user-story-2-language-selection-spec.md` |
+| `../docs\user-story-1-basic-editor-spec.md` |
+| `../docs\user-story-3-onscreen-keyboard-spec.md` |
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+**Reviewing story headings for context**</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: C:\Users\tommy\CS485\GlossaDocs\docs\user-story-2-language-selection-spec.md</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: C:\Users\tommy\CS485\GlossaDocs\docs\user-story-3-onscreen-keyboard-spec.md</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+**Planning comprehensive README rewrite**</details></think>
+
+---
+
+I have enough context now. I’m going to rewrite `README.md` to clearly separate **current implemented behavior** from the **product direction from the user stories**, so it’s accurate and useful for anyone new to GlossaDocs.
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: C:\Users\tommy\CS485\GlossaDocs\README.md</summary>
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+**Planning optional clarification check**</details></think>
+
+---
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "C:\\Users\\tommy\\CS485\\GlossaDocs\\README.md"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "C:\\Users\\tommy\\CS485\\GlossaDocs\\README.md"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+**Finalizing README update and clarifying purpose**</details></think>
+
+---
+
+Updated `README.md` to explain GlossaDocs as a **multilingual, Google Docs-style editor** and to make the project status clear for new readers.
+
+What changed in `README.md`:
+- Replaced the old Figma boilerplate with a real project overview.
+- Added a clear **“What The Project Is”** section focused on multilingual writing goals.
+- Documented **current implemented features** based on the code (editor formatting, autosave, IndexedDB storage, import/export, language selector, simulated auth).
+- Added a **“Product Direction”** section tied to your user stories in `docs/` (Story 1–3).
+- Included stack, local run instructions, and current limitations.
+
+One clarification to improve it further:
+- Should the README be written for **course evaluators/teachers** (more architecture and milestone framing) or for **future contributors/users** (more setup and feature usage)?  
+I can tune tone and section order for that audience in one quick pass.
+
+---
+
+_**User**_
+
+I edited the readme a little bit to remove references to the outdated docs folder. Now, I want to add the ability to use keyboard commands to edit the documents. Specifically, I want ctrl + b to be bold, ctrl + i italic, ctrl + u underline, and ctrl + s be save like other docs softwares. Implement this behavior following SOLID and DRY principles. Ask questions if needed
+
+---
+
+_**Agent (model gpt-5.3-codex, mode Agent)**_
+
+<think><details><summary>Thought Process</summary>
+**Planning keyboard shortcut integration**</details></think>
+
+---
+
+I’ll add a centralized keyboard-shortcut layer in the editor so `Ctrl/Cmd + B/I/U/S` is handled consistently, avoids duplication, and keeps save behavior separate from formatting logic. I’m first checking the existing formatting/save flow to wire this cleanly.
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: C:\Users\tommy\CS485\GlossaDocs\src\app\components\Editor.tsx</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: C:\Users\tommy\CS485\GlossaDocs\src\app\hooks\useFormattingState.ts</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: C:\Users\tommy\CS485\GlossaDocs\src\app\utils\types.ts</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+**Designing keyboard shortcut handling**</details></think>
+
+---
+
+I’m implementing this with a small shortcut utility so key mapping is defined once and reusable, then wiring it into `Editor` for both toolbar-equivalent formatting and save interception.
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: C:\Users\tommy\CS485\GlossaDocs\src\app\utils\keyboardShortcuts.ts</summary>
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+**Patching editor commands with unsaved changes**</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: C:\Users\tommy\CS485\GlossaDocs\src\app\components\Editor.tsx</summary>
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+**Checking unused imports and lint**</details></think>
+
+---
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "C:\\Users\\tommy\\CS485\\GlossaDocs\\src\\app\\components\\Editor.tsx",
+    "C:\\Users\\tommy\\CS485\\GlossaDocs\\src\\app\\utils\\keyboardShortcuts.ts"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "C:\\Users\\tommy\\CS485\\GlossaDocs\\src\\app\\components\\Editor.tsx"
+    },
+    {
+      "relativeWorkspacePath": "C:\\Users\\tommy\\CS485\\GlossaDocs\\src\\app\\utils\\keyboardShortcuts.ts"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+**Confirming import usage and clarifying save behavior**</details></think>
+
+---
+
+Implemented keyboard shortcuts for editing and saving in the editor with a DRY/SOLID approach.
+
+### What I changed
+
+- Added a dedicated shortcut utility at `src/app/utils/keyboardShortcuts.ts`:
+  - Centralizes key mapping logic in one place.
+  - Maps:
+    - `Ctrl/Cmd + B` → `bold`
+    - `Ctrl/Cmd + I` → `italic`
+    - `Ctrl/Cmd + U` → `underline`
+    - `Ctrl/Cmd + S` → `save`
+
+- Updated `src/app/components/Editor.tsx`:
+  - Uses the new `getEditorShortcutAction()` helper in `handleKeyDown`.
+  - Prevents browser defaults for those shortcuts (especially `Ctrl/Cmd + S`).
+  - Routes formatting shortcuts through the existing `handleFormat()` (single formatting path, no duplication).
+  - Routes save shortcut through existing `handleSave()` (single save path, no duplication).
+  - Ensures formatting commands mark the document as unsaved so autosave/manual save state stays consistent.
+
+### Why this follows SOLID + DRY
+
+- **Single Responsibility**: shortcut parsing/mapping is separated from editor rendering logic.
+- **Open/Closed**: adding future shortcuts only requires extending the shortcut map, not rewriting editor handlers.
+- **DRY**: shortcut-triggered actions reuse existing `handleFormat`/`handleSave` instead of duplicating formatting/save behavior.
+
+### Note
+
+- Shortcuts currently fire when focus is inside the editable document area (which is typical for editor commands).
+
+One quick clarification: do you also want `Ctrl/Cmd + S` to work when focus is in the title input or anywhere on the editor page (global listener), not just inside the content editor?
+
+---
+
+_**User**_
+
+I want the save command to fire when focus is anywhere on the editor page.
+
+---
+
+_**Agent (model gpt-5.3-codex, mode Agent)**_
+
+<think><details><summary>Thought Process</summary>
+**Implementing global save shortcut**</details></think>
+
+---
+
+Understood — I’ll make `Ctrl/Cmd + S` a page-level shortcut by adding a window keydown handler in `Editor`, while keeping formatting shortcuts scoped to the content editor.
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: C:\Users\tommy\CS485\GlossaDocs\src\app\components\Editor.tsx</summary>
+
+</details>
+
+</tool-use>
+
+---
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "C:\\Users\\tommy\\CS485\\GlossaDocs\\src\\app\\components\\Editor.tsx"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "C:\\Users\\tommy\\CS485\\GlossaDocs\\src\\app\\components\\Editor.tsx"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+---
+
+Done — `Ctrl/Cmd + S` now works **anywhere on the editor page**, not just inside the content area.
+
+### What changed
+- In `src/app/components/Editor.tsx`:
+  - Added a global `window` keydown listener (`handleGlobalKeyDown`) that catches the save shortcut and calls `handleSave()`.
+  - Kept formatting shortcuts (`Ctrl/Cmd + B/I/U`) scoped to the editor content area.
+  - Updated the editor-local keydown handler to ignore `save` so the shortcut is handled in one place (DRY).
+
+No lint issues were introduced.
+
+If you want, I can also make `Ctrl/Cmd + B/I/U` global when focus is in the title input (common in docs apps), while still avoiding interference with other controls.
 
 ---
 

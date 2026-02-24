@@ -1,1 +1,33 @@
 node_modules
+# --- Project-specific ---
+.specstory/
+.cursorindexingignore
+
+# --- Node / TypeScript (common for web apps) ---
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+dist/
+build/
+.next/
+.nuxt/
+.svelte-kit/
+out/
+coverage/
+*.tsbuildinfo
+
+# Environment / secrets
+.env
+.env.*
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+.vscode/
+.idea/
+

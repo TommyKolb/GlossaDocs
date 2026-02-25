@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { EditorToolbar } from './EditorToolbar';
+import { LanguageKeyboard } from './LanguageKeyboard';
 import { LoadingSpinner } from './LoadingSpinner';
 import { 
   Document, 
@@ -11,6 +12,7 @@ import { exportDocument, type ExportFormat } from '../utils/export';
 import { getLanguageName, type Language } from '../utils/languages';
 import { EDITOR_CONFIG, UI_CONSTANTS } from '../utils/constants';
 import { findBlockElement, getLineHeight, getNextImageSize } from '../utils/dom';
+import { getRemappedCharacter } from '../utils/keyboardLayouts';
 import { getEditorShortcutAction } from '../utils/keyboardShortcuts';
 import { useFormattingState } from '../hooks/useFormattingState';
 import { useAutoSave } from '../hooks/useAutoSave';
@@ -26,6 +28,7 @@ export function Editor({ documentId, onBack }: EditorProps) {
   const [document, setDocument] = useState<Document | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(true);
   
   // Refs
   const editorRef = useRef<HTMLDivElement>(null);
@@ -34,6 +37,7 @@ export function Editor({ documentId, onBack }: EditorProps) {
   
   // Custom hooks
   const { formattingState, updateFormattingState } = useFormattingState();
+  const activeLanguage = document?.language ?? EDITOR_CONFIG.DEFAULT_LANGUAGE;
 
   // Callbacks
   const handleSave = useCallback(async () => {
@@ -83,6 +87,35 @@ export function Editor({ documentId, onBack }: EditorProps) {
 
     toast.success(`Language changed to ${getLanguageName(newLanguage)}`);
   }, [document]);
+
+  const insertTextAtCursor = useCallback((text: string) => {
+    if (!editorRef.current) return;
+
+    editorRef.current.focus();
+
+    // Prefer browser-native rich-text insertion so active styles (bold/italic/underline)
+    // apply to remapped and on-screen-keyboard input as expected.
+    const insertedWithCommand = window.document.execCommand('insertText', false, text);
+
+    if (!insertedWithCommand) {
+      const selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0) {
+        editorRef.current.append(text);
+      } else {
+        const range = selection.getRangeAt(0);
+        range.deleteContents();
+        const textNode = window.document.createTextNode(text);
+        range.insertNode(textNode);
+        range.setStartAfter(textNode);
+        range.setEndAfter(textNode);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+    }
+
+    setHasUnsavedChanges(true);
+    updateFormattingState();
+  }, [updateFormattingState]);
 
   const handleFormat = useCallback((command: string) => {
     if (command.startsWith('fontSize:')) {
@@ -272,6 +305,21 @@ export function Editor({ documentId, onBack }: EditorProps) {
       return;
     }
 
+    if (isKeyboardVisible && !event.ctrlKey && !event.metaKey && !event.altKey && !event.isComposing) {
+      const remappedCharacter = getRemappedCharacter({
+        language: activeLanguage,
+        key: event.key,
+        shiftKey: event.shiftKey,
+        capsLock: event.getModifierState('CapsLock'),
+      });
+
+      if (remappedCharacter && remappedCharacter !== event.key) {
+        event.preventDefault();
+        insertTextAtCursor(remappedCharacter);
+        return;
+      }
+    }
+
     if (event.key === 'Enter' && !event.shiftKey) {
       // Let the default behavior happen, but ensure proper paragraph structure
       const selection = window.getSelection();
@@ -292,7 +340,7 @@ export function Editor({ documentId, onBack }: EditorProps) {
         }
       }, 0);
     }
-  }, [handleFormat, handleSave]);
+  }, [activeLanguage, handleFormat, handleSave, insertTextAtCursor, isKeyboardVisible]);
 
   const handleGlobalKeyDown = useCallback((event: KeyboardEvent) => {
     const shortcutAction = getEditorShortcutAction(event);
@@ -411,6 +459,13 @@ export function Editor({ documentId, onBack }: EditorProps) {
             {hasUnsavedChanges ? 'Auto-saving in progress...' : 'All changes saved'}
           </div>
         </div>
+
+        <LanguageKeyboard
+          language={document.language}
+          isVisible={isKeyboardVisible}
+          onToggleVisibility={() => setIsKeyboardVisible((prev) => !prev)}
+          onInsertCharacter={insertTextAtCursor}
+        />
       </div>
     </div>
   );

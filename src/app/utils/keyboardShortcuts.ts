@@ -2,12 +2,13 @@ import { FormatCommand } from './types';
 
 interface KeyboardShortcutEvent {
   key: string;
+  code?: string;
   ctrlKey: boolean;
   metaKey: boolean;
   altKey: boolean;
 }
 
-export type EditorShortcutAction = FormatCommand | 'save';
+export type EditorShortcutAction = FormatCommand | 'save' | 'toggleKeyboard';
 
 const FORMAT_SHORTCUTS: Readonly<Record<string, FormatCommand>> = {
   b: 'bold',
@@ -25,10 +26,19 @@ export function getEditorShortcutAction(event: KeyboardShortcutEvent): EditorSho
   }
 
   const key = event.key.toLowerCase();
+  const code = event.code?.toLowerCase();
 
-  if (key === 's') {
+  if (key === 's' || code === 'keys') {
     return 'save';
   }
+
+  if (key === 'd' || code === 'keyd') {
+    return 'toggleKeyboard';
+  }
+
+  if (code === 'keyb') return 'bold';
+  if (code === 'keyi') return 'italic';
+  if (code === 'keyu') return 'underline';
 
   return FORMAT_SHORTCUTS[key] ?? null;
 }

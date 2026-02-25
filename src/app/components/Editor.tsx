@@ -297,8 +297,19 @@ export function Editor({ documentId, onBack }: EditorProps) {
     imageInputRef.current?.click();
   }, [saveSelection]);
 
+  const toggleKeyboardVisibility = useCallback(() => {
+    setIsKeyboardVisible((prev) => !prev);
+  }, []);
+
   const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
     const shortcutAction = getEditorShortcutAction(event);
+    if (shortcutAction === 'toggleKeyboard') {
+      // Let the global handler perform the toggle exactly once.
+      // We still prevent default to avoid browser/host shortcut side effects.
+      event.preventDefault();
+      return;
+    }
+
     if (shortcutAction && shortcutAction !== 'save') {
       event.preventDefault();
       handleFormat(shortcutAction);
@@ -340,15 +351,20 @@ export function Editor({ documentId, onBack }: EditorProps) {
         }
       }, 0);
     }
-  }, [activeLanguage, handleFormat, handleSave, insertTextAtCursor, isKeyboardVisible]);
+  }, [activeLanguage, handleFormat, handleSave, insertTextAtCursor, isKeyboardVisible, toggleKeyboardVisibility]);
 
   const handleGlobalKeyDown = useCallback((event: KeyboardEvent) => {
     const shortcutAction = getEditorShortcutAction(event);
     if (shortcutAction === 'save') {
       event.preventDefault();
       void handleSave();
+      return;
     }
-  }, [handleSave]);
+    if (shortcutAction === 'toggleKeyboard') {
+      event.preventDefault();
+      toggleKeyboardVisibility();
+    }
+  }, [handleSave, toggleKeyboardVisibility]);
 
   // Auto-save hook
   useAutoSave(hasUnsavedChanges, handleSave);
@@ -463,7 +479,7 @@ export function Editor({ documentId, onBack }: EditorProps) {
         <LanguageKeyboard
           language={document.language}
           isVisible={isKeyboardVisible}
-          onToggleVisibility={() => setIsKeyboardVisible((prev) => !prev)}
+          onToggleVisibility={toggleKeyboardVisibility}
           onInsertCharacter={insertTextAtCursor}
         />
       </div>

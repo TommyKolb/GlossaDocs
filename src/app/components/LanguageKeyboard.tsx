@@ -34,16 +34,16 @@ export function LanguageKeyboard({
             size="sm"
             onClick={onToggleVisibility}
             aria-expanded={isVisible}
-            aria-label={`${isVisible ? 'Hide' : 'Show'} on-screen keyboard`}
+            aria-label={`${isVisible ? 'Hide' : 'Show'} on-screen keyboard using Control or Command plus D`}
           >
-            {isVisible ? 'Hide keyboard' : 'Show keyboard'}
+            {isVisible ? 'Hide keyboard (Ctrl/Cmd+D)' : 'Show keyboard (Ctrl/Cmd+D)'}
           </Button>
         </div>
 
         <p className="text-xs text-gray-600 mb-3" role="status" aria-live="polite">
           {isVisible
-            ? 'Keyboard is enabled. Typed keys follow the selected language mapping.'
-            : 'Keyboard is disabled. Typed keys use normal typing.'}
+            ? 'Keyboard is enabled. Typed keys follow the selected language mapping. Press Control or Command plus D to disable.'
+            : 'Keyboard is disabled. Typed keys use normal typing. Press Control or Command plus D to enable.'}
         </p>
 
         {isVisible ? (

@@ -7,6 +7,7 @@ interface LanguageKeyboardProps {
   isVisible: boolean;
   onToggleVisibility: () => void;
   onInsertCharacter: (character: string) => void;
+  className?: string;
 }
 
 export function LanguageKeyboard({
@@ -14,13 +15,14 @@ export function LanguageKeyboard({
   isVisible,
   onToggleVisibility,
   onInsertCharacter,
+  className,
 }: LanguageKeyboardProps) {
   const layout = getKeyboardLayout(language);
   const languageName = getLanguageName(language);
 
   return (
     <section
-      className="max-w-4xl mx-auto w-full mt-4"
+      className={className ?? 'w-full'}
       aria-label={`${languageName} on-screen keyboard`}
     >
       <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-3 sm:p-4">
@@ -49,14 +51,14 @@ export function LanguageKeyboard({
         {isVisible ? (
           <div className="space-y-2" role="group" aria-label={`${languageName} keyboard keys`}>
             {layout.map((row, rowIndex) => (
-              <div key={`${language}-row-${rowIndex}`} className="flex flex-wrap gap-2">
+              <div key={`${language}-row-${rowIndex}`} className="flex gap-2">
                 {row.map((layoutKey) => (
                   <Button
                     key={`${language}-${rowIndex}-${layoutKey.output}-${layoutKey.typedWith}`}
                     type="button"
                     variant="secondary"
                     size="sm"
-                    className="min-w-11 h-10 px-2"
+                    className="h-10 px-2 flex-1"
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => onInsertCharacter(layoutKey.output)}
                     aria-label={`Insert ${layoutKey.output} using ${layoutKey.typedWith}`}

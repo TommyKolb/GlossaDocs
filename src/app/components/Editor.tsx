@@ -451,37 +451,41 @@ export function Editor({ documentId, onBack }: EditorProps) {
         aria-label="Select image to insert"
       />
 
-      {/* Editor content */}
-      <div className="flex-1 overflow-auto bg-gray-100 px-2 sm:px-4 py-4 sm:py-6 flex flex-col">
-        <div className="max-w-4xl mx-auto w-full flex-1 flex flex-col">
-          <div
-            ref={editorRef}
-            contentEditable
-            className="min-h-[calc(100vh-300px)] bg-white p-4 sm:p-8 md:p-12 shadow-lg rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex-1"
-            style={{
-              direction: languageDir,
-              lineHeight: '1.15',
-            }}
-            dir={languageDir}
-            onInput={handleContentChange}
-            onSelect={handleSelectionChange}
-            onKeyDown={handleKeyDown}
-            role="textbox"
-            aria-multiline="true"
-            aria-label={`Document editor for ${document.title || 'Untitled Document'}`}
-            lang={document.language}
-          />
-          <div className="text-center text-xs sm:text-sm text-gray-500 mt-3 sm:mt-4 mb-2" role="status" aria-live="polite">
-            {hasUnsavedChanges ? 'Auto-saving in progress...' : 'All changes saved'}
+      {/* Editor content and keyboard layout */}
+      <div className="flex-1 overflow-auto bg-gray-100 px-2 sm:px-4 py-4 sm:py-6">
+        <div className="mx-auto w-full max-w-[1600px] grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)] xl:items-start">
+          <div className="min-w-0">
+            <div className="max-w-4xl xl:max-w-none mx-auto w-full flex flex-col">
+              <div
+                ref={editorRef}
+                contentEditable
+                className="h-[calc(100vh-190px)] min-h-[360px] bg-white p-4 sm:p-8 md:p-12 shadow-lg rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                style={{
+                  direction: languageDir,
+                  lineHeight: '1.15',
+                }}
+                dir={languageDir}
+                onInput={handleContentChange}
+                onSelect={handleSelectionChange}
+                onKeyDown={handleKeyDown}
+                role="textbox"
+                aria-multiline="true"
+                aria-label={`Document editor for ${document.title || 'Untitled Document'}`}
+                lang={document.language}
+              />
+            </div>
+          </div>
+
+          <div className="xl:sticky xl:top-4">
+            <LanguageKeyboard
+              className="w-full"
+              language={document.language}
+              isVisible={isKeyboardVisible}
+              onToggleVisibility={toggleKeyboardVisibility}
+              onInsertCharacter={insertTextAtCursor}
+            />
           </div>
         </div>
-
-        <LanguageKeyboard
-          language={document.language}
-          isVisible={isKeyboardVisible}
-          onToggleVisibility={toggleKeyboardVisibility}
-          onInsertCharacter={insertTextAtCursor}
-        />
       </div>
     </div>
   );

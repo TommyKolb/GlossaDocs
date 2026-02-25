@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { EditorToolbar } from './EditorToolbar';
 import { LanguageKeyboard } from './LanguageKeyboard';
-import { LoadingSpinner } from './LoadingSpinner';
 import { 
   Document, 
   getDocument, 
@@ -10,8 +9,8 @@ import {
 } from '../utils/db';
 import { exportDocument, type ExportFormat } from '../utils/export';
 import { getLanguageName, type Language } from '../utils/languages';
-import { EDITOR_CONFIG, UI_CONSTANTS } from '../utils/constants';
-import { findBlockElement, getLineHeight, getNextImageSize } from '../utils/dom';
+import { EDITOR_CONFIG } from '../utils/constants';
+import { findBlockElement, getLineHeight } from '../utils/dom';
 import { getRemappedCharacter } from '../utils/keyboardLayouts';
 import { getEditorShortcutAction } from '../utils/keyboardShortcuts';
 import { useFormattingState } from '../hooks/useFormattingState';
@@ -150,15 +149,21 @@ export function Editor({ documentId, onBack }: EditorProps) {
     updateFormattingState();
   }, [updateFormattingState]);
 
-  const handleDownload = useCallback((format: ExportFormat) => {
+  const handleDownload = useCallback(async (format: ExportFormat) => {
     if (!document || !editorRef.current) return;
     
     const docToExport = {
       ...document,
       content: editorRef.current.innerHTML,
     };
-    exportDocument(docToExport, format);
-    toast.success('Document downloaded');
+
+    try {
+      await exportDocument(docToExport, format);
+      toast.success('Document downloaded');
+    } catch (error) {
+      console.error('Error downloading document:', error);
+      toast.error('Failed to download document');
+    }
   }, [document]);
 
   const saveSelection = useCallback(() => {
@@ -351,7 +356,7 @@ export function Editor({ documentId, onBack }: EditorProps) {
         }
       }, 0);
     }
-  }, [activeLanguage, handleFormat, handleSave, insertTextAtCursor, isKeyboardVisible, toggleKeyboardVisibility]);
+  }, [activeLanguage, handleFormat, insertTextAtCursor, isKeyboardVisible]);
 
   const handleGlobalKeyDown = useCallback((event: KeyboardEvent) => {
     const shortcutAction = getEditorShortcutAction(event);

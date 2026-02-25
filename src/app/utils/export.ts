@@ -1,5 +1,4 @@
 import { Document as DocxDocument, Paragraph, TextRun, AlignmentType } from 'docx';
-import { jsPDF } from 'jspdf';
 import { Document } from './db';
 import { PDF_CONFIG } from './constants';
 
@@ -24,6 +23,72 @@ function htmlToPlainText(html: string): string {
   const tempDiv = document.createElement('div');
   tempDiv.innerHTML = html;
   return tempDiv.textContent || tempDiv.innerText || '';
+}
+
+/**
+ * Sanitizes HTML for html2canvas/html2pdf compatibility.
+ * Removes class names and style declarations that use unsupported color funcs
+ * like oklch(...), while preserving semantic formatting tags.
+ */
+function sanitizeHtmlForPdf(html: string): string {
+  const container = document.createElement('div');
+  container.innerHTML = html;
+
+  const elements = container.querySelectorAll<HTMLElement>('*');
+  elements.forEach((element) => {
+    element.removeAttribute('class');
+
+    const styleAttr = element.getAttribute('style');
+    if (!styleAttr) return;
+
+    const sanitizedStyle = styleAttr
+      // Remove individual declarations whose value contains oklch(...)
+      .replace(/(^|;)\s*[^:;]+:\s*[^;]*oklch\([^)]*\)[^;]*\s*(?=;|$)/gi, '')
+      // Normalize leftover semicolon spacing
+      .replace(/;;+/g, ';')
+      .replace(/^\s*;\s*|\s*;\s*$/g, '')
+      .trim();
+
+    if (sanitizedStyle) {
+      element.setAttribute('style', sanitizedStyle);
+    } else {
+      element.removeAttribute('style');
+    }
+  });
+
+  return container.innerHTML;
+}
+
+function stripUnsupportedColorsFromStyleText(cssText: string): string {
+  return cssText.replace(/oklch\([^)]*\)/gi, '#111111');
+}
+
+function sanitizeClonedDocumentForPdf(clonedDoc: Document): void {
+  // Remove external stylesheets entirely to avoid unsupported CSS functions.
+  clonedDoc.querySelectorAll('link[rel="stylesheet"]').forEach((link) => link.remove());
+
+  // Sanitize inline <style> tags that may contain oklch().
+  clonedDoc.querySelectorAll('style').forEach((styleEl) => {
+    const text = styleEl.textContent ?? '';
+    styleEl.textContent = stripUnsupportedColorsFromStyleText(text);
+  });
+
+  // Sanitize any style attributes in the cloned DOM.
+  clonedDoc.querySelectorAll<HTMLElement>('*').forEach((element) => {
+    const styleAttr = element.getAttribute('style');
+    if (!styleAttr) return;
+
+    const sanitizedStyle = stripUnsupportedColorsFromStyleText(styleAttr)
+      .replace(/;;+/g, ';')
+      .replace(/^\s*;\s*|\s*;\s*$/g, '')
+      .trim();
+
+    if (sanitizedStyle) {
+      element.setAttribute('style', sanitizedStyle);
+    } else {
+      element.removeAttribute('style');
+    }
+  });
 }
 
 /**
@@ -127,44 +192,133 @@ export async function exportAsDocx(doc: Document): Promise<void> {
 
 /**
  * Exports document as PDF (.pdf)
- * Uses jsPDF to create a simple text-based PDF without HTML rendering
+ * Uses html2pdf/html2canvas with an isolated render container
  */
 export async function exportAsPdf(doc: Document): Promise<void> {
-  const pdf = new jsPDF({
-    orientation: PDF_CONFIG.ORIENTATION,
-    unit: 'mm',
-    format: PDF_CONFIG.FORMAT,
-  });
+  // Render inside an isolated iframe so html2canvas does not parse app-wide CSS
+  // tokens (like oklch) that it cannot handle.
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'fixed';
+  iframe.style.left = '-99999px';
+  iframe.style.top = '0';
+  iframe.style.width = '900px';
+  iframe.style.height = '1200px';
+  iframe.setAttribute('aria-hidden', 'true');
+  document.body.appendChild(iframe);
 
-  // Extract plain text from HTML content
-  const plainText = htmlToPlainText(doc.content);
-  
-  // Set up document styling
-  const pageWidth = pdf.internal.pageSize.getWidth();
-  const pageHeight = pdf.internal.pageSize.getHeight();
-  const maxWidth = pageWidth - (PDF_CONFIG.MARGIN * 2);
-  let currentY = PDF_CONFIG.MARGIN;
-
-  // Add content
-  pdf.setFontSize(PDF_CONFIG.FONT_SIZE);
-  pdf.setFont('helvetica', 'normal');
-  
-  // Split text into lines that fit the page width
-  const contentLines = pdf.splitTextToSize(plainText, maxWidth);
-  
-  contentLines.forEach((line: string) => {
-    // Check if we need a new page
-    if (currentY + PDF_CONFIG.LINE_HEIGHT > pageHeight - PDF_CONFIG.MARGIN) {
-      pdf.addPage();
-      currentY = PDF_CONFIG.MARGIN;
+  try {
+    const iframeDoc = iframe.contentDocument;
+    if (!iframeDoc) {
+      throw new Error('Failed to initialize PDF rendering context.');
     }
-    
-    pdf.text(line, PDF_CONFIG.MARGIN, currentY);
-    currentY += PDF_CONFIG.LINE_HEIGHT;
-  });
 
-  // Save the PDF
-  pdf.save(`${doc.title}.pdf`);
+    iframeDoc.open();
+    iframeDoc.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <style>
+            body {
+              margin: 0;
+              padding: 0;
+              background: #fff;
+              color: #111;
+              font-family: Arial, Helvetica, sans-serif;
+            }
+            .pdf-root {
+              width: 794px;
+              padding: 28px 32px;
+              box-sizing: border-box;
+              font-size: 16px;
+              line-height: 1.6;
+              white-space: pre-wrap;
+              overflow-wrap: anywhere;
+              word-break: break-word;
+            }
+            .pdf-title {
+              margin: 0 0 20px 0;
+              font-size: 28px;
+              font-weight: 700;
+              line-height: 1.2;
+            }
+            .pdf-content {
+              white-space: pre-wrap;
+              overflow-wrap: anywhere;
+              word-break: break-word;
+            }
+          </style>
+        </head>
+        <body></body>
+      </html>
+    `);
+    iframeDoc.close();
+
+    const renderContainer = iframeDoc.createElement('div');
+    renderContainer.className = 'pdf-root';
+    renderContainer.id = 'pdf-export-root';
+    const titleElement = iframeDoc.createElement('h1');
+    titleElement.className = 'pdf-title';
+    titleElement.textContent = doc.title || 'Untitled Document';
+    const contentElement = iframeDoc.createElement('div');
+    contentElement.className = 'pdf-content';
+    contentElement.innerHTML = sanitizeHtmlForPdf(doc.content || '<div><br></div>');
+
+    renderContainer.appendChild(titleElement);
+    renderContainer.appendChild(contentElement);
+    iframeDoc.body.appendChild(renderContainer);
+
+    const html2pdfModule = await import('html2pdf.js/dist/html2pdf.bundle.min.js');
+    const html2pdf = (html2pdfModule as { default?: any }).default ?? html2pdfModule;
+    await new Promise<void>((resolve, reject) => {
+      html2pdf()
+        .from(renderContainer)
+        .set({
+          margin: PDF_CONFIG.MARGIN / 4,
+          filename: `${doc.title || 'Untitled Document'}.pdf`,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: {
+            scale: 1.5,
+            useCORS: true,
+            backgroundColor: '#ffffff',
+            onclone: (clonedDoc: Document) => {
+              sanitizeClonedDocumentForPdf(clonedDoc);
+
+              // Re-apply critical container styles in case stylesheet stripping removed them.
+              const clonedRoot = clonedDoc.getElementById('pdf-export-root');
+              if (clonedRoot) {
+                const rootStyle = clonedRoot as HTMLElement;
+                rootStyle.style.width = '794px';
+                rootStyle.style.padding = '28px 32px';
+                rootStyle.style.boxSizing = 'border-box';
+                rootStyle.style.fontFamily = 'Arial, Helvetica, sans-serif';
+                rootStyle.style.fontSize = '16px';
+                rootStyle.style.lineHeight = '1.6';
+                rootStyle.style.whiteSpace = 'pre-wrap';
+                rootStyle.style.overflowWrap = 'anywhere';
+                rootStyle.style.wordBreak = 'break-word';
+                rootStyle.style.color = '#111111';
+                rootStyle.style.backgroundColor = '#ffffff';
+              }
+            },
+          },
+          jsPDF: {
+            unit: 'mm',
+            format: PDF_CONFIG.FORMAT,
+            orientation: PDF_CONFIG.ORIENTATION,
+          },
+          pagebreak: {
+            mode: ['css', 'legacy'],
+            avoid: ['img'],
+          },
+        })
+        .save()
+        .then(() => resolve())
+        .catch((error: unknown) => reject(error));
+    });
+  } finally {
+    document.body.removeChild(iframe);
+  }
 }
 
 /**

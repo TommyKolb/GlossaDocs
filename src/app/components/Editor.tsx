@@ -207,22 +207,24 @@ export function Editor({ documentId, onBack }: EditorProps) {
       const reader = new FileReader();
       reader.onload = (e) => {
         const base64Data = e.target?.result as string;
+        const imageName = file.name.replace(/\.[^/.]+$/, '').trim();
         
         // Create an image element
         const img = window.document.createElement('img');
         img.src = base64Data;
+        img.alt = imageName || 'Inserted image';
         img.style.maxWidth = '100%';
         img.style.height = 'auto';
         img.style.display = 'block';
         img.style.margin = '1rem 0';
         img.style.cursor = 'pointer';
         img.contentEditable = 'false';
+        img.tabIndex = 0;
+        img.setAttribute('role', 'button');
+        img.setAttribute('aria-label', 'Resize image. Press Enter or Space to change size');
         
-        // Add resize functionality on click
-        img.addEventListener('click', (clickEvent) => {
-          clickEvent.stopPropagation();
+        const cycleImageSize = () => {
           const currentWidth = img.style.width || '100%';
-          
           // Cycle through sizes: 25%, 50%, 75%, 100%
           if (currentWidth === '100%' || currentWidth === '') {
             img.style.width = '75%';
@@ -232,6 +234,21 @@ export function Editor({ documentId, onBack }: EditorProps) {
             img.style.width = '25%';
           } else {
             img.style.width = '100%';
+          }
+          setHasUnsavedChanges(true);
+        };
+        
+        // Add resize functionality on click
+        img.addEventListener('click', (clickEvent) => {
+          clickEvent.stopPropagation();
+          cycleImageSize();
+        });
+
+        img.addEventListener('keydown', (keyEvent) => {
+          if (keyEvent.key === 'Enter' || keyEvent.key === ' ') {
+            keyEvent.preventDefault();
+            keyEvent.stopPropagation();
+            cycleImageSize();
           }
         });
 
@@ -307,6 +324,17 @@ export function Editor({ documentId, onBack }: EditorProps) {
   }, []);
 
   const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+    const isImageWrapper = (element: Element | null): element is HTMLElement =>
+      element instanceof HTMLElement &&
+      element.getAttribute('contenteditable') === 'false' &&
+      element.querySelector('img') !== null;
+
+    const hasMeaningfulContent = (fragment: DocumentFragment) => {
+      if (fragment.querySelector('img')) return true;
+      const text = fragment.textContent?.replace(/\u200B/g, '').trim() ?? '';
+      return text.length > 0;
+    };
+
     const shortcutAction = getEditorShortcutAction(event);
     if (shortcutAction === 'toggleKeyboard') {
       // Let the global handler perform the toggle exactly once.
@@ -319,6 +347,49 @@ export function Editor({ documentId, onBack }: EditorProps) {
       event.preventDefault();
       handleFormat(shortcutAction);
       return;
+    }
+
+    if (event.key === 'Backspace' && editorRef.current) {
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0 && selection.isCollapsed) {
+        const range = selection.getRangeAt(0);
+        const editor = editorRef.current;
+        let wrapperToDelete: HTMLElement | null = null;
+
+        // Case 1: caret is directly in the editor root after an image wrapper.
+        if (range.startContainer === editor && range.startOffset > 0) {
+          const previousNode = editor.childNodes[range.startOffset - 1];
+          if (previousNode instanceof HTMLElement && isImageWrapper(previousNode)) {
+            wrapperToDelete = previousNode;
+          }
+        }
+
+        // Case 2: caret is at the beginning of a block that follows an image wrapper.
+        if (!wrapperToDelete) {
+          const blockElement = findBlockElement(range.startContainer, editor);
+          if (blockElement) {
+            const beforeRange = range.cloneRange();
+            beforeRange.selectNodeContents(blockElement);
+            beforeRange.setEnd(range.startContainer, range.startOffset);
+            const caretAtStartOfBlock = !hasMeaningfulContent(beforeRange.cloneContents());
+
+            if (caretAtStartOfBlock) {
+              const previousElement = blockElement.previousElementSibling;
+              if (isImageWrapper(previousElement)) {
+                wrapperToDelete = previousElement;
+              }
+            }
+          }
+        }
+
+        if (wrapperToDelete) {
+          event.preventDefault();
+          wrapperToDelete.remove();
+          setHasUnsavedChanges(true);
+          updateFormattingState();
+          return;
+        }
+      }
     }
 
     if (isKeyboardVisible && !event.ctrlKey && !event.metaKey && !event.altKey && !event.isComposing) {
@@ -430,7 +501,7 @@ export function Editor({ documentId, onBack }: EditorProps) {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-white">
+    <div className="min-h-screen min-h-[100dvh] flex flex-col bg-white">
       <EditorToolbar
         language={document.language}
         onLanguageChange={handleLanguageChange}
@@ -458,13 +529,13 @@ export function Editor({ documentId, onBack }: EditorProps) {
 
       {/* Editor content and keyboard layout */}
       <div className="flex-1 overflow-auto bg-gray-100 px-2 sm:px-4 py-4 sm:py-6">
-        <div className="mx-auto w-full max-w-[1600px] grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)] xl:items-start">
+        <div className="mx-auto w-full max-w-[1600px] grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)] lg:items-start">
           <div className="min-w-0">
             <div className="max-w-4xl xl:max-w-none mx-auto w-full flex flex-col">
               <div
                 ref={editorRef}
                 contentEditable
-                className="h-[calc(100vh-190px)] min-h-[360px] bg-white p-4 sm:p-8 md:p-12 shadow-lg rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                className="min-h-[calc(100vh-190px)] min-h-[calc(100dvh-190px)] bg-white p-4 sm:p-8 md:p-12 shadow-lg rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                 style={{
                   direction: languageDir,
                   lineHeight: '1.15',
@@ -481,7 +552,7 @@ export function Editor({ documentId, onBack }: EditorProps) {
             </div>
           </div>
 
-          <div className="xl:sticky xl:top-4">
+          <div className="lg:sticky lg:top-4">
             <LanguageKeyboard
               className="w-full"
               language={document.language}

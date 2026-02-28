@@ -30,6 +30,7 @@ export function Login({ onLoginSuccess }: LoginProps) {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [currentWelcomeIndex, setCurrentWelcomeIndex] = useState(0);
+  const [formErrors, setFormErrors] = useState<{ username?: string; password?: string; general?: string }>({});
 
   const visibleLanguages = useLanguageCycling(LANGUAGES.length);
 
@@ -43,18 +44,35 @@ export function Login({ onLoginSuccess }: LoginProps) {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!username.trim() || !password.trim()) {
+
+    const trimmedUsername = username.trim();
+    const trimmedPassword = password.trim();
+    const nextErrors: { username?: string; password?: string } = {};
+
+    if (!trimmedUsername) {
+      nextErrors.username = 'Username is required.';
+    }
+
+    if (!trimmedPassword) {
+      nextErrors.password = 'Password is required.';
+    }
+
+    if (nextErrors.username || nextErrors.password) {
+      setFormErrors(nextErrors);
       toast.error('Please enter both username and password');
       return;
     }
 
+    setFormErrors({});
     setIsLoading(true);
     try {
-      const user = await loginWithCredentials({ username, password });
+      const user = await loginWithCredentials({ username: trimmedUsername, password: trimmedPassword });
       toast.success(`Welcome back, ${user.username}!`);
       onLoginSuccess(user);
     } catch (error) {
+      setFormErrors({
+        general: 'Login failed. Please check your credentials and try again.',
+      });
       toast.error('Login failed. Please check your credentials.');
       console.error('Login error:', error);
     } finally {
@@ -137,14 +155,24 @@ export function Login({ onLoginSuccess }: LoginProps) {
                 id="username"
                 type="text"
                 value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                onChange={(e) => {
+                  setUsername(e.target.value);
+                  setFormErrors((prev) => ({ ...prev, username: undefined, general: undefined }));
+                }}
                 placeholder="Enter your username"
                 disabled={isLoading}
                 className="w-full"
                 autoComplete="username"
                 required
                 aria-required="true"
+                aria-invalid={Boolean(formErrors.username)}
+                aria-describedby={formErrors.username ? 'username-error' : undefined}
               />
+              {formErrors.username ? (
+                <p id="username-error" className="mt-1 text-sm text-red-600" role="alert">
+                  {formErrors.username}
+                </p>
+              ) : null}
             </div>
 
             <div>
@@ -155,15 +183,37 @@ export function Login({ onLoginSuccess }: LoginProps) {
                 id="password"
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setFormErrors((prev) => ({ ...prev, password: undefined, general: undefined }));
+                }}
                 placeholder="Enter your password"
                 disabled={isLoading}
                 className="w-full"
                 autoComplete="current-password"
                 required
                 aria-required="true"
+                aria-invalid={Boolean(formErrors.password || formErrors.general)}
+                aria-describedby={
+                  formErrors.password
+                    ? 'password-error'
+                    : formErrors.general
+                      ? 'login-error'
+                      : undefined
+                }
               />
+              {formErrors.password ? (
+                <p id="password-error" className="mt-1 text-sm text-red-600" role="alert">
+                  {formErrors.password}
+                </p>
+              ) : null}
             </div>
+
+            {formErrors.general ? (
+              <p id="login-error" className="text-sm text-red-600" role="alert" aria-live="polite">
+                {formErrors.general}
+              </p>
+            ) : null}
 
             <Button
               type="submit"

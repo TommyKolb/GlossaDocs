@@ -6,6 +6,16 @@ import { DocumentListHero } from './DocumentListHero';
 import { EmptyDocumentState } from './EmptyDocumentState';
 import { DocumentCard } from './DocumentCard';
 import { LoadingSpinner } from './LoadingSpinner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from './ui/alert-dialog';
 import { UI_CONSTANTS } from '../utils/constants';
 import { toast } from 'sonner';
 
@@ -16,6 +26,9 @@ interface DocumentListProps {
 export function DocumentList({ onSelectDocument }: DocumentListProps) {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const uploadInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -82,17 +95,30 @@ export function DocumentList({ onSelectDocument }: DocumentListProps) {
     }
   }
 
-  async function handleDelete(id: string, event: React.MouseEvent) {
+  function handleDelete(id: string, event: React.MouseEvent) {
     event.stopPropagation();
-    if (confirm('Are you sure you want to delete this document?')) {
-      try {
-        await deleteDocument(id);
-        await loadDocuments();
-      } catch (error) {
-        console.error('Error deleting document:', error);
-      }
+    setPendingDeleteId(id);
+    setIsDeleteDialogOpen(true);
+  }
+
+  async function confirmDelete() {
+    if (!pendingDeleteId) return;
+
+    setIsDeleting(true);
+    try {
+      await deleteDocument(pendingDeleteId);
+      await loadDocuments();
+    } catch (error) {
+      console.error('Error deleting document:', error);
+      toast.error('Failed to delete document');
+    } finally {
+      setIsDeleting(false);
+      setIsDeleteDialogOpen(false);
+      setPendingDeleteId(null);
     }
   }
+
+  const pendingDeleteDocument = documents.find((doc) => doc.id === pendingDeleteId);
 
   if (loading) {
     return <LoadingSpinner message="Loading documents..." />;
@@ -124,7 +150,7 @@ export function DocumentList({ onSelectDocument }: DocumentListProps) {
               <span>Your Documents</span>
               <span className="sr-only">({documents.length} document{documents.length !== 1 ? 's' : ''})</span>
             </h2>
-            <div className="grid gap-3 sm:gap-4" role="list" aria-label="Document list">
+            <div className="grid gap-3 sm:gap-4" aria-label="Document list">
               {documents.map((doc) => (
                 <DocumentCard
                   key={doc.id}
@@ -137,6 +163,36 @@ export function DocumentList({ onSelectDocument }: DocumentListProps) {
           </div>
         )}
       </div>
+
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={(open) => {
+          setIsDeleteDialogOpen(open);
+          if (!open) {
+            setPendingDeleteId(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete document?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {`This will permanently delete "${pendingDeleteDocument?.title || 'Untitled Document'}". This action cannot be undone.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                void confirmDelete();
+              }}
+              disabled={isDeleting}
+            >
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

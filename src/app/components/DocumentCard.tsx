@@ -18,9 +18,12 @@ export function DocumentCard({ document, onSelect, onDelete }: DocumentCardProps
     <Card
       className="p-4 sm:p-6 cursor-pointer hover:shadow-lg transition-all bg-white/90 backdrop-blur border border-gray-200 hover:border-blue-300 focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2"
       onClick={() => onSelect(document.id)}
-      role="listitem"
+      role="button"
       tabIndex={0}
       onKeyDown={(e) => {
+        if (e.target !== e.currentTarget) {
+          return;
+        }
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
           onSelect(document.id);

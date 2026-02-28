@@ -91,14 +91,28 @@ export function EditorToolbar({
 
         {/* Unsaved changes indicator */}
         {hasUnsavedChanges ? (
-          <div className="flex items-center gap-1.5 text-xs text-gray-500 flex-shrink-0" title="Unsaved changes" role="status" aria-live="polite">
+          <div
+            className="flex items-center gap-1.5 text-xs text-gray-600 flex-shrink-0"
+            title="Unsaved changes"
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+            aria-label="Document has unsaved changes"
+          >
             <Circle className="size-2 fill-amber-500 text-amber-500" aria-hidden="true" />
-            <span className="hidden sm:inline">Unsaved</span>
+            <span>Unsaved</span>
           </div>
         ) : (
-          <div className="flex items-center gap-1.5 text-xs text-gray-500 flex-shrink-0" title="All changes saved" role="status" aria-live="polite">
+          <div
+            className="flex items-center gap-1.5 text-xs text-gray-600 flex-shrink-0"
+            title="All changes saved"
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+            aria-label="All changes are saved"
+          >
             <Check className="size-3 text-green-600" aria-hidden="true" />
-            <span className="hidden sm:inline text-green-600">Saved</span>
+            <span className="text-green-700">Saved</span>
           </div>
         )}
 
@@ -145,9 +159,9 @@ export function EditorToolbar({
 
       <Separator />
 
-      {/* Formatting toolbar - scrollable on mobile */}
-      <div className="px-3 sm:px-6 py-2 overflow-x-auto">
-        <div className="flex items-center gap-2 sm:gap-4 min-w-max">
+      {/* Formatting toolbar - wraps on mobile to keep controls visible */}
+      <div className="px-3 sm:px-6 py-2">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-4">
           {/* Language selector */}
           <div className="flex items-center gap-2 flex-shrink-0">
             <Languages className="size-4 text-gray-500" aria-hidden="true" />

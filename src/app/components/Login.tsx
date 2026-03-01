@@ -1,3 +1,4 @@
+import * as React from 'react';
 import { useState, useEffect } from 'react';
 import { AnimatePresence } from 'motion/react';
 import { LogIn, UserPlus } from 'lucide-react';
@@ -7,7 +8,6 @@ import { loginWithCredentials, continueAsGuest, type User } from '../utils/auth'
 import { LANGUAGES } from '../utils/languages';
 import { useLanguageCycling } from '../hooks/useLanguageCycling';
 import { LanguageBadge } from './LanguageBadge';
-import { GreekDecoration } from './GreekDecoration';
 import { UI_CONSTANTS } from '../utils/constants';
 import { toast } from 'sonner';
 

@@ -1,7 +1,8 @@
+import * as React from 'react';
 import { useState, useEffect, useRef } from 'react';
 import { FileText } from 'lucide-react';
 import { Document, getAllDocuments, deleteDocument, saveDocument } from '../utils/db';
-import { importDocumentFile } from '../utils/import';
+import { importDocumentFile, isSupportedDocumentFile } from '../utils/import';
 import { DocumentListHero } from './DocumentListHero';
 import { EmptyDocumentState } from './EmptyDocumentState';
 import { DocumentCard } from './DocumentCard';
@@ -58,10 +59,8 @@ export function DocumentList({ onSelectDocument }: DocumentListProps) {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    const fileName = file.name.toLowerCase();
-    
     // Validate file type
-    if (!fileName.endsWith('.txt') && !fileName.endsWith('.docx')) {
+    if (!isSupportedDocumentFile(file)) {
       toast.error('Please upload a .txt or .docx file');
       event.target.value = '';
       return;

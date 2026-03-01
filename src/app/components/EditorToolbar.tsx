@@ -1,3 +1,4 @@
+import * as React from 'react';
 import { 
   Bold, 
   Italic, 
@@ -31,7 +32,7 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import { Separator } from './ui/separator';
-import { LANGUAGES, type Language } from '../utils/languages';
+import { LANGUAGES, isLanguage, type Language } from '../utils/languages';
 import { type ExportFormat } from '../utils/export';
 import { FONT_SIZE_OPTIONS } from '../utils/constants';
 import { type FormattingState } from '../utils/types';
@@ -65,6 +66,12 @@ export function EditorToolbar({
   hasUnsavedChanges,
   onInsertImage,
 }: EditorToolbarProps) {
+  const handleLanguageValueChange = (value: string) => {
+    if (isLanguage(value)) {
+      onLanguageChange(value);
+    }
+  };
+
   return (
     <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
       {/* Top bar with back button and document title */}
@@ -165,7 +172,7 @@ export function EditorToolbar({
           {/* Language selector */}
           <div className="flex items-center gap-2 flex-shrink-0">
             <Languages className="size-4 text-gray-500" aria-hidden="true" />
-            <Select value={language} onValueChange={onLanguageChange as (value: string) => void}>
+            <Select value={language} onValueChange={handleLanguageValueChange}>
               <SelectTrigger className="w-[140px] sm:w-[180px]" aria-label="Select document language">
                 <SelectValue />
               </SelectTrigger>

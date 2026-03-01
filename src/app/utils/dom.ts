@@ -8,7 +8,8 @@ import { BLOCK_LEVEL_TAGS } from './constants';
  * Check if an HTML tag is a block-level element
  */
 export function isBlockLevelTag(tagName: string): boolean {
-  return BLOCK_LEVEL_TAGS.includes(tagName.toLowerCase() as any);
+  const normalizedTagName = tagName.toLowerCase();
+  return BLOCK_LEVEL_TAGS.some((blockTag) => blockTag === normalizedTagName);
 }
 
 /**

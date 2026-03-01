@@ -1,3 +1,4 @@
+import * as React from 'react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { EditorToolbar } from './EditorToolbar';
 import { LanguageKeyboard } from './LanguageKeyboard';
@@ -9,8 +10,8 @@ import {
 } from '../utils/db';
 import { exportDocument, type ExportFormat } from '../utils/export';
 import { getLanguageName, type Language } from '../utils/languages';
-import { EDITOR_CONFIG } from '../utils/constants';
-import { findBlockElement, getLineHeight } from '../utils/dom';
+import { EDITOR_CONFIG, UI_CONSTANTS } from '../utils/constants';
+import { findBlockElement, getLineHeight, getNextImageSize } from '../utils/dom';
 import { getRemappedCharacter } from '../utils/keyboardLayouts';
 import { getEditorShortcutAction } from '../utils/keyboardShortcuts';
 import { useFormattingState } from '../hooks/useFormattingState';
@@ -194,9 +195,8 @@ export function Editor({ documentId, onBack }: EditorProps) {
       return;
     }
 
-    // Validate file size (max 5MB)
-    const maxSize = 5 * 1024 * 1024; // 5MB
-    if (file.size > maxSize) {
+    // Validate file size
+    if (file.size > UI_CONSTANTS.MAX_IMAGE_SIZE_BYTES) {
       toast.error('Image size must be less than 5MB');
       event.target.value = '';
       return;
@@ -225,16 +225,7 @@ export function Editor({ documentId, onBack }: EditorProps) {
         
         const cycleImageSize = () => {
           const currentWidth = img.style.width || '100%';
-          // Cycle through sizes: 25%, 50%, 75%, 100%
-          if (currentWidth === '100%' || currentWidth === '') {
-            img.style.width = '75%';
-          } else if (currentWidth === '75%') {
-            img.style.width = '50%';
-          } else if (currentWidth === '50%') {
-            img.style.width = '25%';
-          } else {
-            img.style.width = '100%';
-          }
+          img.style.width = getNextImageSize(currentWidth, UI_CONSTANTS.IMAGE_SIZES);
           setHasUnsavedChanges(true);
         };
         
@@ -392,7 +383,7 @@ export function Editor({ documentId, onBack }: EditorProps) {
       }
     }
 
-    if (isKeyboardVisible && !event.ctrlKey && !event.metaKey && !event.altKey && !event.isComposing) {
+    if (isKeyboardVisible && !event.ctrlKey && !event.metaKey && !event.altKey && !event.nativeEvent.isComposing) {
       const remappedCharacter = getRemappedCharacter({
         language: activeLanguage,
         key: event.key,
@@ -458,8 +449,8 @@ export function Editor({ documentId, onBack }: EditorProps) {
     updateFormattingState();
   }, [updateFormattingState]);
 
-  // Calculate language direction
-  const languageDir = document?.language === 'ar' || document?.language === 'he' ? 'rtl' : 'ltr';
+  // Current supported languages are LTR.
+  const languageDir: 'ltr' | 'rtl' = 'ltr';
 
   // Load document on mount
   useEffect(() => {

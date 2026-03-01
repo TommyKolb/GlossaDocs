@@ -32,3 +32,10 @@ export function getLanguageName(lang: string): string {
 export function getLanguageFlag(lang: string): string {
   return getLanguageInfo(lang)?.flag || '';
 }
+
+/**
+ * Type guard for supported language values
+ */
+export function isLanguage(value: string): value is Language {
+  return LANGUAGES.some((lang) => lang.value === value);
+}

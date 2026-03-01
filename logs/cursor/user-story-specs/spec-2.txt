@@ -1,0 +1,803 @@
+Next task is to perform the same task - making a spec - for the next user story. "As a user, I want to select the language I intend to type in so that the editor can adapt its behavior to my intent." It has to have the same sections as the previous one (listed below). Ask for clarifications before making if necessary
+Header
+Architecture Diagram
+Specify where the components run (e.g., client, server, cloud, etc.).
+Specify which information flows between components.
+Class Diagram
+List of Classes
+State Diagrams
+Flow Chart
+Development Risks and Failures
+Technology Stack
+APIs
+Public Interfaces
+Data Schemas
+Security and Privacy
+Risks to Completion
+
+---
+
+_**Agent (model gpt-5.2, mode Agent)**_
+
+### Clarifications needed before I write the Story 2 spec (language selection + quick switching)
+
+- **What is a “language” in v1?**
+  - Is it a **keyboard profile** only (e.g., `English`, `German (diacritics)`, `Russian (phonetic Cyrillic)`), or should it map to real locale tags (e.g., `en-US`, `de-DE`, `ru-RU`)?
+
+- **Switching behavior**
+  - When the user switches language, should it affect **only future input**, or should it also change the **on-screen keyboard UI immediately** (even before Story 3 is implemented)?
+  - If a compose sequence is in-progress (later), should switching **cancel** the sequence?
+
+- **Scope of selection**
+  - Is language selection **global app setting** or **per document** (or even per editor cursor/selection)? You previously said quick switching is necessary, but not which scope.
+
+- **Default & persistence**
+  - What is the **default language** on first run?
+  - Should the app remember **last-selected language** across reloads (persist in IndexedDB settings)?
+
+- **UI requirements (minimum)**
+  - Should there be a **toolbar dropdown**, a **status bar indicator**, or both?
+  - Do you want a placeholder for a future hotkey, or should we specify an actual hotkey now?
+
+- **Supported languages list (for v1 spec)**
+  - Which languages must be selectable for the first release of this story (e.g., `English`, `German`, `Spanish/French`, `Russian`)?
+
+Once you answer these, I can generate `docs/user-story-2-language-selection-spec.md` with the same sections/diagrams/schemas style as Story 1.
+
+---
+
+_**User**_
+
+"Language" should map to real locale tags. It should only affect future input. Don't worry about the keyboard yet. Switching should cancel the sequence. Language selection is per document. Default language is English (US), it should remember the last selected language. Toolbar dropdown, placeholder for hotkey. Initial languages are English, German, and Russian for proofs of concept, but be aware way more will be added later.
+
+---
+
+_**Agent (model gpt-5.2, mode Agent)**_
+
+<think><details><summary>Thought Process</summary>
+**Creating file with ApplyPatch**
+
+I’m thinking we should create a file using the ApplyPatch method, but I need to remember that I must use an absolute path for this process. It’s crucial to ensure everything is set up correctly to avoid any confusion later on. So, I’ll proceed with applying the patch while adding the file to the specified location. Let’s make sure to handle this carefully!</details></think>
+
+---
+
+I’m going to generate the full Story 2 spec in `docs/` matching Story 1’s structure and diagram style, and I’ll align it with the existing “browser-only + IndexedDB + per-document metadata” approach so the two specs don’t conflict.
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: c:\Users\tommy\CS485\GlossaDocs\docs\user-story-2-language-selection-spec.md</summary>
+
+</details>
+
+</tool-use>
+
+---
+
+I’ve created the Story 2 spec file with the same required sections and aligned it to Story 1’s browser-only/IndexedDB architecture. Next I’ll quickly scan it for internal consistency (diagrams vs schemas vs interfaces) and fix any small mismatches before I hand it back.
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: c:\Users\tommy\CS485\GlossaDocs\docs\user-story-2-language-selection-spec.md</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "pattern": "Meta\\[|metadata/indexes|\\\\n|dbVersion\\*\\*:|DocumentRecord|DocumentMeta|inputLocale|lastUsedLocale",
+  "path": "c:\\Users\\tommy\\CS485\\GlossaDocs\\docs\\user-story-2-language-selection-spec.md",
+  "outputMode": "content",
+  "caseInsensitive": false
+}
+```
+Result:
+
+```json
+{
+  "success": {
+    "pattern": "Meta\\[|metadata/indexes|\\\\n|dbVersion\\*\\*:|DocumentRecord|DocumentMeta|inputLocale|lastUsedLocale",
+    "path": "c:\\Users\\tommy\\CS485\\GlossaDocs\\docs\\user-story-2-language-selection-spec.md",
+    "outputMode": "content",
+    "workspaceResults": {
+      "c:\\Users\\tommy\\CS485\\GlossaDocs": {
+        "content": {
+          "matches": [
+            {
+              "file": "docs\\user-story-2-language-selection-spec.md",
+              "matches": [
+                {
+                  "lineNumber": 44,
+                  "content": "- **Storage (Browser IndexedDB)**: documents (including &#96;inputLocale&#96;) and settings (including &#96;lastUsedLocale&#96;)."
+                },
+                {
+                  "lineNumber": 53,
+                  "content": "    DocService[\"Document Service&lt;br/&gt;- persists per-doc inputLocale\"]"
+                },
+                {
+                  "lineNumber": 75,
+                  "content": "- **Locale Selection Service → Document Service**: update active document’s &#96;inputLocale&#96; and persist it."
+                },
+                {
+                  "lineNumber": 76,
+                  "content": "- **Locale Selection Service ↔ IndexedDB settings**: read/write &#96;lastUsedLocale&#96;."
+                },
+                {
+                  "lineNumber": 90,
+                  "content": "    +getActiveMeta(): DocumentMeta"
+                },
+                {
+                  "lineNumber": 93,
+                  "content": "    +create(title?): Promise&lt;DocumentMeta&gt;"
+                },
+                {
+                  "lineNumber": 126,
+                  "content": "- &#96;LocaleSelectionService.setActiveLocale&#96; updates three things atomically at the app level: active doc’s &#96;inputLocale&#96;, global &#96;lastUsedLocale&#96;, and current input-method locale (which cancels compose)."
+                },
+                {
+                  "lineNumber": 135,
+                  "content": "  - Persists per-document &#96;inputLocale&#96; via &#96;DocumentService&#96;."
+                },
+                {
+                  "lineNumber": 136,
+                  "content": "  - Persists global &#96;lastUsedLocale&#96; via &#96;SettingsService&#96;."
+                },
+                {
+                  "lineNumber": 150,
+                  "content": "  - Loads/saves per-document locale (&#96;inputLocale&#96;) as part of document metadata."
+                },
+                {
+                  "lineNumber": 151,
+                  "content": "  - Guarantees that opening a document restores its &#96;inputLocale&#96; (and thus the input-method locale)."
+                },
+                {
+                  "lineNumber": 154,
+                  "content": "  - Stores global preference &#96;lastUsedLocale&#96; for defaulting new documents."
+                },
+                {
+                  "lineNumber": 209,
+                  "content": "  A[User opens document] --&gt; B[DocumentService.open loads DocumentRecord]"
+                },
+                {
+                  "lineNumber": 210,
+                  "content": "  B --&gt; C[Read record.inputLocale]"
+                },
+                {
+                  "lineNumber": 225,
+                  "content": "  - Mitigation: locale update is metadata-only on the same record; use a single write transaction per update or a simple “last write wins” rule on &#96;inputLocale&#96;."
+                },
+                {
+                  "lineNumber": 286,
+                  "content": "export interface DocumentMeta {"
+                },
+                {
+                  "lineNumber": 292,
+                  "content": "  inputLocale: LocaleTag; // per-document language intent for input"
+                },
+                {
+                  "lineNumber": 297,
+                  "content": "  lastUsedLocale: LocaleTag; // used as default for new docs"
+                },
+                {
+                  "lineNumber": 302,
+                  "content": "- &#96;inputLocale&#96; lives on document metadata because language intent is a property of the document, not just the current session."
+                },
+                {
+                  "lineNumber": 303,
+                  "content": "- &#96;lastUsedLocale&#96; is global to streamline creating multiple docs in the same language."
+                },
+                {
+                  "lineNumber": 311,
+                  "content": "- **dbVersion**: incremented when schema changes (IndexedDB integer)."
+                },
+                {
+                  "lineNumber": 314,
+                  "content": "- &#96;documents&#96; store: add &#96;inputLocale&#96; to stored &#96;DocumentRecord&#96; / metadata."
+                },
+                {
+                  "lineNumber": 315,
+                  "content": "- &#96;settings&#96; store: add &#96;lastUsedLocale&#96;."
+                },
+                {
+                  "lineNumber": 319,
+                  "content": "- Default &#96;lastUsedLocale&#96; on first run: &#96;en-US&#96;"
+                },
+                {
+                  "lineNumber": 320,
+                  "content": "- New documents default to &#96;settings.lastUsedLocale&#96; (falls back to &#96;en-US&#96;)"
+                },
+                {
+                  "lineNumber": 323,
+                  "content": "- Existing documents created before Story 2: during migration, backfill &#96;inputLocale = \"en-US\"&#96;."
+                },
+                {
+                  "lineNumber": 347,
+                  "content": "- **Migration discipline**: adding &#96;inputLocale&#96; requires IndexedDB version bump and safe backfill."
+                }
+              ]
+            }
+          ],
+          "totalLines": 27,
+          "totalMatchedLines": 27
+        }
+      }
+    }
+  }
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+---
+
+I’m going to make a small polish pass on the Story 2 spec to remove a couple “implied” definitions (like `DocumentRecord`) and clarify the persistence/atomicity story, so the diagrams, APIs, and schemas read as one coherent plan.
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: c:\Users\tommy\CS485\GlossaDocs\docs\user-story-2-language-selection-spec.md</summary>
+
+</details>
+
+</tool-use>
+
+---
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "pattern": "DocumentRecord|atomic|transaction|Settings keys|Document switch",
+  "path": "c:\\Users\\tommy\\CS485\\GlossaDocs\\docs\\user-story-2-language-selection-spec.md",
+  "outputMode": "content",
+  "caseInsensitive": false
+}
+```
+Result:
+
+```json
+{
+  "success": {
+    "pattern": "DocumentRecord|atomic|transaction|Settings keys|Document switch",
+    "path": "c:\\Users\\tommy\\CS485\\GlossaDocs\\docs\\user-story-2-language-selection-spec.md",
+    "outputMode": "content",
+    "workspaceResults": {
+      "c:\\Users\\tommy\\CS485\\GlossaDocs": {
+        "content": {
+          "matches": [
+            {
+              "file": "docs\\user-story-2-language-selection-spec.md",
+              "matches": [
+                {
+                  "lineNumber": 79,
+                  "content": "- **Document switch → UI**: opening a different document refreshes the dropdown selection to that document’s &#96;inputLocale&#96;."
+                },
+                {
+                  "lineNumber": 127,
+                  "content": "- &#96;LocaleSelectionService.setActiveLocale&#96; updates three things as one user-visible action: active doc’s &#96;inputLocale&#96;, global &#96;lastUsedLocale&#96;, and current input-method locale (which cancels compose). Persistence can be done via a single IndexedDB transaction spanning the &#96;documents&#96; and &#96;settings&#96; stores."
+                },
+                {
+                  "lineNumber": 210,
+                  "content": "  A[User opens document] --&gt; B[DocumentService.open loads DocumentRecord]"
+                },
+                {
+                  "lineNumber": 226,
+                  "content": "  - Mitigation: locale update is metadata-only on the same record; use a single write transaction per update or a simple “last write wins” rule on &#96;inputLocale&#96;."
+                },
+                {
+                  "lineNumber": 296,
+                  "content": "export interface DocumentRecord extends DocumentMeta {"
+                },
+                {
+                  "lineNumber": 322,
+                  "content": "- &#96;documents&#96; store: add &#96;inputLocale&#96; to stored &#96;DocumentRecord&#96; / metadata."
+                },
+                {
+                  "lineNumber": 325,
+                  "content": "### Settings keys (suggested)"
+                }
+              ]
+            }
+          ],
+          "totalLines": 7,
+          "totalMatchedLines": 7
+        }
+      }
+    }
+  }
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+---
+
+The Story 2 spec is now written in `docs/user-story-2-language-selection-spec.md` with the same required sections as Story 1.
+
+### Consistency + clarity checks I applied (and fixes made)
+- **Diagrams ↔ schemas alignment**
+  - Ensured the architecture diagram matches the stated storage model: `documents` + `settings` stores, with `inputLocale` on the document record and `lastUsedLocale` in settings.
+- **APIs ↔ class diagram alignment**
+  - Kept `DocumentService.setDocumentLocale(...)`, `SettingsService.*LastUsedLocale(...)`, and `InputMethodController` consistent across the Class Diagram and APIs.
+- **Undefined types**
+  - Added a minimal `DocumentRecord` definition in **Public Interfaces** (with a note referencing Story 1 for the full content schema), since the flow charts reference it.
+- **Atomicity / persistence clarity**
+  - Reworded “atomic” to “one user-visible action” and clarified it *can* be persisted via a **single IndexedDB transaction spanning both stores**.
+- **Behavioral clarity**
+  - Explicitly documented that switching documents updates the dropdown to the opened document’s `inputLocale`.
+
+If you want the Story 2 spec to be fully standalone (no references to Story 1 at all), tell me and I’ll inline the full `EditorDoc`/`DocumentRecord` shape and the IndexedDB store definitions verbatim.
+
+---
+
+_**User**_
+
+Under the Flow chart - user selects a locale from toolabr heading, there is an error:
+Error: Parse error on line 8:
+...ce.setDocumentLocale(activeDocId)]  E -
+-----------------------^
+Expecting 'SQE', 'DOUBLECIRCLEEND', 'PE', '-)', 'STADIUMEND', 'SUBROUTINEEND', 'PIPE', 'CYLINDEREND', 'DIAMOND_STOP', 'TAGEND', 'TRAPEND', 'INVTRAPEND', 'UNICODE_TEXT', 'TEXT', 'TAGSTART', got 'PS'
+
+Fix this, then examine the spec for any inconsistencies again.
+
+---
+
+_**Agent (model gpt-5.2, mode Agent)**_
+
+<think><details><summary>Thought Process</summary>
+**Inspecting code issues**
+
+I’m spotting another possible issue with the line `LocaleSelectionService.setActiveLocale`, which seems okay with dots, but I need to check line 8. I think we can fix it by either removing parentheses from the label or escaping it with quotes using `H["DocumentService.setDocumentLocale(activeDocId)"]`. I’ll also ensure that the Mermaid flowchart node labels include special characters in quotes and check for other discrepancies. It's time to run a quick search for any `Promise` mismatches, and to confirm consistency across `dbVersion` and `DocumentMeta`.</details></think>
+
+---
+
+I’ll fix the Mermaid flowchart syntax first (by adjusting the node labels to Mermaid-safe quoting), then I’ll re-scan the Story 2 spec for any remaining mismatches between diagrams, APIs, interfaces, and schemas.
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: c:\Users\tommy\CS485\GlossaDocs\docs\user-story-2-language-selection-spec.md</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+**Fixing parser issues**
+
+I see there's a problem with the line `H[DocumentService.setDocumentLocale(activeDocId)]` because of the parentheses in the label. So, quoting the label as `H["DocumentService.setDocumentLocale(activeDocId)"]` seems like the right fix. There's also `B[DocumentService.open loads DocumentRecord]` to consider, avoiding parentheses there. The `No-op` label with a hyphen looks okay. I need to quote other labels like `InputMethodController.setLocale`, even if they seem fine. After applying the patch update, I'll check for consistency across the data schemas as well.
+**Clarifying dbVersion and DocumentMeta**
+
+I see we have the option to indicate a dbVersion increment from 1 to 2 for this story's migration, and it makes sense to suggest that bump. However, we need to reconcile with Story 2, which mentions that the `dbVersion` is incremented when schema changes occur. It's better to specify that it becomes 2 with the migration. Also, in Public Interfaces, DocumentMeta is redefined for Story 2 by including inputLocale, which could lead to conflicts. We might consider creating a `DocumentMetaV2` for clarity.
+**Addressing DocumentRecord specifications**
+
+I noticed that DocumentRecord includes `doc: unknown`, which seems vague. It might be fine, but it could create inconsistencies with the "structured JSON" concept. Aligning it with `doc: EditorDoc` and defining EditorDoc per Story 1 could help, but it risks duplication. The user wants clarity in the specifications, reducing cross-referencing—though that's not fully standalone yet. I need to check within Story 2 for any contradictions, especially concerning the flow of document settings and locale selections.
+**Ensuring API clarity and compatibility**
+
+I need to double-check that the API `SettingsService.getLastUsedLocale()` is present as per the class diagram, which only shows those methods. The data schemas indicate that the settings store includes lastUsedLocale, and in Story 1, that value is defined as a generic {key, value}, which keeps consistency. I think "setActiveLocale" should only accept available locales and include validation. Next, I’ll fix the Mermaid label, update the dbVersion with a clear migration plan, and ensure backward compatibility before applying the patch.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: c:\Users\tommy\CS485\GlossaDocs\docs\user-story-2-language-selection-spec.md</summary>
+
+</details>
+
+</tool-use>
+
+---
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "pattern": "setDocumentLocale\\(activeDocId\\)|DocumentService\\.setDocumentLocale\\(activeDocId\\)|\\\\\"DocumentService\\.setDocumentLocale",
+  "path": "c:\\Users\\tommy\\CS485\\GlossaDocs\\docs\\user-story-2-language-selection-spec.md",
+  "outputMode": "content",
+  "caseInsensitive": false
+}
+```
+Result:
+
+```json
+{
+  "success": {
+    "pattern": "setDocumentLocale\\(activeDocId\\)|DocumentService\\.setDocumentLocale\\(activeDocId\\)|\\\\\"DocumentService\\.setDocumentLocale",
+    "path": "c:\\Users\\tommy\\CS485\\GlossaDocs\\docs\\user-story-2-language-selection-spec.md",
+    "outputMode": "content",
+    "workspaceResults": {
+      "c:\\Users\\tommy\\CS485\\GlossaDocs": {
+        "content": {
+          "matches": [
+            {
+              "file": "docs\\user-story-2-language-selection-spec.md",
+              "matches": [
+                {
+                  "lineNumber": 199,
+                  "content": "  E --&gt; H[\"DocumentService.setDocumentLocale(activeDocId)\"]"
+                }
+              ]
+            }
+          ],
+          "totalLines": 1,
+          "totalMatchedLines": 1
+        }
+      }
+    }
+  }
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "pattern": "dbVersion",
+  "path": "c:\\Users\\tommy\\CS485\\GlossaDocs\\docs\\user-story-2-language-selection-spec.md",
+  "outputMode": "content",
+  "caseInsensitive": false
+}
+```
+Result:
+
+```json
+{
+  "success": {
+    "pattern": "dbVersion",
+    "path": "c:\\Users\\tommy\\CS485\\GlossaDocs\\docs\\user-story-2-language-selection-spec.md",
+    "outputMode": "content",
+    "workspaceResults": {
+      "c:\\Users\\tommy\\CS485\\GlossaDocs": {
+        "content": {
+          "matches": [
+            {
+              "file": "docs\\user-story-2-language-selection-spec.md",
+              "matches": [
+                {
+                  "lineNumber": 319,
+                  "content": "- **dbVersion**: integer used for migrations."
+                },
+                {
+                  "lineNumber": 320,
+                  "content": "  - If Story 1 ships first at &#96;dbVersion = 1&#96;, then Story 2 bumps to &#96;dbVersion = 2&#96; to add &#96;inputLocale&#96; and &#96;lastUsedLocale&#96;."
+                }
+              ]
+            }
+          ],
+          "totalLines": 2,
+          "totalMatchedLines": 2
+        }
+      }
+    }
+  }
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+**Checking for inconsistencies**
+
+I need to make sure there are no mermaid parse errors, especially with node labels that might have parentheses. I should check for mermaid code fences containing `(` that could cause issues. Then, I need to re-examine the specifications for inconsistencies. For instance, DocumentService has the method getActiveMeta(), but the LocaleSelectionService should have getLastUsedLocale in the API list, even though it’s noted in the class diagram. There’s a duplication with SettingsService too that I need to resolve.
+**Addressing inconsistencies**
+
+I need to decide whether to remove getLastUsedLocale from the LocaleSelectionService class diagram and its method list or include it in the internal API. Currently, there’s inconsistency because it's listed in the class diagram but not under the API responsibilities. To fix this, I’ll remove getLastUsedLocale from the class diagram and mention that LocaleSelectionService uses SettingsService instead. 
+
+Next, I noticed that DocumentMeta uses id:string instead of DocumentId. To align everything, I’ll switch to DocumentId for clarity, updating both DocumentMeta and DocumentRecord to ensure consistency.
+**Clarifying document definitions**
+
+I noticed that the Public Interfaces doesn’t define LoadedDocument, creating an inconsistency. We could either define LoadedDocument similarly to story 1 or change DocumentService.open to return DocumentRecord. For clarity, defining LoadedDocument as containing meta and doc, where doc is EditorDoc, makes sense. Although we haven’t defined EditorDoc, we could import it from story 1. However, since story 2 isn't focused on it, we might as well define EditorDoc as `unknown` with a note. 
+
+To ensure internal consistency, defining both LoadedDocument and EditorDoc with notes referencing story 1 would be ideal. It seems simplest to define `LoadedDocument` with `meta` and `doc`, while keeping the open signature intact. Additionally, I see that DocumentService is set to manage create and open operations, which have already been covered in story 1, though it’s mentioned in the context of story 2 as well.
+**Addressing documentation inconsistencies**
+
+I think it’s important to clarify in the APIs section that DocumentService's core API is defined in Story 1, so here we’re only noting additions and including necessary methods. Although it seems fine, clarity is key. In the Data Schemas, schema changes from Story 1 include inputLocale, but DocumentRecord in Public Interfaces already has inputLocale and an unknown doc. 
+
+We define a "hotkey placeholder" as a command name, which is good. Now, I need to review the class diagram and APIs/public interfaces thoroughly to patch these inconsistencies correctly and apply the necessary changes.</details></think>
+
+---
+
+I found a couple real inconsistencies in the Story 2 spec (e.g., `LocaleSelectionService.getLastUsedLocale` appears in the class diagram but not in the API list, and `LoadedDocument` isn’t defined). I’ll patch the doc to make the diagrams, APIs, and public interfaces fully self-consistent, then re-check for any remaining mismatches.
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: c:\Users\tommy\CS485\GlossaDocs\docs\user-story-2-language-selection-spec.md</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: c:\Users\tommy\CS485\GlossaDocs\docs\user-story-2-language-selection-spec.md</summary>
+
+</details>
+
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: c:\Users\tommy\CS485\GlossaDocs\docs\user-story-2-language-selection-spec.md</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: c:\Users\tommy\CS485\GlossaDocs\docs\user-story-2-language-selection-spec.md</summary>
+
+</details>
+
+</tool-use>
+
+---
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "pattern": "DocumentId|LoadedDocument|EditorDoc|setDocumentLocale\\(id: DocumentId",
+  "path": "c:\\Users\\tommy\\CS485\\GlossaDocs\\docs\\user-story-2-language-selection-spec.md",
+  "outputMode": "content",
+  "caseInsensitive": false
+}
+```
+Result:
+
+```json
+{
+  "success": {
+    "pattern": "DocumentId|LoadedDocument|EditorDoc|setDocumentLocale\\(id: DocumentId",
+    "path": "c:\\Users\\tommy\\CS485\\GlossaDocs\\docs\\user-story-2-language-selection-spec.md",
+    "outputMode": "content",
+    "workspaceResults": {
+      "c:\\Users\\tommy\\CS485\\GlossaDocs": {
+        "content": {
+          "matches": [
+            {
+              "file": "docs\\user-story-2-language-selection-spec.md",
+              "matches": [
+                {
+                  "lineNumber": 93,
+                  "content": "    +open(id): Promise&lt;LoadedDocument&gt;"
+                },
+                {
+                  "lineNumber": 257,
+                  "content": "- &#96;setDocumentLocale(id: DocumentId, locale: LocaleTag): Promise&lt;void&gt;&#96;"
+                },
+                {
+                  "lineNumber": 276,
+                  "content": "export type DocumentId = string;"
+                },
+                {
+                  "lineNumber": 289,
+                  "content": "export type EditorDoc = unknown;"
+                },
+                {
+                  "lineNumber": 292,
+                  "content": "  id: DocumentId;"
+                },
+                {
+                  "lineNumber": 303,
+                  "content": "  doc: EditorDoc;"
+                },
+                {
+                  "lineNumber": 307,
+                  "content": "export interface LoadedDocument {"
+                },
+                {
+                  "lineNumber": 309,
+                  "content": "  doc: EditorDoc;"
+                }
+              ]
+            }
+          ],
+          "totalLines": 8,
+          "totalMatchedLines": 8
+        }
+      }
+    }
+  }
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "pattern": "\\+open\\(id\\): Promise&lt;LoadedDocument&gt;|Promise&lt;LoadedDocument&gt;|LoadedDocument",
+  "path": "c:\\Users\\tommy\\CS485\\GlossaDocs\\docs\\user-story-2-language-selection-spec.md",
+  "outputMode": "count",
+  "caseInsensitive": false
+}
+```
+Result:
+
+```json
+{
+  "success": {
+    "pattern": "\\+open\\(id\\): Promise&lt;LoadedDocument&gt;|Promise&lt;LoadedDocument&gt;|LoadedDocument",
+    "path": "c:\\Users\\tommy\\CS485\\GlossaDocs\\docs\\user-story-2-language-selection-spec.md",
+    "outputMode": "count",
+    "workspaceResults": {
+      "c:\\Users\\tommy\\CS485\\GlossaDocs": {
+        "count": {
+          "counts": [
+            {
+              "file": "docs\\user-story-2-language-selection-spec.md",
+              "count": 2
+            }
+          ],
+          "totalFiles": 1,
+          "totalMatches": 2
+        }
+      }
+    }
+  }
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "pattern": "\\\\n|Meta\\[|metadata/indexes|DocumentService\\.setDocumentLocale\\(activeDocId\\)\\]|E --&gt; H\\[|DocumentMeta \\{|id: string",
+  "path": "c:\\Users\\tommy\\CS485\\GlossaDocs\\docs\\user-story-2-language-selection-spec.md",
+  "outputMode": "content",
+  "caseInsensitive": false
+}
+```
+Result:
+
+```json
+{
+  "success": {
+    "pattern": "\\\\n|Meta\\[|metadata/indexes|DocumentService\\.setDocumentLocale\\(activeDocId\\)\\]|E --&gt; H\\[|DocumentMeta \\{|id: string",
+    "path": "c:\\Users\\tommy\\CS485\\GlossaDocs\\docs\\user-story-2-language-selection-spec.md",
+    "outputMode": "content",
+    "workspaceResults": {
+      "c:\\Users\\tommy\\CS485\\GlossaDocs": {
+        "content": {
+          "matches": [
+            {
+              "file": "docs\\user-story-2-language-selection-spec.md",
+              "matches": [
+                {
+                  "lineNumber": 198,
+                  "content": "  E --&gt; H[\"DocumentService.setDocumentLocale(activeDocId)\"]"
+                },
+                {
+                  "lineNumber": 291,
+                  "content": "export interface DocumentMeta {"
+                },
+                {
+                  "lineNumber": 300,
+                  "content": "export interface DocumentRecord extends DocumentMeta {"
+                }
+              ]
+            }
+          ],
+          "totalLines": 3,
+          "totalMatchedLines": 3
+        }
+      }
+    }
+  }
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+**Confirming metadata updates**
+
+It looks like the specifications for story2 mention that document metadata includes inputLocale, so I should highlight that as a schema addition compared to story1. I'm glad to see that it does! 
+
+I also need to confirm that "remember last selected language" is stored in the settings as lastUsedLocale. Now, I should check if the flowchart parse error has been fixed. Even though I can't run the mermaid parser, I'm pleased that quoting issues were resolved. I’ll note the fix and list any inconsistencies addressed. No further tools are needed!</details></think>
+
+---
+
+Fixed the Mermaid parse error in **Story 2 → Flow Chart → “User selects a locale from toolbar”** by quoting the problematic node label so Mermaid treats the parentheses as plain text:
+
+- `H["DocumentService.setDocumentLocale(activeDocId)"]`
+
+Then I re-checked the spec for internal consistency and corrected a few issues:
+
+- **Class Diagram vs APIs**
+  - Removed `LocaleSelectionService.getLastUsedLocale()` from the class diagram since it wasn’t listed in the API section and is properly owned by `SettingsService`.
+
+- **Types referenced but not defined**
+  - Added `DocumentId`, `EditorDoc` (opaque for Story 2), and `LoadedDocument` to **Public Interfaces** so the class diagram / API signatures are fully defined within the document.
+
+- **Migration clarity**
+  - Clarified `dbVersion` semantics and explicitly stated the likely bump to `dbVersion = 2` if Story 1 ships first at `1`.
+
+If you hit any other Mermaid rendering issues, tell me which diagram subsection and I’ll patch it the same way (usually by quoting node labels).
+
+---

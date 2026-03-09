@@ -2,11 +2,27 @@ import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { buildApp } from "../src/app.js";
+import type { TokenVerifier } from "../src/modules/identity-access/token-verifier.js";
+import { createTestDocumentService } from "./helpers/test-document-service.js";
+import { createTestSettingsService } from "./helpers/test-settings-service.js";
+
+const testTokenVerifier: TokenVerifier = {
+  verify: async () => ({
+    actorSub: "test-sub",
+    username: "test-user",
+    email: "test@example.com",
+    scopes: []
+  })
+};
 
 const app = buildApp({
   NODE_ENV: "test",
   API_PORT: 4000,
   CORS_ALLOWED_ORIGINS: "*"
+}, {
+  tokenVerifier: testTokenVerifier,
+  documentService: createTestDocumentService(),
+  settingsService: createTestSettingsService()
 });
 
 beforeAll(async () => {

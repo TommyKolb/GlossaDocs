@@ -117,4 +117,30 @@ describe("document routes", () => {
     expect(response.status).toBe(400);
     expect(response.body.code).toBe("VALIDATION_ERROR");
   });
+
+  it("returns parseable timestamp strings for frontend mapping", async () => {
+    const createResponse = await request(app.server)
+      .post("/documents")
+      .set("Authorization", "Bearer token-user-1")
+      .send({ title: "Doc Timestamps", content: "<p>Initial</p>", language: "en" });
+
+    expect(createResponse.status).toBe(201);
+    expect(typeof createResponse.body.createdAt).toBe("string");
+    expect(typeof createResponse.body.updatedAt).toBe("string");
+
+    const createdAtMs = Date.parse(createResponse.body.createdAt as string);
+    const updatedAtMs = Date.parse(createResponse.body.updatedAt as string);
+    expect(Number.isNaN(createdAtMs)).toBe(false);
+    expect(Number.isNaN(updatedAtMs)).toBe(false);
+
+    const updateResponse = await request(app.server)
+      .put(`/documents/${createResponse.body.id as string}`)
+      .set("Authorization", "Bearer token-user-1")
+      .send({ content: "<p>Updated</p>" });
+
+    expect(updateResponse.status).toBe(200);
+    const updatedResponseMs = Date.parse(updateResponse.body.updatedAt as string);
+    expect(Number.isNaN(updatedResponseMs)).toBe(false);
+    expect(updatedResponseMs).toBeGreaterThanOrEqual(updatedAtMs);
+  });
 });

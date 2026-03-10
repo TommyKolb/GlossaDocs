@@ -1,5 +1,5 @@
 import { FileText, Trash2, Calendar } from 'lucide-react';
-import { Document } from '../utils/db';
+import type { Document } from '../models/document';
 import { getLanguageInfo } from '../utils/languages';
 import { formatDocumentDate } from '../utils/date';
 import { Button } from './ui/button';

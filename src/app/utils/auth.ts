@@ -1,3 +1,5 @@
+import { meApi } from '../api/endpoints';
+
 /**
  * Authentication utilities for GlossaDocs
  * 
@@ -17,6 +19,9 @@ export interface LoginCredentials {
   username: string;
   password: string;
 }
+
+const USER_STORAGE_KEY = 'glossadocs_user';
+const ACCESS_TOKEN_STORAGE_KEY = 'authToken';
 
 /**
  * ============================================
@@ -57,9 +62,15 @@ export async function loginWithCredentials(
       email: `${credentials.username}@example.com`,
       isGuest: false,
     };
-    
-    // Store user in localStorage (replace with proper token storage)
-    localStorage.setItem('glossadocs_user', JSON.stringify(user));
+
+    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+
+    // TODO(OIDC): Replace this dev token behavior with real token acquisition
+    // (Auth Code + PKCE) and secure token persistence strategy.
+    const devAccessToken = credentials.password.trim();
+    if (devAccessToken) {
+      localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, devAccessToken);
+    }
     
     return user;
   }
@@ -88,8 +99,9 @@ export async function continueAsGuest(): Promise<User> {
     isGuest: true,
   };
 
-  // Store guest user in localStorage
-  localStorage.setItem('glossadocs_user', JSON.stringify(guestUser));
+  // Store guest user in localStorage and clear any authenticated token.
+  localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(guestUser));
+  localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
 
   return guestUser;
 }
@@ -105,9 +117,9 @@ export async function continueAsGuest(): Promise<User> {
  * 3. Clean up any user-specific data
  */
 export async function logout(): Promise<void> {
-  // PLACEHOLDER: Replace with actual API call
-  localStorage.removeItem('glossadocs_user');
-  localStorage.removeItem('authToken');
+  // TODO(OIDC): Invalidate remote IdP session and revoke/clear tokens.
+  localStorage.removeItem(USER_STORAGE_KEY);
+  localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
 }
 
 /**
@@ -116,11 +128,43 @@ export async function logout(): Promise<void> {
  */
 export function getCurrentUser(): User | null {
   try {
-    const userJson = localStorage.getItem('glossadocs_user');
+    const userJson = localStorage.getItem(USER_STORAGE_KEY);
     if (!userJson) return null;
     return JSON.parse(userJson);
   } catch {
     return null;
+  }
+}
+
+export function getAccessToken(): string | null {
+  return localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY);
+}
+
+export async function getAuthenticatedUserFromBackend(): Promise<User | null> {
+  const currentUser = getCurrentUser();
+  if (!currentUser || currentUser.isGuest) {
+    return currentUser;
+  }
+
+  const token = getAccessToken();
+  if (!token) {
+    return currentUser;
+  }
+
+  try {
+    const me = await meApi.get(token);
+    const backendUser: User = {
+      id: me.sub,
+      username: me.username,
+      email: me.email,
+      isGuest: false,
+    };
+    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(backendUser));
+    return backendUser;
+  } catch (error) {
+    // TODO(OIDC): On real auth integration, handle token refresh/reauth here.
+    console.error('Failed to bootstrap user from /me:', error);
+    return currentUser;
   }
 }
 

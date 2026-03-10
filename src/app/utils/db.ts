@@ -1,13 +1,6 @@
 // IndexedDB utilities for GlossaDocs
-
-export interface Document {
-  id: string;
-  title: string;
-  content: string;
-  language: 'en' | 'de' | 'ru';
-  createdAt: number;
-  updatedAt: number;
-}
+import type { Document } from "../models/document";
+import { generateDocumentId } from "../models/document";
 
 const DB_NAME = 'GlossaDocs';
 const STORE_NAME = 'documents';
@@ -97,7 +90,7 @@ export async function deleteDocument(id: string): Promise<void> {
  * Generate a unique ID for a document
  */
 export function generateId(): string {
-  return Date.now().toString(36) + Math.random().toString(36).substr(2);
+  return generateDocumentId();
 }
 
 /**

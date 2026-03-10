@@ -252,6 +252,9 @@ export function Login({ onLoginSuccess }: LoginProps) {
           <p className="mt-4 text-xs text-center text-gray-500" role="note">
             Guest mode saves documents locally on your device
           </p>
+          <p className="mt-1 text-xs text-center text-gray-500" role="note">
+            Dev auth note: the password field is currently used as a temporary bearer token placeholder.
+          </p>
         </div>
 
         {/* Footer note */}

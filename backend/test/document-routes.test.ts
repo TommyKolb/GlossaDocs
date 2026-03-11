@@ -154,4 +154,44 @@ describe("document routes", () => {
     expect(Number.isNaN(updatedResponseMs)).toBe(false);
     expect(updatedResponseMs).toBeGreaterThanOrEqual(updatedAtMs);
   });
+
+  it("handles concurrent updates without duplicating documents", async () => {
+    const createResponse = await request(app.server)
+      .post("/documents")
+      .set("Authorization", "Bearer token-user-1")
+      .send({ title: "Concurrent", content: "<p>Start</p>", language: "en" });
+
+    expect(createResponse.status).toBe(201);
+    const docId = createResponse.body.id as string;
+
+    const [update1, update2] = await Promise.all([
+      request(app.server)
+        .put(`/documents/${docId}`)
+        .set("Authorization", "Bearer token-user-1")
+        .send({ content: "<p>Update A</p>" }),
+      request(app.server)
+        .put(`/documents/${docId}`)
+        .set("Authorization", "Bearer token-user-1")
+        .send({ content: "<p>Update B</p>" })
+    ]);
+
+    expect(update1.status).toBe(200);
+    expect(update2.status).toBe(200);
+
+    const listResponse = await request(app.server)
+      .get("/documents")
+      .set("Authorization", "Bearer token-user-1");
+
+    expect(listResponse.status).toBe(200);
+    const matchingDocuments = (listResponse.body as Array<{ id: string }>).filter(
+      (doc) => doc.id === docId
+    );
+    expect(matchingDocuments).toHaveLength(1);
+
+    const finalRead = await request(app.server)
+      .get(`/documents/${docId}`)
+      .set("Authorization", "Bearer token-user-1");
+    expect(finalRead.status).toBe(200);
+    expect(["<p>Update A</p>", "<p>Update B</p>"]).toContain(finalRead.body.content);
+  });
 });

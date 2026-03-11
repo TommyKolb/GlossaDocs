@@ -2,6 +2,7 @@ import type { QueryResultRow } from "pg";
 
 import { queryDb } from "../../shared/db.js";
 import { ApiError } from "../../shared/api-error.js";
+import type { DocumentLanguage } from "../../shared/document-languages.js";
 import type { CreateDocumentDto, DocumentAggregate, UpdateDocumentDto } from "./types.js";
 import type { DocumentRepository } from "./document-repository.js";
 
@@ -10,7 +11,7 @@ interface DocumentRow extends QueryResultRow {
   owner_id: string;
   title: string;
   content: string;
-  language: "en" | "de" | "ru";
+  language: DocumentLanguage;
   created_at: Date;
   updated_at: Date;
 }

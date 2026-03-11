@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 
 import { ApiError } from "../../shared/api-error.js";
+import { SUPPORTED_DOCUMENT_LANGUAGES } from "../../shared/document-languages.js";
 import { requireAuth } from "../identity-access/auth.js";
 import { requireActorSub } from "../identity-access/current-actor.js";
 import type { TokenVerifier } from "../identity-access/token-verifier.js";
@@ -10,14 +11,14 @@ import { DocumentService } from "./document-service.js";
 const createDocumentSchema = z.object({
   title: z.string().min(1),
   content: z.string(),
-  language: z.enum(["en", "de", "ru"])
+  language: z.enum(SUPPORTED_DOCUMENT_LANGUAGES)
 });
 
 const updateDocumentSchema = z
   .object({
     title: z.string().min(1).optional(),
     content: z.string().optional(),
-    language: z.enum(["en", "de", "ru"]).optional()
+    language: z.enum(SUPPORTED_DOCUMENT_LANGUAGES).optional()
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: "At least one field must be provided for update"

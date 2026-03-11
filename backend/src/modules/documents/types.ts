@@ -1,4 +1,6 @@
-export type DocumentLanguage = "en" | "de" | "ru";
+import type { DocumentLanguage } from "../../shared/document-languages.js";
+
+export type { DocumentLanguage };
 
 export interface DocumentAggregate {
   id: string;

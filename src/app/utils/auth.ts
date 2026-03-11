@@ -230,9 +230,3 @@ export async function getAuthenticatedUserFromBackend(): Promise<User | null> {
   }
 }
 
-/**
- * Check if user is authenticated
- */
-export function isAuthenticated(): boolean {
-  return getCurrentUser() !== null;
-}

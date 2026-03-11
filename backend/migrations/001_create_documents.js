@@ -39,6 +39,8 @@ export const up = (pgm) => {
     }
   });
 
+  // Historical migration: keep this explicit and immutable.
+  // When adding a new language later, add a new migration that alters this constraint.
   pgm.addConstraint("documents", "documents_language_check", {
     check: "language in ('en','de','ru')"
   });

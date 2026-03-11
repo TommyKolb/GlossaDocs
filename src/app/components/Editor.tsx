@@ -32,6 +32,9 @@ export function Editor({ documentId, onBack }: EditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const savedSelectionRef = useRef<Range | null>(null);
+  const documentRef = useRef<Document | null>(null);
+  const isSaveRunningRef = useRef(false);
+  const saveRequestedWhileRunningRef = useRef(false);
   
   // Custom hooks
   const { formattingState, updateFormattingState } = useFormattingState();
@@ -39,26 +42,42 @@ export function Editor({ documentId, onBack }: EditorProps) {
 
   // Callbacks
   const handleSave = useCallback(async () => {
-    if (!document || !editorRef.current) return;
+    if (isSaveRunningRef.current) {
+      saveRequestedWhileRunningRef.current = true;
+      return;
+    }
 
+    isSaveRunningRef.current = true;
     setIsSaving(true);
-    const updatedDoc = {
-      ...document,
-      content: editorRef.current.innerHTML,
-      updatedAt: Date.now(),
-    };
 
     try {
-      const persistedDocument = await saveDocument(updatedDoc);
-      setDocument(persistedDocument);
-      setHasUnsavedChanges(false);
+      do {
+        saveRequestedWhileRunningRef.current = false;
+
+        const activeDocument = documentRef.current;
+        if (!activeDocument || !editorRef.current) {
+          break;
+        }
+
+        const updatedDoc = {
+          ...activeDocument,
+          content: editorRef.current.innerHTML,
+          updatedAt: Date.now(),
+        };
+
+        const persistedDocument = await saveDocument(updatedDoc);
+        documentRef.current = persistedDocument;
+        setDocument(persistedDocument);
+        setHasUnsavedChanges(false);
+      } while (saveRequestedWhileRunningRef.current);
     } catch (error) {
       console.error('Error saving document:', error);
       toast.error('Failed to save document');
     } finally {
+      isSaveRunningRef.current = false;
       setIsSaving(false);
     }
-  }, [document]);
+  }, []);
 
   const handleContentChange = useCallback(() => {
     setHasUnsavedChanges(true);
@@ -503,6 +522,10 @@ export function Editor({ documentId, onBack }: EditorProps) {
       editorRef.current.innerHTML = document.content;
     }
   }, [document?.id]); // Only run when document changes
+
+  useEffect(() => {
+    documentRef.current = document;
+  }, [document]);
 
   if (!document) {
     return (

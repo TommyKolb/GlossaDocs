@@ -122,13 +122,13 @@ If `VITE_API_BASE_URL` is not set, the frontend defaults to `http://localhost:40
 
 Authentication is still mocked for development:
 
-- The login form's **password field is currently treated as a temporary bearer token**.
-- That token is stored as `authToken` in local storage.
-- Frontend requests send `Authorization: Bearer <authToken>` for authenticated mode.
+- Frontend first tries to exchange credentials against local Keycloak (`devuser` / `devpass` in Docker setup).
+- If no OIDC token exchange is available, a JWT string can be provided manually as the password for development.
+- The access token is stored as `authToken` in local storage and sent as `Authorization: Bearer <token>`.
 
 Practical implication:
 
-- To test backend-backed frontend flows, log in with any username and set the password to a token accepted by the backend/test setup.
+- For Docker full-stack mode, use `devuser` / `devpass`.
 
 ### OIDC/Keycloak Replacement TODO (Planned)
 
@@ -143,6 +143,31 @@ When moving to real authentication (OIDC Auth Code + PKCE), replace the placehol
   - replace mocked login form submission with OIDC sign-in entrypoint
 
 Keep guest mode available and local-only unless product requirements change.
+
+### Adding New Languages
+
+The app now centralizes language values in a small number of files:
+
+- Backend canonical language list: `backend/src/shared/document-languages.ts`
+- Frontend language list + UI metadata: `src/app/utils/languages.ts`
+
+If you add a new language:
+
+1. Update backend language list.
+2. Add a DB migration that updates the `documents_language_check` constraint.
+3. Update frontend language list/metadata.
+
+The initial migration file `backend/migrations/001_create_documents.js` is intentionally historical/immutable.
+
+### Audit Event Growth
+
+`api_audit_events` is append-only, so growth is unbounded unless retention is applied.
+
+For current local/dev usage this is acceptable. For longer-running environments, add one of:
+
+- A scheduled cleanup job (for example: delete rows older than N days).
+- Partitioning by time with periodic partition drop.
+- Archival pipeline to move old audit rows to cheaper storage.
 
 ## Current Limitations
 

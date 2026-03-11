@@ -65,6 +65,12 @@ Stop the stack:
 
 - `npm run dev:docker:down`
 
+Docker dev credentials for authenticated mode:
+
+- Username: `devuser`
+- Password: `devpass`
+- Backend token verification is configured to accept Keycloak issuer `http://localhost:8080/realms/glossadocs` in Docker mode.
+
 ### Quick start without database (guest mode only)
 
 If you want to run immediately with no backend services:

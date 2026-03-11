@@ -43,7 +43,7 @@ services:
       API_PORT: 4000
       CORS_ALLOWED_ORIGINS: "*"
       DATABASE_URL: postgres://postgres:postgres@postgres:5432/glossadocs
-      OIDC_ISSUER_URL: http://keycloak:8080/realms/glossadocs
+      OIDC_ISSUER_URL: http://localhost:8080/realms/glossadocs
       OIDC_AUDIENCE: glossadocs-api
       OIDC_JWKS_URL: http://keycloak:8080/realms/glossadocs/protocol/openid-connect/certs
     command: sh -c "npx node-pg-migrate -m migrations up && node dist/server.js"

@@ -253,7 +253,7 @@ export function Login({ onLoginSuccess }: LoginProps) {
             Guest mode saves documents locally on your device
           </p>
           <p className="mt-1 text-xs text-center text-gray-500" role="note">
-            Dev auth note: the password field is currently used as a temporary bearer token placeholder.
+            Dev auth note: in Docker mode, use devuser/devpass. You can also paste a JWT as the password.
           </p>
         </div>
 

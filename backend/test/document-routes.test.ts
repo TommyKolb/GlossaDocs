@@ -50,6 +50,17 @@ afterAll(async () => {
 });
 
 describe("document routes", () => {
+  it("allows CORS preflight for PUT document updates", async () => {
+    const response = await request(app.server)
+      .options("/documents/00000000-0000-4000-8000-000000000000")
+      .set("Origin", "http://localhost:5173")
+      .set("Access-Control-Request-Method", "PUT")
+      .set("Access-Control-Request-Headers", "authorization,content-type");
+
+    expect(response.status).toBe(204);
+    expect(response.headers["access-control-allow-methods"]).toContain("PUT");
+  });
+
   it("returns 401 when listing documents without a token", async () => {
     const response = await request(app.server).get("/documents");
     expect(response.status).toBe(401);

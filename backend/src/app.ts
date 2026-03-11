@@ -61,7 +61,9 @@ export function buildApp(config: AppConfig, options: BuildAppOptions = {}): Fast
   });
 
   void app.register(cors, {
-    origin: config.CORS_ALLOWED_ORIGINS === "*" ? true : config.CORS_ALLOWED_ORIGINS
+    origin: config.CORS_ALLOWED_ORIGINS === "*" ? true : config.CORS_ALLOWED_ORIGINS,
+    methods: ["GET", "HEAD", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Authorization", "Content-Type"]
   });
 
   registerErrorHandler(app);

@@ -22,6 +22,52 @@ export interface LoginCredentials {
 
 const USER_STORAGE_KEY = 'glossadocs_user';
 const ACCESS_TOKEN_STORAGE_KEY = 'authToken';
+const DEFAULT_DEV_OIDC_TOKEN_URL =
+  'http://localhost:8080/realms/glossadocs/protocol/openid-connect/token';
+const DEFAULT_DEV_OIDC_CLIENT_ID = 'glossadocs-api';
+
+interface OidcTokenResponse {
+  access_token: string;
+}
+
+function looksLikeJwt(value: string): boolean {
+  return value.split('.').length === 3;
+}
+
+async function tryExchangeDevCredentialsForToken(
+  credentials: LoginCredentials
+): Promise<string | null> {
+  const tokenUrl = import.meta.env.VITE_OIDC_TOKEN_URL ?? DEFAULT_DEV_OIDC_TOKEN_URL;
+  const clientId = import.meta.env.VITE_OIDC_CLIENT_ID ?? DEFAULT_DEV_OIDC_CLIENT_ID;
+
+  const body = new URLSearchParams({
+    grant_type: 'password',
+    client_id: clientId,
+    username: credentials.username,
+    password: credentials.password,
+    scope: 'openid profile email',
+  });
+
+  try {
+    const response = await fetch(tokenUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString(),
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = (await response.json()) as Partial<OidcTokenResponse>;
+    if (typeof data.access_token === 'string' && data.access_token.length > 0) {
+      return data.access_token;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * ============================================
@@ -55,24 +101,37 @@ export async function loginWithCredentials(
 
   // PLACEHOLDER: Replace with actual API call
   if (credentials.username && credentials.password) {
-    // Simulate successful login
-    const user: User = {
-      id: `user_${Date.now()}`,
-      username: credentials.username,
-      email: `${credentials.username}@example.com`,
-      isGuest: false,
-    };
+    // Prefer real JWT token acquisition for local Docker Keycloak dev.
+    // If unavailable, fall back to the password-as-token placeholder.
+    const exchangedToken = await tryExchangeDevCredentialsForToken(credentials);
+    const placeholderToken = credentials.password.trim();
+    if (!exchangedToken && !looksLikeJwt(placeholderToken)) {
+      throw new Error(
+        'Unable to obtain a valid auth token. Use devuser/devpass in Docker mode, paste a JWT as password, or continue as guest.'
+      );
+    }
 
-    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
-
-    // TODO(OIDC): Replace this dev token behavior with real token acquisition
-    // (Auth Code + PKCE) and secure token persistence strategy.
-    const devAccessToken = credentials.password.trim();
+    const devAccessToken = exchangedToken ?? placeholderToken;
     if (devAccessToken) {
       localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, devAccessToken);
     }
-    
-    return user;
+
+    try {
+      const me = await meApi.get(devAccessToken);
+      const user: User = {
+        id: me.sub,
+        username: me.username,
+        email: me.email,
+        isGuest: false,
+      };
+      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+      return user;
+    } catch {
+      localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+      throw new Error(
+        'Authenticated session bootstrap failed. Verify backend/Keycloak are running, or continue as guest.'
+      );
+    }
   }
 
   throw new Error('Invalid credentials');
@@ -164,7 +223,10 @@ export async function getAuthenticatedUserFromBackend(): Promise<User | null> {
   } catch (error) {
     // TODO(OIDC): On real auth integration, handle token refresh/reauth here.
     console.error('Failed to bootstrap user from /me:', error);
-    return currentUser;
+    // Prevent entering a broken authenticated state where all writes fail.
+    localStorage.removeItem(USER_STORAGE_KEY);
+    localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+    return null;
   }
 }
 

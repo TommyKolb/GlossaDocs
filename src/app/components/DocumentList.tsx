@@ -1,7 +1,8 @@
 import * as React from 'react';
 import { useState, useEffect, useRef } from 'react';
 import { FileText } from 'lucide-react';
-import { Document, getAllDocuments, deleteDocument, saveDocument } from '../utils/db';
+import type { Document } from '../models/document';
+import { getAllDocuments, deleteDocument, saveDocument } from '../data/document-repository';
 import { importDocumentFile, isSupportedDocumentFile } from '../utils/import';
 import { DocumentListHero } from './DocumentListHero';
 import { EmptyDocumentState } from './EmptyDocumentState';
@@ -74,7 +75,7 @@ export function DocumentList({ onSelectDocument }: DocumentListProps) {
       const newDoc = await importDocumentFile(file);
       
       // Save to database
-      await saveDocument(newDoc);
+      const persistedDoc = await saveDocument(newDoc);
       
       // Reload documents list
       await loadDocuments();
@@ -84,7 +85,7 @@ export function DocumentList({ onSelectDocument }: DocumentListProps) {
       toast.success(`${newDoc.title} imported successfully!`);
       
       // Open the newly imported document
-      onSelectDocument(newDoc.id);
+      onSelectDocument(persistedDoc.id);
     } catch (error) {
       console.error('Error importing document:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to import document');

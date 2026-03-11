@@ -1,3 +1,5 @@
+import { meApi } from '../api/endpoints';
+
 /**
  * Authentication utilities for GlossaDocs
  * 
@@ -16,6 +18,55 @@ export interface User {
 export interface LoginCredentials {
   username: string;
   password: string;
+}
+
+const USER_STORAGE_KEY = 'glossadocs_user';
+const ACCESS_TOKEN_STORAGE_KEY = 'authToken';
+const DEFAULT_DEV_OIDC_TOKEN_URL =
+  'http://localhost:8080/realms/glossadocs/protocol/openid-connect/token';
+const DEFAULT_DEV_OIDC_CLIENT_ID = 'glossadocs-api';
+
+interface OidcTokenResponse {
+  access_token: string;
+}
+
+function looksLikeJwt(value: string): boolean {
+  return value.split('.').length === 3;
+}
+
+async function tryExchangeDevCredentialsForToken(
+  credentials: LoginCredentials
+): Promise<string | null> {
+  const tokenUrl = import.meta.env.VITE_OIDC_TOKEN_URL ?? DEFAULT_DEV_OIDC_TOKEN_URL;
+  const clientId = import.meta.env.VITE_OIDC_CLIENT_ID ?? DEFAULT_DEV_OIDC_CLIENT_ID;
+
+  const body = new URLSearchParams({
+    grant_type: 'password',
+    client_id: clientId,
+    username: credentials.username,
+    password: credentials.password,
+    scope: 'openid profile email',
+  });
+
+  try {
+    const response = await fetch(tokenUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString(),
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = (await response.json()) as Partial<OidcTokenResponse>;
+    if (typeof data.access_token === 'string' && data.access_token.length > 0) {
+      return data.access_token;
+    }
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -50,18 +101,37 @@ export async function loginWithCredentials(
 
   // PLACEHOLDER: Replace with actual API call
   if (credentials.username && credentials.password) {
-    // Simulate successful login
-    const user: User = {
-      id: `user_${Date.now()}`,
-      username: credentials.username,
-      email: `${credentials.username}@example.com`,
-      isGuest: false,
-    };
-    
-    // Store user in localStorage (replace with proper token storage)
-    localStorage.setItem('glossadocs_user', JSON.stringify(user));
-    
-    return user;
+    // Prefer real JWT token acquisition for local Docker Keycloak dev.
+    // If unavailable, fall back to the password-as-token placeholder.
+    const exchangedToken = await tryExchangeDevCredentialsForToken(credentials);
+    const placeholderToken = credentials.password.trim();
+    if (!exchangedToken && !looksLikeJwt(placeholderToken)) {
+      throw new Error(
+        'Unable to obtain a valid auth token. Use devuser/devpass in Docker mode, paste a JWT as password, or continue as guest.'
+      );
+    }
+
+    const devAccessToken = exchangedToken ?? placeholderToken;
+    if (devAccessToken) {
+      localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, devAccessToken);
+    }
+
+    try {
+      const me = await meApi.get(devAccessToken);
+      const user: User = {
+        id: me.sub,
+        username: me.username,
+        email: me.email,
+        isGuest: false,
+      };
+      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+      return user;
+    } catch {
+      localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+      throw new Error(
+        'Authenticated session bootstrap failed. Verify backend/Keycloak are running, or continue as guest.'
+      );
+    }
   }
 
   throw new Error('Invalid credentials');
@@ -88,8 +158,9 @@ export async function continueAsGuest(): Promise<User> {
     isGuest: true,
   };
 
-  // Store guest user in localStorage
-  localStorage.setItem('glossadocs_user', JSON.stringify(guestUser));
+  // Store guest user in localStorage and clear any authenticated token.
+  localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(guestUser));
+  localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
 
   return guestUser;
 }
@@ -105,9 +176,9 @@ export async function continueAsGuest(): Promise<User> {
  * 3. Clean up any user-specific data
  */
 export async function logout(): Promise<void> {
-  // PLACEHOLDER: Replace with actual API call
-  localStorage.removeItem('glossadocs_user');
-  localStorage.removeItem('authToken');
+  // TODO(OIDC): Invalidate remote IdP session and revoke/clear tokens.
+  localStorage.removeItem(USER_STORAGE_KEY);
+  localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
 }
 
 /**
@@ -116,7 +187,7 @@ export async function logout(): Promise<void> {
  */
 export function getCurrentUser(): User | null {
   try {
-    const userJson = localStorage.getItem('glossadocs_user');
+    const userJson = localStorage.getItem(USER_STORAGE_KEY);
     if (!userJson) return null;
     return JSON.parse(userJson);
   } catch {
@@ -124,9 +195,38 @@ export function getCurrentUser(): User | null {
   }
 }
 
-/**
- * Check if user is authenticated
- */
-export function isAuthenticated(): boolean {
-  return getCurrentUser() !== null;
+export function getAccessToken(): string | null {
+  return localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY);
 }
+
+export async function getAuthenticatedUserFromBackend(): Promise<User | null> {
+  const currentUser = getCurrentUser();
+  if (!currentUser || currentUser.isGuest) {
+    return currentUser;
+  }
+
+  const token = getAccessToken();
+  if (!token) {
+    return currentUser;
+  }
+
+  try {
+    const me = await meApi.get(token);
+    const backendUser: User = {
+      id: me.sub,
+      username: me.username,
+      email: me.email,
+      isGuest: false,
+    };
+    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(backendUser));
+    return backendUser;
+  } catch (error) {
+    // TODO(OIDC): On real auth integration, handle token refresh/reauth here.
+    console.error('Failed to bootstrap user from /me:', error);
+    // Prevent entering a broken authenticated state where all writes fail.
+    localStorage.removeItem(USER_STORAGE_KEY);
+    localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+    return null;
+  }
+}
+

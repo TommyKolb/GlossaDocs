@@ -1,6 +1,7 @@
 // Document import utilities for GlossaDocs
 import mammoth from 'mammoth';
-import { Document, generateId } from './db';
+import type { Document } from '../models/document';
+import { generateDocumentId } from '../models/document';
 
 /**
  * Import a .txt file
@@ -22,7 +23,7 @@ async function importTxtFile(file: File): Promise<Document> {
           : '<div><br></div>';
         
         const doc: Document = {
-          id: generateId(),
+          id: generateDocumentId(),
           title: title || 'Untitled Document',
           content: content,
           language: 'en', // Default to English
@@ -67,7 +68,7 @@ async function importDocxFile(file: File): Promise<Document> {
         }
         
         const doc: Document = {
-          id: generateId(),
+          id: generateDocumentId(),
           title: title || 'Untitled Document',
           content: html,
           language: 'en', // Default to English

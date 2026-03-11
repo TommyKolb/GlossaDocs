@@ -1,16 +1,11 @@
-export type Language = 'en' | 'de' | 'ru';
-
-export interface LanguageInfo {
-  value: Language;
-  label: string;
-  flag: string;
-}
-
-export const LANGUAGES: LanguageInfo[] = [
+export const LANGUAGES = [
   { value: 'en', label: 'English', flag: '🇺🇸' },
   { value: 'de', label: 'German', flag: '🇩🇪' },
   { value: 'ru', label: 'Russian', flag: '🇷🇺' },
-];
+] as const;
+
+export type Language = (typeof LANGUAGES)[number]['value'];
+export type LanguageInfo = (typeof LANGUAGES)[number];
 
 /**
  * Get full language information by language code

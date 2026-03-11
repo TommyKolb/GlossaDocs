@@ -1,5 +1,5 @@
 import { Document as DocxDocument, Paragraph, TextRun, AlignmentType } from 'docx';
-import { Document } from './db';
+import type { Document as AppDocument } from '../models/document';
 import { PDF_CONFIG } from './constants';
 
 export type ExportFormat = 'json' | 'txt' | 'docx' | 'pdf';
@@ -123,10 +123,13 @@ function htmlToDocxParagraphs(html: string): Paragraph[] {
         underline: element.querySelector('u') ? {} : undefined,
       });
 
-      let alignment = AlignmentType.LEFT;
       const style = window.getComputedStyle(element);
-      if (style.textAlign === 'center') alignment = AlignmentType.CENTER;
-      else if (style.textAlign === 'right') alignment = AlignmentType.RIGHT;
+      const alignment =
+        style.textAlign === 'center'
+          ? AlignmentType.CENTER
+          : style.textAlign === 'right'
+            ? AlignmentType.RIGHT
+            : AlignmentType.LEFT;
 
       paragraphs.push(
         new Paragraph({
@@ -148,7 +151,7 @@ function htmlToDocxParagraphs(html: string): Paragraph[] {
 /**
  * Exports document as plain text (.txt)
  */
-export function exportAsText(doc: Document): void {
+export function exportAsText(doc: AppDocument): void {
   const plainText = htmlToPlainText(doc.content);
   const blob = new Blob([plainText], { type: 'text/plain' });
   triggerDownload(blob, `${doc.title}.txt`);
@@ -157,7 +160,7 @@ export function exportAsText(doc: Document): void {
 /**
  * Exports document as Word document (.docx)
  */
-export async function exportAsDocx(doc: Document): Promise<void> {
+export async function exportAsDocx(doc: AppDocument): Promise<void> {
   const paragraphs = htmlToDocxParagraphs(doc.content);
   
   const docxDoc = new DocxDocument({
@@ -194,7 +197,7 @@ export async function exportAsDocx(doc: Document): Promise<void> {
  * Exports document as PDF (.pdf)
  * Uses html2pdf/html2canvas with an isolated render container
  */
-export async function exportAsPdf(doc: Document): Promise<void> {
+export async function exportAsPdf(doc: AppDocument): Promise<void> {
   // Render inside an isolated iframe so html2canvas does not parse app-wide CSS
   // tokens (like oklch) that it cannot handle.
   const iframe = document.createElement('iframe');
@@ -324,7 +327,7 @@ export async function exportAsPdf(doc: Document): Promise<void> {
 /**
  * Exports document as JSON (.glossadoc.json) - original format
  */
-export function exportAsJson(doc: Document): void {
+export function exportAsJson(doc: AppDocument): void {
   const dataStr = JSON.stringify(doc, null, 2);
   const dataBlob = new Blob([dataStr], { type: 'application/json' });
   triggerDownload(dataBlob, `${doc.title}.glossadoc.json`);
@@ -333,7 +336,7 @@ export function exportAsJson(doc: Document): void {
 /**
  * Main export function that handles all formats
  */
-export async function exportDocument(doc: Document, format: ExportFormat): Promise<void> {
+export async function exportDocument(doc: AppDocument, format: ExportFormat): Promise<void> {
   switch (format) {
     case 'txt':
       exportAsText(doc);

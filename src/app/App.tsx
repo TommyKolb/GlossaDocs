@@ -1,10 +1,11 @@
+import React from 'react';
 import { useState, useEffect } from 'react';
 import { DocumentList } from './components/DocumentList';
 import { Editor } from './components/Editor';
 import { Login } from './components/Login';
 import { LoadingSpinner } from './components/LoadingSpinner';
 import { Toaster } from './components/ui/sonner';
-import { getCurrentUser, type User } from './utils/auth';
+import { getAuthenticatedUserFromBackend, type User } from './utils/auth';
 import { UI_CONSTANTS } from './utils/constants';
 
 export default function App() {
@@ -13,8 +14,12 @@ export default function App() {
 
   // Check for existing user session on mount
   useEffect(() => {
-    const currentUser = getCurrentUser();
-    setUser(currentUser);
+    async function hydrateUser() {
+      const currentUser = await getAuthenticatedUserFromBackend();
+      setUser(currentUser);
+    }
+
+    void hydrateUser();
   }, []);
 
   const handleLoginSuccess = (loggedInUser: User) => {

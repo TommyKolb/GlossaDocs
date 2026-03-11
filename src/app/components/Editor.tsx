@@ -2,12 +2,9 @@ import * as React from 'react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { EditorToolbar } from './EditorToolbar';
 import { LanguageKeyboard } from './LanguageKeyboard';
-import { 
-  Document, 
-  getDocument, 
-  saveDocument, 
-  generateId
-} from '../utils/db';
+import type { Document } from '../models/document';
+import { generateDocumentId } from '../models/document';
+import { getDocument, saveDocument } from '../data/document-repository';
 import { exportDocument, type ExportFormat } from '../utils/export';
 import { getLanguageName, type Language } from '../utils/languages';
 import { EDITOR_CONFIG, UI_CONSTANTS } from '../utils/constants';
@@ -16,6 +13,7 @@ import { getRemappedCharacter } from '../utils/keyboardLayouts';
 import { getEditorShortcutAction } from '../utils/keyboardShortcuts';
 import { useFormattingState } from '../hooks/useFormattingState';
 import { useAutoSave } from '../hooks/useAutoSave';
+import { getUserSettings, languageToLocale, localeToLanguage, updateUserSettings } from '../data/settings-repository';
 import { toast } from 'sonner';
 
 interface EditorProps {
@@ -34,6 +32,9 @@ export function Editor({ documentId, onBack }: EditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const savedSelectionRef = useRef<Range | null>(null);
+  const documentRef = useRef<Document | null>(null);
+  const isSaveRunningRef = useRef(false);
+  const saveRequestedWhileRunningRef = useRef(false);
   
   // Custom hooks
   const { formattingState, updateFormattingState } = useFormattingState();
@@ -41,26 +42,42 @@ export function Editor({ documentId, onBack }: EditorProps) {
 
   // Callbacks
   const handleSave = useCallback(async () => {
-    if (!document || !editorRef.current) return;
+    if (isSaveRunningRef.current) {
+      saveRequestedWhileRunningRef.current = true;
+      return;
+    }
 
+    isSaveRunningRef.current = true;
     setIsSaving(true);
-    const updatedDoc = {
-      ...document,
-      content: editorRef.current.innerHTML,
-      updatedAt: Date.now(),
-    };
 
     try {
-      await saveDocument(updatedDoc);
-      setDocument(updatedDoc);
-      setHasUnsavedChanges(false);
+      do {
+        saveRequestedWhileRunningRef.current = false;
+
+        const activeDocument = documentRef.current;
+        if (!activeDocument || !editorRef.current) {
+          break;
+        }
+
+        const updatedDoc = {
+          ...activeDocument,
+          content: editorRef.current.innerHTML,
+          updatedAt: Date.now(),
+        };
+
+        const persistedDocument = await saveDocument(updatedDoc);
+        documentRef.current = persistedDocument;
+        setDocument(persistedDocument);
+        setHasUnsavedChanges(false);
+      } while (saveRequestedWhileRunningRef.current);
     } catch (error) {
       console.error('Error saving document:', error);
       toast.error('Failed to save document');
     } finally {
+      isSaveRunningRef.current = false;
       setIsSaving(false);
     }
-  }, [document]);
+  }, []);
 
   const handleContentChange = useCallback(() => {
     setHasUnsavedChanges(true);
@@ -86,6 +103,9 @@ export function Editor({ documentId, onBack }: EditorProps) {
     }
 
     toast.success(`Language changed to ${getLanguageName(newLanguage)}`);
+    void updateUserSettings({ lastUsedLocale: languageToLocale(newLanguage) }).catch((error) => {
+      console.error('Error saving language preference:', error);
+    });
   }, [document]);
 
   const insertTextAtCursor = useCallback((text: string) => {
@@ -311,7 +331,13 @@ export function Editor({ documentId, onBack }: EditorProps) {
   }, [saveSelection]);
 
   const toggleKeyboardVisibility = useCallback(() => {
-    setIsKeyboardVisible((prev) => !prev);
+    setIsKeyboardVisible((prev) => {
+      const next = !prev;
+      void updateUserSettings({ keyboardVisible: next }).catch((error) => {
+        console.error('Error saving keyboard visibility setting:', error);
+      });
+      return next;
+    });
   }, []);
 
   const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -455,18 +481,32 @@ export function Editor({ documentId, onBack }: EditorProps) {
   // Load document on mount
   useEffect(() => {
     async function loadDocument() {
+      let lastUsedLocale: string | null = null;
+      try {
+        const settings = await getUserSettings();
+        setIsKeyboardVisible(settings.keyboardVisible);
+        lastUsedLocale = settings.lastUsedLocale;
+      } catch (error) {
+        console.error('Error loading user settings:', error);
+      }
+
       if (documentId) {
         const doc = await getDocument(documentId);
         if (doc) {
           setDocument(doc);
         }
       } else {
+        let preferredLanguage: Language = EDITOR_CONFIG.DEFAULT_LANGUAGE;
+        if (lastUsedLocale) {
+          preferredLanguage = localeToLanguage(lastUsedLocale);
+        }
+
         // Create new document
         const newDoc: Document = {
-          id: generateId(),
+          id: generateDocumentId(),
           title: EDITOR_CONFIG.DEFAULT_TITLE,
           content: '',
-          language: EDITOR_CONFIG.DEFAULT_LANGUAGE,
+          language: preferredLanguage,
           createdAt: Date.now(),
           updatedAt: Date.now(),
         };
@@ -482,6 +522,10 @@ export function Editor({ documentId, onBack }: EditorProps) {
       editorRef.current.innerHTML = document.content;
     }
   }, [document?.id]); // Only run when document changes
+
+  useEffect(() => {
+    documentRef.current = document;
+  }, [document]);
 
   if (!document) {
     return (

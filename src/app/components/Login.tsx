@@ -252,6 +252,9 @@ export function Login({ onLoginSuccess }: LoginProps) {
           <p className="mt-4 text-xs text-center text-gray-500" role="note">
             Guest mode saves documents locally on your device
           </p>
+          <p className="mt-1 text-xs text-center text-gray-500" role="note">
+            Dev auth note: in Docker mode, use devuser/devpass. You can also paste a JWT as the password.
+          </p>
         </div>
 
         {/* Footer note */}

@@ -9,6 +9,8 @@ import {
   saveDocument as saveLocalDocument
 } from "../utils/db";
 
+const knownRemoteDocumentIds = new Set<string>();
+
 function isUuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
@@ -38,6 +40,9 @@ export async function getAllDocuments(): Promise<Document[]> {
 
   const token = requireAccessToken();
   const apiDocuments = await documentsApi.list(token);
+  for (const apiDocument of apiDocuments) {
+    knownRemoteDocumentIds.add(apiDocument.id);
+  }
   return apiDocuments.map(toAppDocument);
 }
 
@@ -53,6 +58,7 @@ export async function getDocument(id: string): Promise<Document | null> {
   const token = requireAccessToken();
   try {
     const apiDocument = await documentsApi.get(token, id);
+    knownRemoteDocumentIds.add(apiDocument.id);
     return toAppDocument(apiDocument);
   } catch (error) {
     if (error instanceof ApiClientError && error.status === 404) {
@@ -75,17 +81,22 @@ export async function saveDocument(document: Document): Promise<Document> {
     language: document.language
   };
 
-  if (!isUuid(document.id)) {
+  const shouldCreate = !isUuid(document.id) || !knownRemoteDocumentIds.has(document.id);
+  if (shouldCreate) {
     const created = await documentsApi.create(token, payload);
+    knownRemoteDocumentIds.add(created.id);
     return toAppDocument(created);
   }
 
   try {
     const updated = await documentsApi.update(token, document.id, payload);
+    knownRemoteDocumentIds.add(updated.id);
     return toAppDocument(updated);
   } catch (error) {
     if (error instanceof ApiClientError && error.status === 404) {
+      knownRemoteDocumentIds.delete(document.id);
       const created = await documentsApi.create(token, payload);
+      knownRemoteDocumentIds.add(created.id);
       return toAppDocument(created);
     }
     throw error;
@@ -104,4 +115,5 @@ export async function deleteDocument(id: string): Promise<void> {
 
   const token = requireAccessToken();
   await documentsApi.remove(token, id);
+  knownRemoteDocumentIds.delete(id);
 }

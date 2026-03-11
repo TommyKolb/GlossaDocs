@@ -14,7 +14,11 @@
     "migrate:all": "npm run migrate:up",
     "migrate:down": "npm --prefix backend run migrate:down",
     "build": "vite build",
-    "dev": "vite --host 0.0.0.0"
+    "dev": "vite --host 0.0.0.0",
+    "test": "npm run test:all",
+    "test:all": "npm run test:frontend && npm run test:backend",
+    "test:frontend": "vitest run src",
+    "test:backend": "npm --prefix backend test"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",
@@ -81,7 +85,8 @@
     "@vitejs/plugin-react": "4.7.0",
     "concurrently": "^9.2.1",
     "tailwindcss": "4.1.12",
-    "vite": "6.3.5"
+    "vite": "6.3.5",
+    "vitest": "^4.0.18"
   },
   "peerDependencies": {
     "react": "18.3.1",

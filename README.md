@@ -49,14 +49,47 @@ GlossaDocs aims to make multilingual writing feel native instead of bolted on. T
 
 ## Running Locally
 
-1. Install dependencies:
-   - `npm install`
-2. Start the dev server:
-   - `npm run dev`
-3. Open in browser:
-   - `http://localhost:5173/`
+### Fastest full-stack startup (Docker Compose)
 
-Note: this repo is configured to run Vite with host exposure so local browser access works from `npm run dev`.
+Run everything (frontend + backend + Postgres + Keycloak) with one command:
+
+1. Install Docker Desktop
+2. From repo root:
+   - `npm run dev:docker`
+3. Open:
+   - Frontend: `http://localhost:5173`
+   - Backend health: `http://localhost:4000/health`
+   - Keycloak admin: `http://localhost:8080` (admin/admin)
+
+Stop the stack:
+
+- `npm run dev:docker:down`
+
+### Quick start without database (guest mode only)
+
+If you want to run immediately with no backend services:
+
+1. `npm install`
+2. `npm run dev:guest`
+3. Open `http://localhost:5173` and choose **Continue as Guest**
+
+This mode is local-only (IndexedDB/localStorage) and does not require Postgres or Keycloak.
+
+### Local non-Docker full-stack mode
+
+Prerequisites:
+
+- Node.js 20+
+- PostgreSQL running locally
+- Keycloak running locally
+
+Setup:
+
+1. `npm run setup:dev`
+2. Copy `.env.example` to `.env`
+3. Copy `backend/.env.example` to `backend/.env`
+4. `npm run migrate:all`
+5. `npm run dev:all`
 
 ## Frontend-Backend Integration (Current State)
 
@@ -107,6 +140,6 @@ Keep guest mode available and local-only unless product requirements change.
 
 ## Current Limitations
 
-- No backend or real authentication yet.
+- Backend exists, but frontend authentication is still in temporary dev mode (not real OIDC login flow yet).
 - No collaboration/sharing yet.
 - Language features are in progress; current language selection is foundational, with advanced input-method behavior planned.

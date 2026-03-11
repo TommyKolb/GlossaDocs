@@ -4,6 +4,15 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
+    "setup:dev": "npm install && npm --prefix backend install",
+    "dev:guest": "npm run dev",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:docker": "docker compose up --build",
+    "dev:docker:down": "docker compose down",
+    "dev:all": "concurrently -n frontend,backend -c magenta,cyan \"npm run dev\" \"npm run dev:backend\"",
+    "migrate:up": "npm --prefix backend run migrate:up",
+    "migrate:all": "npm run migrate:up",
+    "migrate:down": "npm --prefix backend run migrate:down",
     "build": "vite build",
     "dev": "vite --host 0.0.0.0"
   },
@@ -70,6 +79,7 @@
   "devDependencies": {
     "@tailwindcss/vite": "4.1.12",
     "@vitejs/plugin-react": "4.7.0",
+    "concurrently": "^9.2.1",
     "tailwindcss": "4.1.12",
     "vite": "6.3.5"
   },

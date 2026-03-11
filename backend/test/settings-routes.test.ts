@@ -50,6 +50,17 @@ afterAll(async () => {
 });
 
 describe("settings routes", () => {
+  it("allows CORS preflight for PUT settings updates", async () => {
+    const response = await request(app.server)
+      .options("/settings")
+      .set("Origin", "http://localhost:5173")
+      .set("Access-Control-Request-Method", "PUT")
+      .set("Access-Control-Request-Headers", "authorization,content-type");
+
+    expect(response.status).toBe(204);
+    expect(response.headers["access-control-allow-methods"]).toContain("PUT");
+  });
+
   it("returns 401 when reading settings without a token", async () => {
     const response = await request(app.server).get("/settings");
     expect(response.status).toBe(401);

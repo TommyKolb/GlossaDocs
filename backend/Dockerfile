@@ -10,6 +10,8 @@ RUN npm run build
 FROM node:20-alpine AS runtime
 WORKDIR /app
 
+RUN apk add --no-cache wget
+
 COPY package*.json ./
 RUN npm ci
 

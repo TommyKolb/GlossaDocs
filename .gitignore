@@ -21,6 +21,8 @@ coverage/
 # Environment / secrets
 .env
 .env.*
+!.env.example
+!backend/.env.example
 
 # --- OS / editor ---
 .DS_Store

@@ -169,6 +169,15 @@ For current local/dev usage this is acceptable. For longer-running environments,
 - Partitioning by time with periodic partition drop.
 - Archival pipeline to move old audit rows to cheaper storage.
 
+### Deploying to AWS Lambda
+
+The backend can run on AWS Lambda behind API Gateway. Use the Lambda entrypoint:
+
+- **Handler**: `dist/lambda.handler` (or `lambda.handler` if the deployment package root is `dist/`).
+- Set Lambda environment variables (or use Secrets Manager for `DATABASE_URL`): `NODE_ENV`, `API_PORT`, `CORS_ALLOWED_ORIGINS`, `DATABASE_URL`, `OIDC_ISSUER_URL`, `OIDC_AUDIENCE`, `OIDC_JWKS_URL`.
+
+Deploy the built backend (e.g. `dist/`, `migrations/`, `node_modules`) as the Lambda function code and point API Gateway HTTP API (or REST API) at this handler.
+
 ## Current Limitations
 
 - Backend exists, but frontend authentication is still in temporary dev mode (not real OIDC login flow yet).

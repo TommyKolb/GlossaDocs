@@ -38,6 +38,12 @@ services:
         condition: service_healthy
       keycloak:
         condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:4000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     environment:
       NODE_ENV: development
       API_PORT: 4000
@@ -58,7 +64,8 @@ services:
         VITE_API_BASE_URL: http://localhost:4000
     container_name: glossadocs-frontend
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     ports:
       - "5173:80"
 

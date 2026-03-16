@@ -12,6 +12,9 @@ This page is the navigation index for backend architecture docs.
 - [Input Preferences Module](modules/input-preferences-module.md)
 - [Operational Store Module](modules/operational-store-module.md)
 
+## Security / Data
+- [Document encryption at rest](document-encryption.md)
+
 ## Scope Covered
 - Story 1: basic editor with persistent save
 - Story 3: Russian on-screen keyboard with persisted preference

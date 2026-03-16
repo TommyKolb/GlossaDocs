@@ -7,7 +7,9 @@ const configSchema = z.object({
   DATABASE_URL: z.string().optional(),
   OIDC_ISSUER_URL: z.string().optional(),
   OIDC_AUDIENCE: z.string().optional(),
-  OIDC_JWKS_URL: z.string().optional()
+  OIDC_JWKS_URL: z.string().optional(),
+  /** Base64-encoded 32-byte key for document title/content encryption at rest. Optional. */
+  DOCUMENT_ENCRYPTION_KEY: z.string().optional()
 });
 
 export type AppConfig = z.infer<typeof configSchema>;

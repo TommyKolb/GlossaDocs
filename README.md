@@ -178,6 +178,10 @@ The backend can run on AWS Lambda behind API Gateway. Use the Lambda entrypoint:
 
 Deploy the built backend (e.g. `dist/`, `migrations/`, `node_modules`) as the Lambda function code and point API Gateway HTTP API (or REST API) at this handler.
 
+### Document encryption at rest
+
+Document title and content can be encrypted in PostgreSQL so that anyone with DB access cannot read them without the key. Set `DOCUMENT_ENCRYPTION_KEY` (base64-encoded 32-byte key) in the backend environment. See [docs/architecture/document-encryption.md](docs/architecture/document-encryption.md) for design and key management.
+
 ## Current Limitations
 
 - Backend exists, but frontend authentication is still in temporary dev mode (not real OIDC login flow yet).

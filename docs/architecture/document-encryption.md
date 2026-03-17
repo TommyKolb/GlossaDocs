@@ -34,6 +34,13 @@ Protect document title and content so that anyone with access to the database (b
 
 No migration required. Existing `documents.title` and `documents.content` columns (type `text`) hold either plaintext (legacy) or the `v1:` + base64-encrypted value. No new columns.
 
+## Performance characteristics
+
+- Encryption and decryption happen in the application tier (Node.js) using AES-256-GCM.
+- CPU cost scales roughly with the size of the document title/content being processed; larger documents and higher request rates will increase app CPU usage.
+- Each write or read of a document with an active `DOCUMENT_ENCRYPTION_KEY` performs a full encrypt/decrypt of the `title` and `content` fields.
+- For current local/dev usage this overhead is acceptable; for production, monitor application CPU and latency for document-heavy workloads and plan capacity accordingly.
+
 ## Migrating existing data
 
 To encrypt existing plaintext rows:

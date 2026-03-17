@@ -7,23 +7,35 @@
  */
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 
+/**
+ * Thrown when DOCUMENT_ENCRYPTION_KEY (or an equivalent config value) is present
+ * but invalid. Calling code may treat this as a fatal configuration error and
+ * fail fast during process startup.
+ */
+export class DocumentEncryptionConfigError extends Error {
+  public readonly code = "DOCUMENT_ENCRYPTION_CONFIG_INVALID";
+
+  public constructor(message: string) {
+    super(message);
+    this.name = "DocumentEncryptionConfigError";
+  }
+}
+
 const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 12;
 const AUTH_TAG_LENGTH = 16;
 const VERSION_PREFIX = "v1:";
-
-function checkKey(key: Buffer): void {
-  if (key.length !== 32) {
-    throw new Error("Document encryption key must be 32 bytes (256 bits)");
-  }
-}
 
 /**
  * Encrypt plaintext with the given key. Returns a versioned, base64-encoded string
  * suitable for storing in a text column: "v1:" + base64(IV || ciphertext || authTag).
  */
 export function encryptDocumentField(plaintext: string, key: Buffer): string {
-  checkKey(key);
+  if (key.length !== 32) {
+    throw new DocumentEncryptionConfigError(
+      "Document encryption key must be 32 bytes (256 bits)"
+    );
+  }
   const iv = randomBytes(IV_LENGTH);
   const cipher = createCipheriv(ALGORITHM, key, iv, { authTagLength: AUTH_TAG_LENGTH });
   const encrypted = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
@@ -40,7 +52,11 @@ export function decryptDocumentField(ciphertext: string, key: Buffer): string {
   if (!ciphertext.startsWith(VERSION_PREFIX)) {
     return ciphertext;
   }
-  checkKey(key);
+  if (key.length !== 32) {
+    throw new DocumentEncryptionConfigError(
+      "Document encryption key must be 32 bytes (256 bits)"
+    );
+  }
   const blob = Buffer.from(ciphertext.slice(VERSION_PREFIX.length), "base64");
   if (blob.length < IV_LENGTH + AUTH_TAG_LENGTH) {
     throw new Error("Document field ciphertext too short to be valid");
@@ -62,7 +78,7 @@ export function parseDocumentEncryptionKey(encoded: string | undefined): Buffer 
   }
   const key = Buffer.from(encoded.trim(), "base64");
   if (key.length !== 32) {
-    throw new Error(
+    throw new DocumentEncryptionConfigError(
       `DOCUMENT_ENCRYPTION_KEY must be base64 of 32 bytes (got ${key.length} bytes after decode)`
     );
   }

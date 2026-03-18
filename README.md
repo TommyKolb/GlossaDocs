@@ -60,6 +60,7 @@ Run everything (frontend + backend + Postgres + Keycloak) with one command:
    - Frontend: `http://localhost:5173`
    - Backend health: `http://localhost:4000/health`
    - Keycloak admin: `http://localhost:8080` (admin/admin)
+  - Dev email inbox (Mailpit): `http://localhost:8025`
 
 Stop the stack:
 
@@ -70,6 +71,16 @@ Docker dev credentials for authenticated mode:
 - Username: `devuser`
 - Password: `devpass`
 - Backend token verification is configured to accept Keycloak issuer `http://localhost:8080/realms/glossadocs` in Docker mode.
+
+### Creating an account (email + password) and resetting passwords
+
+This branch uses **Keycloak** for signup and password reset (the app does not store passwords).
+
+- **Create account**: on the login screen, click **Create account** and register with your email + password.
+- **Forgot password**: on the login screen, click **Forgot password?** and follow the email reset flow.
+- **Dev email inbox**: reset emails are delivered to Mailpit at `http://localhost:8025`.
+
+Privacy promise: **Your email will never be used for spam or shared with anyone else.**
 
 ### Quick start without database (guest mode only)
 

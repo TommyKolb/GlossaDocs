@@ -10,9 +10,29 @@ import { useLanguageCycling } from '../hooks/useLanguageCycling';
 import { LanguageBadge } from './LanguageBadge';
 import { UI_CONSTANTS } from '../utils/constants';
 import { toast } from 'sonner';
+import { getApiBaseUrl } from '../api/client';
 
 interface LoginProps {
   onLoginSuccess: (user: User) => void;
+}
+
+function base64UrlEncode(value: Uint8Array): string {
+  let raw = '';
+  for (const byte of value) {
+    raw += String.fromCharCode(byte);
+  }
+  return btoa(raw).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+async function buildPkceParams(): Promise<{ codeVerifier: string; codeChallenge: string }> {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  const codeVerifier = base64UrlEncode(bytes);
+
+  const hashed = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(codeVerifier));
+  const codeChallenge = base64UrlEncode(new Uint8Array(hashed));
+
+  return { codeVerifier, codeChallenge };
 }
 
 // Multilingual welcome messages
@@ -31,6 +51,10 @@ export function Login({ onLoginSuccess }: LoginProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [currentWelcomeIndex, setCurrentWelcomeIndex] = useState(0);
   const [formErrors, setFormErrors] = useState<{ username?: string; password?: string; general?: string }>({});
+  const [authPublicLinks, setAuthPublicLinks] = useState<{
+    loginUrl: string | null;
+    registrationUrl: string | null;
+  } | null>(null);
 
   const visibleLanguages = useLanguageCycling(LANGUAGES.length);
 
@@ -41,6 +65,55 @@ export function Login({ onLoginSuccess }: LoginProps) {
     }, UI_CONSTANTS.WELCOME_MESSAGE_INTERVAL_MS);
     return () => clearInterval(interval);
   }, []);
+
+  const loadAuthPublicLinks = async (): Promise<{
+    loginUrl: string | null;
+    registrationUrl: string | null;
+  } | null> => {
+    if (authPublicLinks) return authPublicLinks;
+
+    try {
+      const response = await fetch(`${getApiBaseUrl()}/auth/public`, {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+      });
+      const data = (await response.json().catch(() => ({}))) as Partial<{
+        loginUrl: string | null;
+        registrationUrl: string | null;
+      }>;
+
+      const resolved = {
+        loginUrl: typeof data.loginUrl === 'string' ? data.loginUrl : null,
+        registrationUrl: typeof data.registrationUrl === 'string' ? data.registrationUrl : null,
+      };
+      setAuthPublicLinks(resolved);
+      return resolved;
+    } catch {
+      return null;
+    }
+  };
+
+  const navigateToAuthLink = async (target: 'login' | 'register') => {
+    const links = await loadAuthPublicLinks();
+    const baseUrl = target === 'login' ? links?.loginUrl : links?.registrationUrl;
+    if (!baseUrl) {
+      toast.error('Authentication is not configured. Please continue as guest for now.');
+      return;
+    }
+
+    try {
+      const { codeVerifier, codeChallenge } = await buildPkceParams();
+      sessionStorage.setItem('glossadocs_pkce_code_verifier', codeVerifier);
+
+      const url = new URL(baseUrl);
+      url.searchParams.set('code_challenge_method', 'S256');
+      url.searchParams.set('code_challenge', codeChallenge);
+
+      window.location.assign(url.toString());
+    } catch {
+      toast.error('Unable to start authentication. Please continue as guest for now.');
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -225,6 +298,39 @@ export function Login({ onLoginSuccess }: LoginProps) {
               {isLoading ? 'Signing in...' : 'Sign In'}
             </Button>
           </form>
+
+          <div
+            className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4"
+            role="group"
+            aria-label="Account actions"
+          >
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full justify-center border-blue-200 text-blue-700 hover:bg-blue-50"
+              disabled={isLoading}
+              onClick={() => void navigateToAuthLink('register')}
+              aria-label="Create account"
+              data-testid="create-account-button"
+            >
+              Create account
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full justify-center"
+              disabled={isLoading}
+              onClick={() => void navigateToAuthLink('login')}
+              aria-label="Forgot password?"
+              data-testid="forgot-password-button"
+            >
+              Forgot password?
+            </Button>
+          </div>
+
+          <p className="mb-6 text-xs text-center text-gray-500" role="note">
+            Your email will never be used for spam or shared with anyone else.
+          </p>
 
           {/* Divider */}
           <div className="relative mb-6" role="separator" aria-label="or">

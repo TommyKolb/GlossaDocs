@@ -8,6 +8,13 @@ const configSchema = z.object({
   OIDC_ISSUER_URL: z.string().optional(),
   OIDC_AUDIENCE: z.string().optional(),
   OIDC_JWKS_URL: z.string().optional(),
+  /**
+   * Public OIDC/Keycloak values for constructing login/registration URLs in the frontend.
+   * These MUST be safe to expose to browsers (no secrets).
+   */
+  OIDC_PUBLIC_ISSUER_URL: z.string().optional(),
+  OIDC_PUBLIC_CLIENT_ID: z.string().optional(),
+  OIDC_PUBLIC_REDIRECT_URI: z.string().optional(),
   /** Base64-encoded 32-byte key for document title/content encryption at rest. Optional. */
   DOCUMENT_ENCRYPTION_KEY: z.string().optional()
 });

@@ -8,6 +8,7 @@ import { createRequestContext } from "./shared/request-context.js";
 import { JoseTokenVerifier } from "./modules/identity-access/jose-token-verifier.js";
 import { meRoutes } from "./modules/identity-access/me-routes.js";
 import type { TokenVerifier } from "./modules/identity-access/token-verifier.js";
+import { authPublicRoutes } from "./modules/identity-access/auth-public-routes.js";
 import { ApiError } from "./shared/api-error.js";
 import { parseDocumentEncryptionKey } from "./shared/document-encryption.js";
 import { DocumentService } from "./modules/documents/document-service.js";
@@ -95,6 +96,7 @@ export function buildApp(config: AppConfig, options: BuildAppOptions = {}): Fast
     (databaseUrl ? new PgAuditWriter(databaseUrl) : new NoopAuditWriter());
 
   void app.register(healthRoutes);
+  void app.register(authPublicRoutes, { config });
   void app.register(meRoutes, { tokenVerifier });
   void app.register(documentRoutes, { tokenVerifier, service: documentService });
   void app.register(settingsRoutes, { tokenVerifier, service: settingsService });

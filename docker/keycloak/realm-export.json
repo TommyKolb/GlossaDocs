@@ -2,7 +2,15 @@
   "realm": "glossadocs",
   "enabled": true,
   "displayName": "GlossaDocs",
-  "registrationAllowed": false,
+  "registrationAllowed": true,
+  "registrationEmailAsUsername": true,
+  "resetPasswordAllowed": true,
+  "smtpServer": {
+    "host": "mailpit",
+    "port": "1025",
+    "from": "no-reply@glossadocs.local",
+    "fromDisplayName": "GlossaDocs"
+  },
   "users": [
     {
       "username": "devuser",

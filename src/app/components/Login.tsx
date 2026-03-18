@@ -18,25 +18,6 @@ interface LoginProps {
   onForgotPassword: () => void;
 }
 
-function base64UrlEncode(value: Uint8Array): string {
-  let raw = '';
-  for (const byte of value) {
-    raw += String.fromCharCode(byte);
-  }
-  return btoa(raw).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
-}
-
-async function buildPkceParams(): Promise<{ codeVerifier: string; codeChallenge: string }> {
-  const bytes = new Uint8Array(32);
-  crypto.getRandomValues(bytes);
-  const codeVerifier = base64UrlEncode(bytes);
-
-  const hashed = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(codeVerifier));
-  const codeChallenge = base64UrlEncode(new Uint8Array(hashed));
-
-  return { codeVerifier, codeChallenge };
-}
-
 // Multilingual welcome messages
 const WELCOME_MESSAGES = [
   { text: 'Welcome', lang: 'English' },
@@ -49,7 +30,6 @@ const WELCOME_MESSAGES = [
 
 export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: LoginProps) {
   const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [currentWelcomeIndex, setCurrentWelcomeIndex] = useState(0);
   const [formErrors, setFormErrors] = useState<{ username?: string; password?: string; general?: string }>({});
@@ -103,34 +83,33 @@ export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: Log
     e.preventDefault();
 
     const trimmedUsername = username.trim();
-    const trimmedPassword = password.trim();
-    const nextErrors: { username?: string; password?: string } = {};
+    const nextErrors: { username?: string } = {};
 
     if (!trimmedUsername) {
-      nextErrors.username = 'Username is required.';
+      nextErrors.username = 'Email is required.';
     }
 
-    if (!trimmedPassword) {
-      nextErrors.password = 'Password is required.';
-    }
-
-    if (nextErrors.username || nextErrors.password) {
+    if (nextErrors.username) {
       setFormErrors(nextErrors);
-      toast.error('Please enter both username and password');
+      toast.error('Please enter your email to continue');
       return;
     }
 
     setFormErrors({});
     setIsLoading(true);
     try {
-      const user = await loginWithCredentials({ username: trimmedUsername, password: trimmedPassword });
+      const user = await loginWithCredentials({ username: trimmedUsername, password: '' });
       toast.success(`Welcome back, ${user.username}!`);
       onLoginSuccess(user);
     } catch (error) {
+      if (error instanceof Error && error.message === 'Redirecting to identity provider') {
+        // Expected OIDC redirect – do not show an error toast.
+        return;
+      }
       setFormErrors({
-        general: 'Login failed. Please check your credentials and try again.',
+        general: 'Login failed. Please try again.',
       });
-      toast.error('Login failed. Please check your credentials.');
+      toast.error('Login failed. Please try again.');
       console.error('Login error:', error);
     } finally {
       setIsLoading(false);
@@ -198,15 +177,18 @@ export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: Log
 
         {/* Login Card */}
         <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8 border border-gray-200">
-          <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-4 sm:mb-6 text-center">
+          <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-2 sm:mb-4 text-center">
             Sign in to continue
           </h2>
+          <p className="text-xs text-center text-gray-500 mb-4" role="note">
+            Enter your email to continue to the secure sign-in page.
+          </p>
 
           {/* Login Form */}
           <form onSubmit={handleLogin} className="space-y-4 mb-6" aria-label="Login form">
             <div>
               <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
-                Username
+                Email
               </label>
               <Input
                 id="username"
@@ -216,7 +198,7 @@ export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: Log
                   setUsername(e.target.value);
                   setFormErrors((prev) => ({ ...prev, username: undefined, general: undefined }));
                 }}
-                placeholder="Enter your username"
+                placeholder="you@example.com"
                 disabled={isLoading}
                 className="w-full"
                 autoComplete="username"
@@ -232,40 +214,6 @@ export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: Log
               ) : null}
             </div>
 
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                Password
-              </label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  setFormErrors((prev) => ({ ...prev, password: undefined, general: undefined }));
-                }}
-                placeholder="Enter your password"
-                disabled={isLoading}
-                className="w-full"
-                autoComplete="current-password"
-                required
-                aria-required="true"
-                aria-invalid={Boolean(formErrors.password || formErrors.general)}
-                aria-describedby={
-                  formErrors.password
-                    ? 'password-error'
-                    : formErrors.general
-                      ? 'login-error'
-                      : undefined
-                }
-              />
-              {formErrors.password ? (
-                <p id="password-error" className="mt-1 text-sm text-red-600" role="alert">
-                  {formErrors.password}
-                </p>
-              ) : null}
-            </div>
-
             {formErrors.general ? (
               <p id="login-error" className="text-sm text-red-600" role="alert" aria-live="polite">
                 {formErrors.general}
@@ -276,10 +224,10 @@ export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: Log
               type="submit"
               disabled={isLoading}
               className="w-full bg-blue-600 hover:bg-blue-700 text-white gap-2"
-              aria-label={isLoading ? 'Signing in' : 'Sign in to your account'}
+              aria-label={isLoading ? 'Continuing to sign in' : 'Continue to secure sign in'}
             >
               <LogIn className="size-4" aria-hidden="true" />
-              {isLoading ? 'Signing in...' : 'Sign In'}
+              {isLoading ? 'Continuing…' : 'Continue to sign in'}
             </Button>
           </form>
 

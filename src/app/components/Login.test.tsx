@@ -1,6 +1,6 @@
 import * as React from "react";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { Login } from "./Login";
@@ -98,6 +98,34 @@ describe("Login signup + reset entrypoints", () => {
     await user.click(forgotButtons[forgotButtons.length - 1]);
 
     expect(onForgotPassword).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not show an error toast when loginWithCredentials triggers OIDC redirect", async () => {
+    const { loginWithCredentials } = await import("../utils/auth");
+    const { toast } = await import("sonner");
+
+    vi.mocked(loginWithCredentials).mockRejectedValueOnce(
+      new Error("Redirecting to identity provider")
+    );
+
+    render(
+      <Login
+        onLoginSuccess={() => {}}
+        onCreateAccount={() => {}}
+        onForgotPassword={() => {}}
+      />
+    );
+
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText(/Email/i), "devuser@example.com");
+    const signInButtons = screen.getAllByRole("button", {
+      name: "Continue to secure sign in"
+    });
+    await user.click(signInButtons[signInButtons.length - 1]);
+
+    // Wait for React effects to flush
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(toast.error).not.toHaveBeenCalled();
   });
 });
 

@@ -78,6 +78,8 @@ export async function loginWithCredentials(
   url.searchParams.set('scope', 'openid profile email');
   url.searchParams.set('code_challenge_method', 'S256');
   url.searchParams.set('code_challenge', codeChallenge);
+  // Always force a fresh credential prompt so users can switch accounts
+  url.searchParams.set('prompt', 'login');
   if (credentials.username) {
     url.searchParams.set('login_hint', credentials.username);
   }
@@ -128,9 +130,19 @@ export async function continueAsGuest(): Promise<User> {
  * 3. Clean up any user-specific data
  */
 export async function logout(): Promise<void> {
-  // TODO(OIDC): Invalidate remote IdP session and revoke/clear tokens.
+  const authUrl = import.meta.env.VITE_OIDC_AUTH_URL ?? DEFAULT_DEV_OIDC_AUTH_URL;
+  const clientId = import.meta.env.VITE_OIDC_CLIENT_ID ?? DEFAULT_DEV_OIDC_CLIENT_ID;
+  const base = authUrl.replace(/\/protocol\/openid-connect\/auth.*$/, '');
+  const logoutUrl = new URL(`${base}/protocol/openid-connect/logout`);
+  const postLogoutRedirect = `${window.location.origin}/`;
+
   localStorage.removeItem(USER_STORAGE_KEY);
   localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+
+  logoutUrl.searchParams.set('client_id', clientId);
+  logoutUrl.searchParams.set('post_logout_redirect_uri', postLogoutRedirect);
+
+  window.location.assign(logoutUrl.toString());
 }
 
 /**

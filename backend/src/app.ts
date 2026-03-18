@@ -9,6 +9,13 @@ import { JoseTokenVerifier } from "./modules/identity-access/jose-token-verifier
 import { meRoutes } from "./modules/identity-access/me-routes.js";
 import type { TokenVerifier } from "./modules/identity-access/token-verifier.js";
 import { authPublicRoutes } from "./modules/identity-access/auth-public-routes.js";
+import type { KeycloakAdminClient } from "./modules/identity-access/keycloak-admin-client.js";
+import {
+  HttpKeycloakAdminClient,
+  requireKeycloakAdminConfig
+} from "./modules/identity-access/keycloak-admin-client.js";
+import { authRegisterRoutes } from "./modules/identity-access/auth-register-routes.js";
+import { authPasswordResetRoutes } from "./modules/identity-access/auth-password-reset-routes.js";
 import { ApiError } from "./shared/api-error.js";
 import { parseDocumentEncryptionKey } from "./shared/document-encryption.js";
 import { DocumentService } from "./modules/documents/document-service.js";
@@ -26,6 +33,7 @@ interface BuildAppOptions {
   documentService?: DocumentService;
   settingsService?: SettingsService;
   auditWriter?: AuditWriter;
+  keycloakAdminClient?: KeycloakAdminClient;
 }
 
 function resolveTokenVerifier(config: AppConfig, injected?: TokenVerifier): TokenVerifier {
@@ -95,8 +103,26 @@ export function buildApp(config: AppConfig, options: BuildAppOptions = {}): Fast
     options.auditWriter ??
     (databaseUrl ? new PgAuditWriter(databaseUrl) : new NoopAuditWriter());
 
+  const keycloakAdminClient: KeycloakAdminClient | null =
+    options.keycloakAdminClient ??
+    (config.KEYCLOAK_ADMIN_URL &&
+    config.KEYCLOAK_REALM &&
+    config.KEYCLOAK_ADMIN_USERNAME &&
+    config.KEYCLOAK_ADMIN_PASSWORD
+      ? new HttpKeycloakAdminClient(
+          requireKeycloakAdminConfig({
+            adminUrl: config.KEYCLOAK_ADMIN_URL,
+            realm: config.KEYCLOAK_REALM,
+            adminUsername: config.KEYCLOAK_ADMIN_USERNAME,
+            adminPassword: config.KEYCLOAK_ADMIN_PASSWORD
+          })
+        )
+      : null);
+
   void app.register(healthRoutes);
   void app.register(authPublicRoutes, { config });
+  void app.register(authRegisterRoutes, { keycloakAdminClient });
+  void app.register(authPasswordResetRoutes, { keycloakAdminClient });
   void app.register(meRoutes, { tokenVerifier });
   void app.register(documentRoutes, { tokenVerifier, service: documentService });
   void app.register(settingsRoutes, { tokenVerifier, service: settingsService });

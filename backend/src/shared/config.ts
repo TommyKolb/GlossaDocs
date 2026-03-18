@@ -15,6 +15,14 @@ const configSchema = z.object({
   OIDC_PUBLIC_ISSUER_URL: z.string().optional(),
   OIDC_PUBLIC_CLIENT_ID: z.string().optional(),
   OIDC_PUBLIC_REDIRECT_URI: z.string().optional(),
+  /** Keycloak Admin API base URL (server-side only). Example: http://keycloak:8080 */
+  KEYCLOAK_ADMIN_URL: z.string().optional(),
+  /** Keycloak realm name for identities. Example: glossadocs */
+  KEYCLOAK_REALM: z.string().optional(),
+  /** Admin username (server-side only). */
+  KEYCLOAK_ADMIN_USERNAME: z.string().optional(),
+  /** Admin password (server-side only). */
+  KEYCLOAK_ADMIN_PASSWORD: z.string().optional(),
   /** Base64-encoded 32-byte key for document title/content encryption at rest. Optional. */
   DOCUMENT_ENCRYPTION_KEY: z.string().optional()
 });

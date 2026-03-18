@@ -65,6 +65,10 @@ services:
       OIDC_PUBLIC_ISSUER_URL: http://localhost:8080/realms/glossadocs
       OIDC_PUBLIC_CLIENT_ID: glossadocs-api
       OIDC_PUBLIC_REDIRECT_URI: http://localhost:5173/
+      KEYCLOAK_ADMIN_URL: http://keycloak:8080
+      KEYCLOAK_REALM: glossadocs
+      KEYCLOAK_ADMIN_USERNAME: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
     command: sh -c "npx node-pg-migrate -m migrations up && node dist/server.js"
     ports:
       - "4000:4000"

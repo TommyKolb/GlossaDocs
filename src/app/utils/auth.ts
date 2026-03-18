@@ -22,6 +22,8 @@ export interface LoginCredentials {
 
 const USER_STORAGE_KEY = 'glossadocs_user';
 const ACCESS_TOKEN_STORAGE_KEY = 'authToken';
+const DEFAULT_DEV_OIDC_AUTH_URL =
+  'http://localhost:8080/realms/glossadocs/protocol/openid-connect/auth';
 const DEFAULT_DEV_OIDC_TOKEN_URL =
   'http://localhost:8080/realms/glossadocs/protocol/openid-connect/token';
 const DEFAULT_DEV_OIDC_CLIENT_ID = 'glossadocs-api';
@@ -30,111 +32,61 @@ interface OidcTokenResponse {
   access_token: string;
 }
 
-function looksLikeJwt(value: string): boolean {
-  return value.split('.').length === 3;
+function base64UrlEncode(value: Uint8Array): string {
+  let raw = '';
+  for (const byte of value) {
+    raw += String.fromCharCode(byte);
+  }
+  return btoa(raw).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 }
 
-async function tryExchangeDevCredentialsForToken(
-  credentials: LoginCredentials
-): Promise<string | null> {
-  const tokenUrl = import.meta.env.VITE_OIDC_TOKEN_URL ?? DEFAULT_DEV_OIDC_TOKEN_URL;
-  const clientId = import.meta.env.VITE_OIDC_CLIENT_ID ?? DEFAULT_DEV_OIDC_CLIENT_ID;
+async function buildPkceParams(): Promise<{ codeVerifier: string; codeChallenge: string }> {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  const codeVerifier = base64UrlEncode(bytes);
 
-  const body = new URLSearchParams({
-    grant_type: 'password',
-    client_id: clientId,
-    username: credentials.username,
-    password: credentials.password,
-    scope: 'openid profile email',
-  });
+  const hashed = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(codeVerifier));
+  const codeChallenge = base64UrlEncode(new Uint8Array(hashed));
 
-  try {
-    const response = await fetch(tokenUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: body.toString(),
-    });
-
-    if (!response.ok) {
-      return null;
-    }
-
-    const data = (await response.json()) as Partial<OidcTokenResponse>;
-    if (typeof data.access_token === 'string' && data.access_token.length > 0) {
-      return data.access_token;
-    }
-    return null;
-  } catch {
-    return null;
-  }
+  return { codeVerifier, codeChallenge };
 }
 
 /**
  * ============================================
- * 🔧 BACKEND TODO: Implement actual login API
+ * 🔐 OIDC login (Auth Code + PKCE)
  * ============================================
  * 
- * This function should:
- * 1. Send credentials to your authentication server
- * 2. Validate username and password
- * 3. Return user data and auth token on success
- * 4. Handle errors (invalid credentials, server errors, etc.)
- * 
- * Example implementation:
- * ```
- * const response = await fetch('https://your-api.com/auth/login', {
- *   method: 'POST',
- *   headers: { 'Content-Type': 'application/json' },
- *   body: JSON.stringify(credentials)
- * });
- * const data = await response.json();
- * if (!response.ok) throw new Error(data.message);
- * localStorage.setItem('authToken', data.token);
- * return data.user;
- * ```
+ * This starts the OIDC Auth Code + PKCE flow by redirecting
+ * the browser to the Keycloak authorization endpoint. The actual
+ * token exchange happens in the `/auth/callback` handler.
  */
 export async function loginWithCredentials(
   credentials: LoginCredentials
 ): Promise<User> {
-  // Simulate API call delay
-  await new Promise((resolve) => setTimeout(resolve, 800));
+  const authUrl = import.meta.env.VITE_OIDC_AUTH_URL ?? DEFAULT_DEV_OIDC_AUTH_URL;
+  const clientId = import.meta.env.VITE_OIDC_CLIENT_ID ?? DEFAULT_DEV_OIDC_CLIENT_ID;
+  const redirectUri =
+    import.meta.env.VITE_OIDC_REDIRECT_URI ?? `${window.location.origin}/`;
 
-  // PLACEHOLDER: Replace with actual API call
-  if (credentials.username && credentials.password) {
-    // Prefer real JWT token acquisition for local Docker Keycloak dev.
-    // If unavailable, fall back to the password-as-token placeholder.
-    const exchangedToken = await tryExchangeDevCredentialsForToken(credentials);
-    const placeholderToken = credentials.password.trim();
-    if (!exchangedToken && !looksLikeJwt(placeholderToken)) {
-      throw new Error(
-        'Unable to obtain a valid auth token. Use devuser/devpass in Docker mode, paste a JWT as password, or continue as guest.'
-      );
-    }
+  const { codeVerifier, codeChallenge } = await buildPkceParams();
+  sessionStorage.setItem('glossadocs_pkce_code_verifier', codeVerifier);
 
-    const devAccessToken = exchangedToken ?? placeholderToken;
-    if (devAccessToken) {
-      localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, devAccessToken);
-    }
-
-    try {
-      const me = await meApi.get(devAccessToken);
-      const user: User = {
-        id: me.sub,
-        username: me.username,
-        email: me.email,
-        isGuest: false,
-      };
-      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
-      return user;
-    } catch {
-      localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
-      throw new Error(
-        'Authenticated session bootstrap failed. Verify backend/Keycloak are running, or continue as guest.'
-      );
-    }
+  const url = new URL(authUrl);
+  url.searchParams.set('client_id', clientId);
+  url.searchParams.set('redirect_uri', redirectUri);
+  url.searchParams.set('response_type', 'code');
+  url.searchParams.set('scope', 'openid profile email');
+  url.searchParams.set('code_challenge_method', 'S256');
+  url.searchParams.set('code_challenge', codeChallenge);
+  if (credentials.username) {
+    url.searchParams.set('login_hint', credentials.username);
   }
 
-  throw new Error('Invalid credentials');
+  window.location.assign(url.toString());
+
+  // This Promise never meaningfully resolves in normal flow because the page
+  // navigates away. The return value is unused by the caller.
+  throw new Error('Redirecting to identity provider');
 }
 
 /**
@@ -197,6 +149,50 @@ export function getCurrentUser(): User | null {
 
 export function getAccessToken(): string | null {
   return localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY);
+}
+
+export async function completeOidcLogin(code: string): Promise<User> {
+  const tokenUrl = import.meta.env.VITE_OIDC_TOKEN_URL ?? DEFAULT_DEV_OIDC_TOKEN_URL;
+  const clientId = import.meta.env.VITE_OIDC_CLIENT_ID ?? DEFAULT_DEV_OIDC_CLIENT_ID;
+  const redirectUri =
+    import.meta.env.VITE_OIDC_REDIRECT_URI ?? `${window.location.origin}/`;
+
+  const codeVerifier = sessionStorage.getItem('glossadocs_pkce_code_verifier');
+  if (!codeVerifier) {
+    throw new Error('Login session has expired. Please start again.');
+  }
+
+  const body = new URLSearchParams({
+    grant_type: 'authorization_code',
+    client_id: clientId,
+    code,
+    redirect_uri: redirectUri,
+    code_verifier: codeVerifier,
+  });
+
+  const response = await fetch(tokenUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: body.toString(),
+  });
+
+  const data = (await response.json().catch(() => ({}))) as Partial<OidcTokenResponse>;
+  if (!response.ok || typeof data.access_token !== 'string' || data.access_token.length === 0) {
+    throw new Error('Login failed. Please try again.');
+  }
+
+  sessionStorage.removeItem('glossadocs_pkce_code_verifier');
+  localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, data.access_token);
+
+  const me = await meApi.get(data.access_token);
+  const user: User = {
+    id: me.sub,
+    username: me.username,
+    email: me.email,
+    isGuest: false,
+  };
+  localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+  return user;
 }
 
 export async function getAuthenticatedUserFromBackend(): Promise<User | null> {

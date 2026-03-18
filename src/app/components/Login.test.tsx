@@ -1,6 +1,6 @@
 import * as React from "react";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { Login } from "./Login";
@@ -66,54 +66,38 @@ describe("Login signup + reset entrypoints", () => {
     ).toBeInTheDocument();
   });
 
-  it("navigates to registrationUrl when Create account is clicked", async () => {
-    vi.mocked(fetch).mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        registrationUrl: "http://idp.local/register",
-        loginUrl: "http://idp.local/login"
-      })
-    } as any);
-
-    render(<Login onLoginSuccess={() => {}} />);
+  it("calls onCreateAccount when Create account is clicked", async () => {
+    const onCreateAccount = vi.fn();
+    render(
+      <Login
+        onLoginSuccess={() => {}}
+        onCreateAccount={onCreateAccount}
+        onForgotPassword={() => {}}
+      />
+    );
 
     const user = userEvent.setup();
     const createButtons = screen.getAllByTestId("create-account-button");
     await user.click(createButtons[createButtons.length - 1]);
 
-    expect(fetch).toHaveBeenCalled();
-    const assigned = vi.mocked((window.location as any).assign).mock.calls.at(-1)?.[0] as string;
-    expect(assigned).toContain("http://idp.local/register");
-    expect(assigned).toContain("code_challenge_method=S256");
-    expect(assigned).toContain("code_challenge=");
-    expect(sessionStorage.getItem("glossadocs_pkce_code_verifier")).toBeTruthy();
+    expect(onCreateAccount).toHaveBeenCalledTimes(1);
   });
 
-  it("navigates to loginUrl when Forgot password is clicked", async () => {
-    vi.mocked(fetch).mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        registrationUrl: "http://idp.local/register",
-        loginUrl: "http://idp.local/login"
-      })
-    } as any);
-
-    render(<Login onLoginSuccess={() => {}} />);
+  it("calls onForgotPassword when Forgot password is clicked", async () => {
+    const onForgotPassword = vi.fn();
+    render(
+      <Login
+        onLoginSuccess={() => {}}
+        onCreateAccount={() => {}}
+        onForgotPassword={onForgotPassword}
+      />
+    );
 
     const user = userEvent.setup();
     const forgotButtons = screen.getAllByTestId("forgot-password-button");
     await user.click(forgotButtons[forgotButtons.length - 1]);
 
-    await waitFor(() => expect(fetch).toHaveBeenCalled());
-    await waitFor(() =>
-      expect(vi.mocked((window.location as any).assign).mock.calls.at(-1)?.[0]).toContain(
-        "http://idp.local/login"
-      )
-    );
-    const assigned = vi.mocked((window.location as any).assign).mock.calls.at(-1)?.[0] as string;
-    expect(assigned).toContain("code_challenge_method=S256");
-    expect(assigned).toContain("code_challenge=");
-    expect(sessionStorage.getItem("glossadocs_pkce_code_verifier")).toBeTruthy();
+    expect(onForgotPassword).toHaveBeenCalledTimes(1);
   });
 });
 

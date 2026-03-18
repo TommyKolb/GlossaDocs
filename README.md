@@ -129,31 +129,27 @@ Set the backend URL with:
 
 If `VITE_API_BASE_URL` is not set, the frontend defaults to `http://localhost:4000`.
 
-### Dev Auth Placeholder (Temporary)
+### Authentication (OIDC Auth Code + PKCE)
 
-Authentication is still mocked for development:
+Authenticated mode now uses **Keycloak** with a full **OIDC Auth Code + PKCE** flow:
 
-- Frontend first tries to exchange credentials against local Keycloak (`devuser` / `devpass` in Docker setup).
-- If no OIDC token exchange is available, a JWT string can be provided manually as the password for development.
-- The access token is stored as `authToken` in local storage and sent as `Authorization: Bearer <token>`.
+- **Sign in**:
+  - On the login screen, enter your email and click **Sign In**.
+  - The app starts an OIDC flow and redirects you to Keycloak’s login page to enter your credentials.
+  - After successful sign-in, Keycloak redirects back to `http://localhost:5173/auth/callback`, where the app:
+    - Exchanges the authorization `code` for an `access_token` using **PKCE** (S256).
+    - Stores the token in local storage (`authToken`) and bootstraps the user via the backend `/me` endpoint.
+- **Create account**:
+  - Uses the app-hosted **Create your account** screen, which calls `POST /auth/register` on the backend.
+  - The backend creates the user in Keycloak; the app never stores or sees the raw password.
+- **Forgot password**:
+  - Uses the app-hosted **Reset your password** screen, which calls `POST /auth/password-reset`.
+  - The backend asks Keycloak to send a reset email. The user sees a generic success message, regardless of whether the account exists, to avoid leaking account existence.
 
-Practical implication:
+Security notes:
 
-- For Docker full-stack mode, use `devuser` / `devpass`.
-
-### OIDC/Keycloak Replacement TODO (Planned)
-
-When moving to real authentication (OIDC Auth Code + PKCE), replace the placeholder logic in:
-
-- `src/app/utils/auth.ts`
-  - `loginWithCredentials()` -> replace with real OIDC sign-in flow/token acquisition
-  - `getAccessToken()` storage strategy -> replace with secure token/session handling
-  - `logout()` -> call IdP end-session / revoke tokens as appropriate
-  - `getAuthenticatedUserFromBackend()` -> add refresh/reauth behavior on auth failures
-- `src/app/components/Login.tsx`
-  - replace mocked login form submission with OIDC sign-in entrypoint
-
-Keep guest mode available and local-only unless product requirements change.
+- Passwords are handled **only** by Keycloak; the app does not store them.
+- All user data persisted by the app continues to respect the existing encryption and sanitization rules documented below.
 
 ### Adding New Languages
 

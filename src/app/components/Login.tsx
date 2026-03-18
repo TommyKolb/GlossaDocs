@@ -14,6 +14,8 @@ import { getApiBaseUrl } from '../api/client';
 
 interface LoginProps {
   onLoginSuccess: (user: User) => void;
+  onCreateAccount: () => void;
+  onForgotPassword: () => void;
 }
 
 function base64UrlEncode(value: Uint8Array): string {
@@ -45,7 +47,7 @@ const WELCOME_MESSAGES = [
   { text: 'Benvenuto', lang: 'Italiano' },
 ];
 
-export function Login({ onLoginSuccess }: LoginProps) {
+export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: LoginProps) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -93,27 +95,9 @@ export function Login({ onLoginSuccess }: LoginProps) {
     }
   };
 
-  const navigateToAuthLink = async (target: 'login' | 'register') => {
-    const links = await loadAuthPublicLinks();
-    const baseUrl = target === 'login' ? links?.loginUrl : links?.registrationUrl;
-    if (!baseUrl) {
-      toast.error('Authentication is not configured. Please continue as guest for now.');
-      return;
-    }
-
-    try {
-      const { codeVerifier, codeChallenge } = await buildPkceParams();
-      sessionStorage.setItem('glossadocs_pkce_code_verifier', codeVerifier);
-
-      const url = new URL(baseUrl);
-      url.searchParams.set('code_challenge_method', 'S256');
-      url.searchParams.set('code_challenge', codeChallenge);
-
-      window.location.assign(url.toString());
-    } catch {
-      toast.error('Unable to start authentication. Please continue as guest for now.');
-    }
-  };
+  // NOTE: App-hosted signup/reset flows. We still fetch /auth/public so this
+  // screen can later be upgraded to full OIDC without hardcoding Keycloak URLs.
+  // For now, Create account / Forgot password switch UI screens within the app.
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -309,7 +293,7 @@ export function Login({ onLoginSuccess }: LoginProps) {
               variant="outline"
               className="w-full justify-center border-blue-200 text-blue-700 hover:bg-blue-50"
               disabled={isLoading}
-              onClick={() => void navigateToAuthLink('register')}
+              onClick={onCreateAccount}
               aria-label="Create account"
               data-testid="create-account-button"
             >
@@ -320,7 +304,7 @@ export function Login({ onLoginSuccess }: LoginProps) {
               variant="outline"
               className="w-full justify-center"
               disabled={isLoading}
-              onClick={() => void navigateToAuthLink('login')}
+              onClick={onForgotPassword}
               aria-label="Forgot password?"
               data-testid="forgot-password-button"
             >

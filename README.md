@@ -169,6 +169,30 @@ For current local/dev usage this is acceptable. For longer-running environments,
 - Partitioning by time with periodic partition drop.
 - Archival pipeline to move old audit rows to cheaper storage.
 
+### Deploying to AWS Lambda
+
+The backend can run on AWS Lambda behind API Gateway. Use the Lambda entrypoint:
+
+- **Handler**: `dist/lambda.handler` (or `lambda.handler` if the deployment package root is `dist/`).
+- Set Lambda environment variables (or use Secrets Manager for `DATABASE_URL`): `NODE_ENV`, `API_PORT`, `CORS_ALLOWED_ORIGINS`, `DATABASE_URL`, `OIDC_ISSUER_URL`, `OIDC_AUDIENCE`, `OIDC_JWKS_URL`.
+
+Deploy the built backend (e.g. `dist/`, `migrations/`, `node_modules`) as the Lambda function code and point API Gateway HTTP API (or REST API) at this handler.
+
+### Document encryption at rest
+
+Document title and content can be encrypted in PostgreSQL so that anyone with DB access cannot read them without the key. Set `DOCUMENT_ENCRYPTION_KEY` (base64-encoded 32-byte key) in the backend environment. See [docs/architecture/document-encryption.md](docs/architecture/document-encryption.md) for design and key management.
+
+When `DOCUMENT_ENCRYPTION_KEY` is set but invalid (not base64 of 32 bytes), the backend **fails fast at startup** with a configuration error. Treat this as a fatal misconfiguration and fix the key before deploying.
+
+### HTML sanitization and editor formatting
+
+The backend sanitizes document titles and content on write:
+
+- Titles are stripped to plain text (no HTML tags or attributes are preserved).
+- Content is sanitized with an allowlist of safe tags/attributes (paragraphs, spans with inline styles, basic text formatting, and images with safe attributes/schemes).
+
+The frontend rich-text editor should only expose formatting that survives this sanitization pass. If you add new formatting options in the editor, update the backend sanitizer policy (and the corresponding tests) to keep the two in sync.
+
 ## Current Limitations
 
 - Backend exists, but frontend authentication is still in temporary dev mode (not real OIDC login flow yet).

@@ -9,6 +9,7 @@ import { JoseTokenVerifier } from "./modules/identity-access/jose-token-verifier
 import { meRoutes } from "./modules/identity-access/me-routes.js";
 import type { TokenVerifier } from "./modules/identity-access/token-verifier.js";
 import { ApiError } from "./shared/api-error.js";
+import { parseDocumentEncryptionKey } from "./shared/document-encryption.js";
 import { DocumentService } from "./modules/documents/document-service.js";
 import { PgDocumentRepository } from "./modules/documents/pg-document-repository.js";
 import { documentRoutes } from "./modules/documents/document-routes.js";
@@ -78,8 +79,15 @@ export function buildApp(config: AppConfig, options: BuildAppOptions = {}): Fast
     );
   }
 
+  const documentEncryptionKey = parseDocumentEncryptionKey(config.DOCUMENT_ENCRYPTION_KEY);
   const documentService =
-    options.documentService ?? new DocumentService(new PgDocumentRepository(databaseUrl as string));
+    options.documentService ??
+    new DocumentService(
+      new PgDocumentRepository({
+        databaseUrl: databaseUrl as string,
+        encryptionKey: documentEncryptionKey
+      })
+    );
   const settingsService =
     options.settingsService ?? new SettingsService(new PgSettingsRepository(databaseUrl as string));
   const auditWriter =

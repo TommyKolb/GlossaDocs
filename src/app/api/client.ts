@@ -14,7 +14,6 @@ export class ApiClientError extends Error {
 
 interface ApiRequestOptions {
   method?: "GET" | "POST" | "PUT" | "DELETE";
-  token?: string | null;
   body?: unknown;
 }
 
@@ -35,14 +34,11 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
     headers["Content-Type"] = "application/json";
   }
 
-  if (options.token) {
-    headers.Authorization = `Bearer ${options.token}`;
-  }
-
   const response = await fetch(`${getApiBaseUrl()}${path}`, {
     method: options.method ?? "GET",
     headers,
-    body: options.body !== undefined ? JSON.stringify(options.body) : undefined
+    body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+    credentials: "include"
   });
 
   if (response.status === 204) {

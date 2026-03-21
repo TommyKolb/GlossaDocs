@@ -1,4 +1,5 @@
 import cors from "@fastify/cors";
+import cookie from "@fastify/cookie";
 import Fastify, { type FastifyInstance } from "fastify";
 
 import { registerErrorHandler } from "./modules/api-edge/error-handler.js";
@@ -16,6 +17,7 @@ import {
 } from "./modules/identity-access/keycloak-admin-client.js";
 import { authRegisterRoutes } from "./modules/identity-access/auth-register-routes.js";
 import { authPasswordResetRoutes } from "./modules/identity-access/auth-password-reset-routes.js";
+import { authSessionRoutes } from "./modules/identity-access/auth-session-routes.js";
 import { ApiError } from "./shared/api-error.js";
 import { parseDocumentEncryptionKey } from "./shared/document-encryption.js";
 import { DocumentService } from "./modules/documents/document-service.js";
@@ -27,6 +29,15 @@ import { SettingsService } from "./modules/input-preferences/settings-service.js
 import { registerAuditHook } from "./modules/operational-store/audit-hook.js";
 import { NoopAuditWriter, type AuditWriter } from "./modules/operational-store/audit-writer.js";
 import { PgAuditWriter } from "./modules/operational-store/pg-audit-writer.js";
+import {
+  InMemoryAuthSessionStore,
+  type AuthSessionStore
+} from "./modules/identity-access/auth-session-store.js";
+import type { KeycloakOidcClient } from "./modules/identity-access/keycloak-oidc-client.js";
+import {
+  HttpKeycloakOidcClient,
+  requireKeycloakOidcClientConfig
+} from "./modules/identity-access/keycloak-oidc-client.js";
 
 interface BuildAppOptions {
   tokenVerifier?: TokenVerifier;
@@ -34,9 +45,14 @@ interface BuildAppOptions {
   settingsService?: SettingsService;
   auditWriter?: AuditWriter;
   keycloakAdminClient?: KeycloakAdminClient;
+  authSessionStore?: AuthSessionStore;
+  keycloakOidcClient?: KeycloakOidcClient;
 }
 
-function resolveTokenVerifier(config: AppConfig, injected?: TokenVerifier): TokenVerifier {
+type BuildAppConfig = Pick<AppConfig, "NODE_ENV" | "API_PORT" | "CORS_ALLOWED_ORIGINS"> &
+  Partial<AppConfig>;
+
+function resolveTokenVerifier(config: BuildAppConfig, injected?: TokenVerifier): TokenVerifier {
   if (injected) {
     return injected;
   }
@@ -57,7 +73,7 @@ function resolveTokenVerifier(config: AppConfig, injected?: TokenVerifier): Toke
   });
 }
 
-export function buildApp(config: AppConfig, options: BuildAppOptions = {}): FastifyInstance {
+export function buildApp(config: BuildAppConfig, options: BuildAppOptions = {}): FastifyInstance {
   const app = Fastify({
     logger: config.NODE_ENV !== "test"
   });
@@ -73,8 +89,10 @@ export function buildApp(config: AppConfig, options: BuildAppOptions = {}): Fast
   void app.register(cors, {
     origin: config.CORS_ALLOWED_ORIGINS === "*" ? true : config.CORS_ALLOWED_ORIGINS,
     methods: ["GET", "HEAD", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Authorization", "Content-Type"]
+    allowedHeaders: ["Authorization", "Content-Type"],
+    credentials: true
   });
+  void app.register(cookie);
 
   registerErrorHandler(app);
 
@@ -118,9 +136,35 @@ export function buildApp(config: AppConfig, options: BuildAppOptions = {}): Fast
           })
         )
       : null);
+  const keycloakOidcClient: KeycloakOidcClient | null =
+    options.keycloakOidcClient ??
+    (config.KEYCLOAK_TOKEN_URL && config.KEYCLOAK_CLIENT_ID
+      ? new HttpKeycloakOidcClient(
+          requireKeycloakOidcClientConfig({
+            tokenUrl: config.KEYCLOAK_TOKEN_URL,
+            clientId: config.KEYCLOAK_CLIENT_ID,
+            clientSecret: config.KEYCLOAK_CLIENT_SECRET
+          })
+        )
+      : null);
+  const authSessionStore = options.authSessionStore ?? new InMemoryAuthSessionStore();
+
+  app.decorate("authSessionStore", authSessionStore);
+  app.decorate("authSessionCookieName", config.AUTH_SESSION_COOKIE_NAME ?? "glossadocs_session");
 
   void app.register(healthRoutes);
   void app.register(authPublicRoutes, { config });
+  void app.register(authSessionRoutes, {
+    config: {
+      ...config,
+      AUTH_SESSION_COOKIE_NAME: config.AUTH_SESSION_COOKIE_NAME ?? "glossadocs_session",
+      AUTH_SESSION_TTL_SECONDS: config.AUTH_SESSION_TTL_SECONDS ?? 3600,
+      AUTH_SESSION_SECURE_COOKIE: config.AUTH_SESSION_SECURE_COOKIE ?? false
+    },
+    tokenVerifier,
+    authSessionStore,
+    keycloakOidcClient
+  });
   void app.register(authRegisterRoutes, { keycloakAdminClient });
   void app.register(authPasswordResetRoutes, { keycloakAdminClient });
   void app.register(meRoutes, { tokenVerifier });

@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react';
 import { DocumentList } from './components/DocumentList';
 import { Editor } from './components/Editor';
 import { Login } from './components/Login';
-import { AuthCallback } from './components/AuthCallback';
 import { SignUp } from './components/SignUp';
 import { ForgotPassword } from './components/ForgotPassword';
 import { LoadingSpinner } from './components/LoadingSpinner';
@@ -45,17 +44,6 @@ export default function App() {
 
   // Show login if no user
   if (!user) {
-    if (typeof window !== 'undefined') {
-      const search = new URLSearchParams(window.location.search);
-      if (search.get('code')) {
-        return (
-          <div className="size-full">
-            <AuthCallback onLoginSuccess={handleLoginSuccess} />
-            <Toaster />
-          </div>
-        );
-      }
-    }
     return (
       <div className="size-full">
         {authView === 'login' ? (

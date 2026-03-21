@@ -1,5 +1,21 @@
 import { z } from "zod";
 
+const booleanFromEnv = z.preprocess((value) => {
+  if (typeof value === "boolean") {
+    return value;
+  }
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "true" || normalized === "1" || normalized === "yes") {
+      return true;
+    }
+    if (normalized === "false" || normalized === "0" || normalized === "no") {
+      return false;
+    }
+  }
+  return value;
+}, z.boolean());
+
 const configSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   API_PORT: z.coerce.number().int().positive().default(4000),
@@ -23,6 +39,18 @@ const configSchema = z.object({
   KEYCLOAK_ADMIN_USERNAME: z.string().optional(),
   /** Admin password (server-side only). */
   KEYCLOAK_ADMIN_PASSWORD: z.string().optional(),
+  /** Keycloak token endpoint used for app-hosted username/password login. */
+  KEYCLOAK_TOKEN_URL: z.string().optional(),
+  /** Keycloak client id used for app-hosted login. */
+  KEYCLOAK_CLIENT_ID: z.string().optional(),
+  /** Optional Keycloak client secret for confidential clients. */
+  KEYCLOAK_CLIENT_SECRET: z.string().optional(),
+  /** Session cookie name used by backend-managed auth sessions. */
+  AUTH_SESSION_COOKIE_NAME: z.string().default("glossadocs_session"),
+  /** Session cookie max age in seconds. */
+  AUTH_SESSION_TTL_SECONDS: z.coerce.number().int().positive().default(3600),
+  /** If true, sets Secure flag on auth session cookie. */
+  AUTH_SESSION_SECURE_COOKIE: booleanFromEnv.default(false),
   /** Base64-encoded 32-byte key for document title/content encryption at rest. Optional. */
   DOCUMENT_ENCRYPTION_KEY: z.string().optional()
 });

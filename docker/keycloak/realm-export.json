@@ -13,7 +13,7 @@
   },
   "users": [
     {
-      "username": "devuser",
+      "username": "devuser@example.com",
       "firstName": "Dev",
       "lastName": "User",
       "enabled": true,

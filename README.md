@@ -68,9 +68,9 @@ Stop the stack:
 
 Docker dev credentials for authenticated mode:
 
-- Username: `devuser`
+- Username: `devuser@example.com`
 - Password: `devpass`
-- Backend token verification is configured to accept Keycloak issuer `http://localhost:8080/realms/glossadocs` in Docker mode.
+- In Docker mode, backend token verification uses the internal Keycloak issuer URL `http://keycloak:8080/realms/glossadocs`.
 
 ### Creating an account (email + password) and resetting passwords
 
@@ -129,16 +129,15 @@ Set the backend URL with:
 
 If `VITE_API_BASE_URL` is not set, the frontend defaults to `http://localhost:4000`.
 
-### Authentication (OIDC Auth Code + PKCE)
+### Authentication (App-Hosted UI + Keycloak + Cookie Session)
 
-Authenticated mode now uses **Keycloak** with a full **OIDC Auth Code + PKCE** flow:
+Authenticated mode uses **Keycloak** for identity, with app-hosted auth UI and backend-managed sessions:
 
 - **Sign in**:
-  - On the login screen, enter your email and click **Sign In**.
-  - The app starts an OIDC flow and redirects you to Keycloak’s login page to enter your credentials.
-  - After successful sign-in, Keycloak redirects back to `http://localhost:5173/auth/callback`, where the app:
-    - Exchanges the authorization `code` for an `access_token` using **PKCE** (S256).
-    - Stores the token in local storage (`authToken`) and bootstraps the user via the backend `/me` endpoint.
+  - On the login screen, enter your email + password once.
+  - The frontend calls backend `POST /auth/login`.
+  - The backend exchanges credentials with Keycloak and sets an **httpOnly session cookie**.
+  - The frontend bootstraps the user through `GET /auth/session`.
 - **Create account**:
   - Uses the app-hosted **Create your account** screen, which calls `POST /auth/register` on the backend.
   - The backend creates the user in Keycloak; the app never stores or sees the raw password.
@@ -149,6 +148,7 @@ Authenticated mode now uses **Keycloak** with a full **OIDC Auth Code + PKCE** f
 Security notes:
 
 - Passwords are handled **only** by Keycloak; the app does not store them.
+- Authenticated browser sessions are stored in backend-managed httpOnly cookies (no bearer token in frontend local storage).
 - All user data persisted by the app continues to respect the existing encryption and sanitization rules documented below.
 
 ### Adding New Languages
@@ -202,6 +202,6 @@ The frontend rich-text editor should only expose formatting that survives this s
 
 ## Current Limitations
 
-- Backend exists, but frontend authentication is still in temporary dev mode (not real OIDC login flow yet).
+- Session storage is currently in-memory on the backend (suitable for local/dev; use shared session storage for multi-instance production).
 - No collaboration/sharing yet.
 - Language features are in progress; current language selection is foundational, with advanced input-method behavior planned.

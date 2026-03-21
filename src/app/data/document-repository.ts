@@ -1,7 +1,7 @@
 import { ApiClientError } from "../api/client";
 import { documentsApi } from "../api/endpoints";
 import type { Document } from "../models/document";
-import { isAuthenticatedMode, requireAccessToken } from "./session-mode";
+import { isAuthenticatedMode } from "./session-mode";
 import {
   deleteDocument as deleteLocalDocument,
   getAllDocuments as getAllLocalDocuments,
@@ -38,8 +38,7 @@ export async function getAllDocuments(): Promise<Document[]> {
     return getAllLocalDocuments();
   }
 
-  const token = requireAccessToken();
-  const apiDocuments = await documentsApi.list(token);
+  const apiDocuments = await documentsApi.list();
   for (const apiDocument of apiDocuments) {
     knownRemoteDocumentIds.add(apiDocument.id);
   }
@@ -55,9 +54,8 @@ export async function getDocument(id: string): Promise<Document | null> {
     return null;
   }
 
-  const token = requireAccessToken();
   try {
-    const apiDocument = await documentsApi.get(token, id);
+    const apiDocument = await documentsApi.get(id);
     knownRemoteDocumentIds.add(apiDocument.id);
     return toAppDocument(apiDocument);
   } catch (error) {
@@ -74,7 +72,6 @@ export async function saveDocument(document: Document): Promise<Document> {
     return document;
   }
 
-  const token = requireAccessToken();
   const payload = {
     title: document.title,
     content: document.content,
@@ -83,19 +80,19 @@ export async function saveDocument(document: Document): Promise<Document> {
 
   const shouldCreate = !isUuid(document.id) || !knownRemoteDocumentIds.has(document.id);
   if (shouldCreate) {
-    const created = await documentsApi.create(token, payload);
+    const created = await documentsApi.create(payload);
     knownRemoteDocumentIds.add(created.id);
     return toAppDocument(created);
   }
 
   try {
-    const updated = await documentsApi.update(token, document.id, payload);
+    const updated = await documentsApi.update(document.id, payload);
     knownRemoteDocumentIds.add(updated.id);
     return toAppDocument(updated);
   } catch (error) {
     if (error instanceof ApiClientError && error.status === 404) {
       knownRemoteDocumentIds.delete(document.id);
-      const created = await documentsApi.create(token, payload);
+      const created = await documentsApi.create(payload);
       knownRemoteDocumentIds.add(created.id);
       return toAppDocument(created);
     }
@@ -113,7 +110,6 @@ export async function deleteDocument(id: string): Promise<void> {
     return;
   }
 
-  const token = requireAccessToken();
-  await documentsApi.remove(token, id);
+  await documentsApi.remove(id);
   knownRemoteDocumentIds.delete(id);
 }

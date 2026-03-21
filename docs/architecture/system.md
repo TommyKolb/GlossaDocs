@@ -29,8 +29,9 @@ Key architectural separations:
 ```mermaid
 flowchart LR
   user[WriterBrowser] --> fe[ReactFrontend]
-  fe -->|"OIDC Auth Code + PKCE"| kc[KeycloakIdP]
-  fe -->|"HTTPS Bearer JWT"| api[FastifyApi]
+  fe -->|"EmailPasswordToBackend"| api[FastifyApi]
+  api -->|"OIDC TokenExchange"| kc[KeycloakIdP]
+  fe -->|"HttpOnlySessionCookie"| api
 
   subgraph app [GlossaDocsBackend]
     edge[ApiEdgeModule]
@@ -59,6 +60,9 @@ flowchart LR
 ## Cross-Module REST API Surface
 - `GET /health`
 - `GET /ready`
+- `POST /auth/login`
+- `POST /auth/logout`
+- `GET /auth/session`
 - `GET /me`
 - `GET /documents`
 - `GET /documents/:id`
@@ -68,7 +72,7 @@ flowchart LR
 - `GET /settings`
 - `PUT /settings`
 
-All endpoints except `/health` and `/ready` require a valid Bearer JWT.
+All endpoints except `/health`, `/ready`, and public auth bootstrap routes require an authenticated session (cookie or Bearer JWT).
 
 ## Security Baseline
 - Strict JWT verification: signature, issuer, audience, expiry.

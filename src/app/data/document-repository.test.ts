@@ -11,8 +11,7 @@ vi.mock("../api/endpoints", () => ({
 }));
 
 vi.mock("./session-mode", () => ({
-  isAuthenticatedMode: vi.fn(() => true),
-  requireAccessToken: vi.fn(() => "test-token")
+  isAuthenticatedMode: vi.fn(() => true)
 }));
 
 vi.mock("../utils/db", () => ({
@@ -58,7 +57,7 @@ describe("document repository remote persistence", () => {
 
     expect(documentsApi.update).not.toHaveBeenCalled();
     expect(documentsApi.create).toHaveBeenCalledTimes(1);
-    expect(documentsApi.create).toHaveBeenCalledWith("test-token", {
+    expect(documentsApi.create).toHaveBeenCalledWith({
       title: "Draft",
       content: "<p>hello</p>",
       language: "en"

@@ -1,6 +1,6 @@
 import * as React from "react";
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { Login } from "./Login";
@@ -26,40 +26,16 @@ vi.mock("../utils/auth", () => ({
 }));
 
 describe("Login signup + reset entrypoints", () => {
-  beforeAll(() => {
-    Object.defineProperty(window, "location", {
-      value: {
-        assign: vi.fn()
-      },
-      writable: true
-    });
-  });
-
   beforeEach(() => {
-    vi.stubGlobal("fetch", vi.fn());
     vi.clearAllMocks();
-
-    Object.defineProperty(globalThis, "crypto", {
-      value: {
-        getRandomValues: (arr: Uint8Array) => {
-          arr.fill(7);
-          return arr;
-        },
-        subtle: {
-          digest: vi.fn(async () => new Uint8Array(32).fill(9).buffer)
-        }
-      },
-      writable: true
-    });
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
-    sessionStorage.clear();
   });
 
   it("renders privacy promise about email usage", () => {
-    render(<Login onLoginSuccess={() => {}} />);
+    render(<Login onLoginSuccess={() => {}} onCreateAccount={() => {}} onForgotPassword={() => {}} />);
 
     expect(
       screen.getByText(/Your email will never be used for spam or shared with anyone else\./i)
@@ -100,14 +76,7 @@ describe("Login signup + reset entrypoints", () => {
     expect(onForgotPassword).toHaveBeenCalledTimes(1);
   });
 
-  it("does not show an error toast when loginWithCredentials triggers OIDC redirect", async () => {
-    const { loginWithCredentials } = await import("../utils/auth");
-    const { toast } = await import("sonner");
-
-    vi.mocked(loginWithCredentials).mockRejectedValueOnce(
-      new Error("Redirecting to identity provider")
-    );
-
+  it("renders password input for app-hosted sign in", () => {
     render(
       <Login
         onLoginSuccess={() => {}}
@@ -115,17 +84,7 @@ describe("Login signup + reset entrypoints", () => {
         onForgotPassword={() => {}}
       />
     );
-
-    const user = userEvent.setup();
-    await user.type(screen.getByLabelText(/Email/i), "devuser@example.com");
-    const signInButtons = screen.getAllByRole("button", {
-      name: "Continue to secure sign in"
-    });
-    await user.click(signInButtons[signInButtons.length - 1]);
-
-    // Wait for React effects to flush
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(toast.error).not.toHaveBeenCalled();
+    expect(screen.getByLabelText(/^Password$/i)).toBeInTheDocument();
   });
 });
 

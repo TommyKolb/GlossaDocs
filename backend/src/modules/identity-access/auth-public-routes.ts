@@ -3,7 +3,7 @@ import type { FastifyPluginAsync } from "fastify";
 import type { AppConfig } from "../../shared/config.js";
 
 interface AuthPublicRoutesOptions {
-  config: AppConfig;
+  config: Partial<AppConfig>;
 }
 
 function buildAuthorizeUrl(params: {

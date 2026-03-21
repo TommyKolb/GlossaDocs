@@ -89,6 +89,8 @@ export class HttpKeycloakAdminClient implements KeycloakAdminClient {
       this.config.realm
     )}`;
 
+    const localPart = args.email.split("@")[0]?.trim() || "GlossaDocs";
+
     // 1) Create user.
     const createResponse = await keycloakRequest(`${base}/users`, token, {
       method: "POST",
@@ -96,8 +98,11 @@ export class HttpKeycloakAdminClient implements KeycloakAdminClient {
       body: JSON.stringify({
         username: args.email,
         email: args.email,
+        firstName: localPart,
+        lastName: "User",
         enabled: true,
-        emailVerified: true
+        emailVerified: true,
+        requiredActions: []
       })
     });
 

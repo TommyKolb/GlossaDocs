@@ -1,4 +1,4 @@
-import { meApi } from '../api/endpoints';
+import { getApiBaseUrl } from "../api/client";
 
 /**
  * Authentication utilities for GlossaDocs
@@ -20,75 +20,49 @@ export interface LoginCredentials {
   password: string;
 }
 
-const USER_STORAGE_KEY = 'glossadocs_user';
-const ACCESS_TOKEN_STORAGE_KEY = 'authToken';
-const DEFAULT_DEV_OIDC_AUTH_URL =
-  'http://localhost:8080/realms/glossadocs/protocol/openid-connect/auth';
-const DEFAULT_DEV_OIDC_TOKEN_URL =
-  'http://localhost:8080/realms/glossadocs/protocol/openid-connect/token';
-const DEFAULT_DEV_OIDC_CLIENT_ID = 'glossadocs-api';
-
-interface OidcTokenResponse {
-  access_token: string;
+interface SessionUser {
+  sub: string;
+  username: string;
+  email?: string;
 }
 
-function base64UrlEncode(value: Uint8Array): string {
-  let raw = '';
-  for (const byte of value) {
-    raw += String.fromCharCode(byte);
-  }
-  return btoa(raw).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+interface AuthSessionResponse {
+  user: SessionUser;
 }
 
-async function buildPkceParams(): Promise<{ codeVerifier: string; codeChallenge: string }> {
-  const bytes = new Uint8Array(32);
-  crypto.getRandomValues(bytes);
-  const codeVerifier = base64UrlEncode(bytes);
+const USER_STORAGE_KEY = "glossadocs_user";
 
-  const hashed = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(codeVerifier));
-  const codeChallenge = base64UrlEncode(new Uint8Array(hashed));
-
-  return { codeVerifier, codeChallenge };
+function toAppUser(user: SessionUser): User {
+  return {
+    id: user.sub,
+    username: user.username,
+    email: user.email,
+    isGuest: false
+  };
 }
 
-/**
- * ============================================
- * 🔐 OIDC login (Auth Code + PKCE)
- * ============================================
- * 
- * This starts the OIDC Auth Code + PKCE flow by redirecting
- * the browser to the Keycloak authorization endpoint. The actual
- * token exchange happens in the `/auth/callback` handler.
- */
-export async function loginWithCredentials(
-  credentials: LoginCredentials
-): Promise<User> {
-  const authUrl = import.meta.env.VITE_OIDC_AUTH_URL ?? DEFAULT_DEV_OIDC_AUTH_URL;
-  const clientId = import.meta.env.VITE_OIDC_CLIENT_ID ?? DEFAULT_DEV_OIDC_CLIENT_ID;
-  const redirectUri =
-    import.meta.env.VITE_OIDC_REDIRECT_URI ?? `${window.location.origin}/`;
+export async function loginWithCredentials(credentials: LoginCredentials): Promise<User> {
+  const response = await fetch(`${getApiBaseUrl()}/auth/login`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json"
+    },
+    credentials: "include",
+    body: JSON.stringify({
+      username: credentials.username,
+      password: credentials.password
+    })
+  });
+  const data = (await response.json().catch(() => ({}))) as { user?: SessionUser; message?: string };
 
-  const { codeVerifier, codeChallenge } = await buildPkceParams();
-  sessionStorage.setItem('glossadocs_pkce_code_verifier', codeVerifier);
-
-  const url = new URL(authUrl);
-  url.searchParams.set('client_id', clientId);
-  url.searchParams.set('redirect_uri', redirectUri);
-  url.searchParams.set('response_type', 'code');
-  url.searchParams.set('scope', 'openid profile email');
-  url.searchParams.set('code_challenge_method', 'S256');
-  url.searchParams.set('code_challenge', codeChallenge);
-  // Always force a fresh credential prompt so users can switch accounts
-  url.searchParams.set('prompt', 'login');
-  if (credentials.username) {
-    url.searchParams.set('login_hint', credentials.username);
+  if (!response.ok || !data.user) {
+    throw new Error(data.message ?? "Login failed. Please try again.");
   }
 
-  window.location.assign(url.toString());
-
-  // This Promise never meaningfully resolves in normal flow because the page
-  // navigates away. The return value is unused by the caller.
-  throw new Error('Redirecting to identity provider');
+  const user = toAppUser(data.user);
+  localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+  return user;
 }
 
 /**
@@ -108,13 +82,12 @@ export async function continueAsGuest(): Promise<User> {
   // PLACEHOLDER: Replace with actual API call
   const guestUser: User = {
     id: `guest_${Date.now()}`,
-    username: 'Guest',
-    isGuest: true,
+    username: "Guest",
+    isGuest: true
   };
 
-  // Store guest user in localStorage and clear any authenticated token.
+  // Store guest user in localStorage.
   localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(guestUser));
-  localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
 
   return guestUser;
 }
@@ -130,19 +103,17 @@ export async function continueAsGuest(): Promise<User> {
  * 3. Clean up any user-specific data
  */
 export async function logout(): Promise<void> {
-  const authUrl = import.meta.env.VITE_OIDC_AUTH_URL ?? DEFAULT_DEV_OIDC_AUTH_URL;
-  const clientId = import.meta.env.VITE_OIDC_CLIENT_ID ?? DEFAULT_DEV_OIDC_CLIENT_ID;
-  const base = authUrl.replace(/\/protocol\/openid-connect\/auth.*$/, '');
-  const logoutUrl = new URL(`${base}/protocol/openid-connect/logout`);
-  const postLogoutRedirect = `${window.location.origin}/`;
+  try {
+    await fetch(`${getApiBaseUrl()}/auth/logout`, {
+      method: "POST",
+      headers: { Accept: "application/json" },
+      credentials: "include"
+    });
+  } catch {
+    // Ignore network errors and still clear local state.
+  }
 
   localStorage.removeItem(USER_STORAGE_KEY);
-  localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
-
-  logoutUrl.searchParams.set('client_id', clientId);
-  logoutUrl.searchParams.set('post_logout_redirect_uri', postLogoutRedirect);
-
-  window.location.assign(logoutUrl.toString());
 }
 
 /**
@@ -159,81 +130,31 @@ export function getCurrentUser(): User | null {
   }
 }
 
-export function getAccessToken(): string | null {
-  return localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY);
-}
-
-export async function completeOidcLogin(code: string): Promise<User> {
-  const tokenUrl = import.meta.env.VITE_OIDC_TOKEN_URL ?? DEFAULT_DEV_OIDC_TOKEN_URL;
-  const clientId = import.meta.env.VITE_OIDC_CLIENT_ID ?? DEFAULT_DEV_OIDC_CLIENT_ID;
-  const redirectUri =
-    import.meta.env.VITE_OIDC_REDIRECT_URI ?? `${window.location.origin}/`;
-
-  const codeVerifier = sessionStorage.getItem('glossadocs_pkce_code_verifier');
-  if (!codeVerifier) {
-    throw new Error('Login session has expired. Please start again.');
-  }
-
-  const body = new URLSearchParams({
-    grant_type: 'authorization_code',
-    client_id: clientId,
-    code,
-    redirect_uri: redirectUri,
-    code_verifier: codeVerifier,
-  });
-
-  const response = await fetch(tokenUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: body.toString(),
-  });
-
-  const data = (await response.json().catch(() => ({}))) as Partial<OidcTokenResponse>;
-  if (!response.ok || typeof data.access_token !== 'string' || data.access_token.length === 0) {
-    throw new Error('Login failed. Please try again.');
-  }
-
-  sessionStorage.removeItem('glossadocs_pkce_code_verifier');
-  localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, data.access_token);
-
-  const me = await meApi.get(data.access_token);
-  const user: User = {
-    id: me.sub,
-    username: me.username,
-    email: me.email,
-    isGuest: false,
-  };
-  localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
-  return user;
-}
-
 export async function getAuthenticatedUserFromBackend(): Promise<User | null> {
   const currentUser = getCurrentUser();
   if (!currentUser || currentUser.isGuest) {
     return currentUser;
   }
 
-  const token = getAccessToken();
-  if (!token) {
-    return currentUser;
-  }
-
   try {
-    const me = await meApi.get(token);
-    const backendUser: User = {
-      id: me.sub,
-      username: me.username,
-      email: me.email,
-      isGuest: false,
-    };
+    const response = await fetch(`${getApiBaseUrl()}/auth/session`, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      credentials: "include"
+    });
+    const data = (await response.json().catch(() => ({}))) as Partial<AuthSessionResponse>;
+    if (!response.ok || !data.user) {
+      localStorage.removeItem(USER_STORAGE_KEY);
+      return null;
+    }
+
+    const backendUser = toAppUser(data.user);
     localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(backendUser));
     return backendUser;
   } catch (error) {
-    // TODO(OIDC): On real auth integration, handle token refresh/reauth here.
-    console.error('Failed to bootstrap user from /me:', error);
+    console.error("Failed to bootstrap user from /auth/session:", error);
     // Prevent entering a broken authenticated state where all writes fail.
     localStorage.removeItem(USER_STORAGE_KEY);
-    localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
     return null;
   }
 }

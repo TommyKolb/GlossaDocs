@@ -10,7 +10,6 @@ import { useLanguageCycling } from '../hooks/useLanguageCycling';
 import { LanguageBadge } from './LanguageBadge';
 import { UI_CONSTANTS } from '../utils/constants';
 import { toast } from 'sonner';
-import { getApiBaseUrl } from '../api/client';
 
 interface LoginProps {
   onLoginSuccess: (user: User) => void;
@@ -30,13 +29,10 @@ const WELCOME_MESSAGES = [
 
 export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: LoginProps) {
   const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [currentWelcomeIndex, setCurrentWelcomeIndex] = useState(0);
   const [formErrors, setFormErrors] = useState<{ username?: string; password?: string; general?: string }>({});
-  const [authPublicLinks, setAuthPublicLinks] = useState<{
-    loginUrl: string | null;
-    registrationUrl: string | null;
-  } | null>(null);
 
   const visibleLanguages = useLanguageCycling(LANGUAGES.length);
 
@@ -48,64 +44,32 @@ export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: Log
     return () => clearInterval(interval);
   }, []);
 
-  const loadAuthPublicLinks = async (): Promise<{
-    loginUrl: string | null;
-    registrationUrl: string | null;
-  } | null> => {
-    if (authPublicLinks) return authPublicLinks;
-
-    try {
-      const response = await fetch(`${getApiBaseUrl()}/auth/public`, {
-        method: 'GET',
-        headers: { Accept: 'application/json' },
-      });
-      const data = (await response.json().catch(() => ({}))) as Partial<{
-        loginUrl: string | null;
-        registrationUrl: string | null;
-      }>;
-
-      const resolved = {
-        loginUrl: typeof data.loginUrl === 'string' ? data.loginUrl : null,
-        registrationUrl: typeof data.registrationUrl === 'string' ? data.registrationUrl : null,
-      };
-      setAuthPublicLinks(resolved);
-      return resolved;
-    } catch {
-      return null;
-    }
-  };
-
-  // NOTE: App-hosted signup/reset flows. We still fetch /auth/public so this
-  // screen can later be upgraded to full OIDC without hardcoding Keycloak URLs.
-  // For now, Create account / Forgot password switch UI screens within the app.
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const trimmedUsername = username.trim();
-    const nextErrors: { username?: string } = {};
+    const nextErrors: { username?: string; password?: string } = {};
 
     if (!trimmedUsername) {
       nextErrors.username = 'Email is required.';
     }
+    if (!password) {
+      nextErrors.password = 'Password is required.';
+    }
 
-    if (nextErrors.username) {
+    if (nextErrors.username || nextErrors.password) {
       setFormErrors(nextErrors);
-      toast.error('Please enter your email to continue');
+      toast.error('Please enter your email and password');
       return;
     }
 
     setFormErrors({});
     setIsLoading(true);
     try {
-      const user = await loginWithCredentials({ username: trimmedUsername, password: '' });
+      const user = await loginWithCredentials({ username: trimmedUsername, password });
       toast.success(`Welcome back, ${user.username}!`);
       onLoginSuccess(user);
     } catch (error) {
-      if (error instanceof Error && error.message === 'Redirecting to identity provider') {
-        // Expected OIDC redirect – do not show an error toast.
-        return;
-      }
       setFormErrors({
         general: 'Login failed. Please try again.',
       });
@@ -181,7 +145,7 @@ export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: Log
             Sign in to continue
           </h2>
           <p className="text-xs text-center text-gray-500 mb-4" role="note">
-            Enter your email to continue to the secure sign-in page.
+            Sign in with your GlossaDocs account.
           </p>
 
           {/* Login Form */}
@@ -192,7 +156,7 @@ export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: Log
               </label>
               <Input
                 id="username"
-                type="text"
+                type="email"
                 value={username}
                 onChange={(e) => {
                   setUsername(e.target.value);
@@ -213,6 +177,33 @@ export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: Log
                 </p>
               ) : null}
             </div>
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+                Password
+              </label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setFormErrors((prev) => ({ ...prev, password: undefined, general: undefined }));
+                }}
+                placeholder="Enter your password"
+                disabled={isLoading}
+                className="w-full"
+                autoComplete="current-password"
+                required
+                aria-required="true"
+                aria-invalid={Boolean(formErrors.password)}
+                aria-describedby={formErrors.password ? 'password-error' : undefined}
+              />
+              {formErrors.password ? (
+                <p id="password-error" className="mt-1 text-sm text-red-600" role="alert">
+                  {formErrors.password}
+                </p>
+              ) : null}
+            </div>
 
             {formErrors.general ? (
               <p id="login-error" className="text-sm text-red-600" role="alert" aria-live="polite">
@@ -224,10 +215,10 @@ export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: Log
               type="submit"
               disabled={isLoading}
               className="w-full bg-blue-600 hover:bg-blue-700 text-white gap-2"
-              aria-label={isLoading ? 'Continuing to sign in' : 'Continue to secure sign in'}
+              aria-label={isLoading ? 'Signing in' : 'Sign in'}
             >
               <LogIn className="size-4" aria-hidden="true" />
-              {isLoading ? 'Continuing…' : 'Continue to sign in'}
+              {isLoading ? 'Signing in…' : 'Sign in'}
             </Button>
           </form>
 
@@ -291,7 +282,7 @@ export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: Log
             Guest mode saves documents locally on your device
           </p>
           <p className="mt-1 text-xs text-center text-gray-500" role="note">
-            Dev auth note: in Docker mode, use devuser/devpass. You can also paste a JWT as the password.
+            Dev auth note: in Docker mode, use devuser/devpass.
           </p>
         </div>
 

@@ -1,7 +1,7 @@
 import { settingsApi } from "../api/endpoints";
 import type { UserSettings } from "../api/contracts";
 import type { Language } from "../utils/languages";
-import { isAuthenticatedMode, requireAccessToken } from "./session-mode";
+import { isAuthenticatedMode } from "./session-mode";
 
 const GUEST_SETTINGS_STORAGE_KEY = "glossadocs_guest_settings";
 
@@ -50,8 +50,7 @@ export async function getUserSettings(): Promise<UserSettings> {
     return readGuestSettings();
   }
 
-  const token = requireAccessToken();
-  return settingsApi.get(token);
+  return settingsApi.get();
 }
 
 export async function updateUserSettings(patch: Partial<UserSettings>): Promise<UserSettings> {
@@ -61,8 +60,7 @@ export async function updateUserSettings(patch: Partial<UserSettings>): Promise<
     return next;
   }
 
-  const token = requireAccessToken();
-  return settingsApi.update(token, patch);
+  return settingsApi.update(patch);
 }
 
 export function languageToLocale(language: Language): string {

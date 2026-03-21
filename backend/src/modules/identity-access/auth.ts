@@ -22,7 +22,20 @@ export async function requireAuth(
   _reply: FastifyReply,
   tokenVerifier: TokenVerifier
 ): Promise<void> {
-  const token = extractBearerToken(request.headers.authorization);
+  let token: string | null = null;
+  const sessionCookieName = request.server.authSessionCookieName;
+  const sessionCookieValue = sessionCookieName ? request.cookies?.[sessionCookieName] : undefined;
+  if (sessionCookieValue) {
+    const session = request.server.authSessionStore.get(sessionCookieValue);
+    if (session) {
+      token = session.accessToken;
+    }
+  }
+
+  if (!token) {
+    token = extractBearerToken(request.headers.authorization);
+  }
+
   const principal = await tokenVerifier.verify(token);
 
   request.principal = principal;

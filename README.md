@@ -68,7 +68,7 @@ Stop the stack:
 
 Docker dev credentials for authenticated mode:
 
-- Username: `devuser@example.com`
+- Email: `devuser@example.com`
 - Password: `devpass`
 - In Docker mode, backend token verification uses the internal Keycloak issuer URL `http://keycloak:8080/realms/glossadocs`.
 

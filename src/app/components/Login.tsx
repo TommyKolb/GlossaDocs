@@ -282,7 +282,8 @@ export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: Log
             Guest mode saves documents locally on your device
           </p>
           <p className="mt-1 text-xs text-center text-gray-500" role="note">
-            Dev auth note: in Docker mode, use devuser/devpass.
+            Dev (Docker): email <span className="font-medium">devuser@example.com</span>, password{" "}
+            <span className="font-medium">devpass</span>.
           </p>
         </div>
 

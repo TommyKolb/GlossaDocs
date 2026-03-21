@@ -17,7 +17,7 @@
     "dev": "vite --host 0.0.0.0",
     "test": "npm run test:all",
     "test:all": "npm run test:frontend && npm run test:backend",
-    "test:frontend": "vitest run src",
+    "test:frontend": "vitest run",
     "test:backend": "npm --prefix backend test"
   },
   "dependencies": {

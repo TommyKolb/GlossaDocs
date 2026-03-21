@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { getAuthenticatedUserFromBackend, loginWithCredentials, logout } from "./auth";
+import {
+  getAuthenticatedUserFromBackend,
+  loginWithCredentials,
+  logout
+} from "@/app/utils/auth";
 
 describe("auth utilities", () => {
   beforeEach(() => {
@@ -90,4 +94,3 @@ describe("auth utilities", () => {
     expect(localStorage.getItem("glossadocs_user")).toBeNull();
   });
 });
-

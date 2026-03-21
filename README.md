@@ -47,6 +47,11 @@ GlossaDocs aims to make multilingual writing feel native instead of bolted on. T
   - `mammoth` for `.docx` import
   - `docx` and `jspdf` for export
 
+## Tests
+
+- **Frontend:** Vitest + Testing Library; spec files live under `src/test/` (`*.test.ts` / `*.test.tsx`). Run `npm run test:frontend` from the repo root.
+- **Backend:** Vitest; spec files live under `backend/test/`. Run `npm run test:backend` (or `npm --prefix backend test`).
+
 ## Running Locally
 
 ### Fastest full-stack startup (Docker Compose)

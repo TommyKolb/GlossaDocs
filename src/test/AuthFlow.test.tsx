@@ -1,20 +1,21 @@
+import "@testing-library/jest-dom/vitest";
 import * as React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import App from "../App";
+import App from "@/app/App";
 
-vi.mock("./DocumentList", () => ({
+vi.mock("@/app/components/DocumentList", () => ({
   DocumentList: () => <div />
 }));
-vi.mock("./Editor", () => ({
+vi.mock("@/app/components/Editor", () => ({
   Editor: () => <div />
 }));
-vi.mock("./LoadingSpinner", () => ({
+vi.mock("@/app/components/LoadingSpinner", () => ({
   LoadingSpinner: () => <div />
 }));
-vi.mock("./ui/sonner", () => ({
+vi.mock("@/app/components/ui/sonner", () => ({
   Toaster: () => <div />
 }));
 
@@ -25,7 +26,7 @@ vi.mock("sonner", () => ({
   }
 }));
 
-vi.mock("../utils/auth", () => ({
+vi.mock("@/app/utils/auth", () => ({
   getAuthenticatedUserFromBackend: vi.fn(async () => null)
 }));
 
@@ -55,4 +56,3 @@ describe("App auth flow screens", () => {
     expect(screen.getByRole("heading", { name: /Reset your password/i })).toBeInTheDocument();
   });
 });
-

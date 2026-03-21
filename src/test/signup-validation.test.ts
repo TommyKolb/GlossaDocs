@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isSignupEmailValid, isSignupPasswordValid } from "./signup-validation";
+import { isSignupEmailValid, isSignupPasswordValid } from "@/app/utils/signup-validation";
 
 describe("signup-validation", () => {
   it("rejects obviously invalid emails", () => {

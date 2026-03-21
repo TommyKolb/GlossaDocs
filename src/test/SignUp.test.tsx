@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { SignUp } from "./SignUp";
+import { SignUp } from "@/app/components/SignUp";
 
 vi.mock("sonner", () => ({
   toast: {

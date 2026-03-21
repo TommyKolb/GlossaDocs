@@ -1,9 +1,10 @@
+import "@testing-library/jest-dom/vitest";
 import * as React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { Login } from "./Login";
+import { Login } from "@/app/components/Login";
 
 vi.mock("sonner", () => ({
   toast: {
@@ -12,15 +13,15 @@ vi.mock("sonner", () => ({
   }
 }));
 
-vi.mock("../hooks/useLanguageCycling", () => ({
+vi.mock("@/app/hooks/useLanguageCycling", () => ({
   useLanguageCycling: () => [0, 1, 2]
 }));
 
-vi.mock("./LanguageBadge", () => ({
+vi.mock("@/app/components/LanguageBadge", () => ({
   LanguageBadge: () => <div data-testid="LanguageBadge" />
 }));
 
-vi.mock("../utils/auth", () => ({
+vi.mock("@/app/utils/auth", () => ({
   loginWithCredentials: vi.fn(),
   continueAsGuest: vi.fn()
 }));
@@ -87,4 +88,3 @@ describe("Login signup + reset entrypoints", () => {
     expect(screen.getByLabelText(/^Password$/i)).toBeInTheDocument();
   });
 });
-

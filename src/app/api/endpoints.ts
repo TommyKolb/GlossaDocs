@@ -8,13 +8,13 @@ import type {
   UserSettings
 } from "./contracts";
 
-interface AuthSessionUser {
+export interface AuthSessionUser {
   sub: string;
   username: string;
   email?: string;
 }
 
-interface AuthSessionResponse {
+export interface AuthSessionResponse {
   user: AuthSessionUser;
 }
 

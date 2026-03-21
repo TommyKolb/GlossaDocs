@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { ApiClientError } from "../api/client";
-import { authApi } from "../api/endpoints";
+import { authApi, type AuthSessionUser } from "../api/endpoints";
 
 export interface User {
   id: string;
@@ -15,16 +15,6 @@ export interface LoginCredentials {
   password: string;
 }
 
-interface SessionUser {
-  sub: string;
-  username: string;
-  email?: string;
-}
-
-interface AuthSessionResponse {
-  user: SessionUser;
-}
-
 const USER_STORAGE_KEY = "glossadocs_user";
 const isDevBuild =
   typeof window !== "undefined" &&
@@ -36,7 +26,7 @@ const storedUserSchema = z.object({
   isGuest: z.boolean()
 });
 
-function toAppUser(user: SessionUser): User {
+function toAppUser(user: AuthSessionUser): User {
   return {
     id: user.sub,
     username: user.username,
@@ -63,7 +53,6 @@ export async function continueAsGuest(): Promise<User> {
   // Simulate API call delay
   await new Promise((resolve) => setTimeout(resolve, 500));
 
-  // PLACEHOLDER: Replace with actual API call
   const guestUser: User = {
     id: `guest_${Date.now()}`,
     username: "Guest",
@@ -110,7 +99,7 @@ export async function getAuthenticatedUserFromBackend(): Promise<User | null> {
   }
 
   try {
-    const data = (await authApi.session()) as Partial<AuthSessionResponse>;
+    const data = await authApi.session();
     if (!data.user) {
       localStorage.removeItem(USER_STORAGE_KEY);
       return null;

@@ -8,8 +8,37 @@ import type {
   UserSettings
 } from "./contracts";
 
+interface AuthSessionUser {
+  sub: string;
+  username: string;
+  email?: string;
+}
+
+interface AuthSessionResponse {
+  user: AuthSessionUser;
+}
+
+interface AuthRegisterResponse {
+  message: string;
+}
+
+interface AuthPasswordResetResponse {
+  message: string;
+}
+
 export const meApi = {
   get: () => apiRequest<MeResponse>("/me")
+};
+
+export const authApi = {
+  login: (payload: { username: string; password: string }) =>
+    apiRequest<AuthSessionResponse>("/auth/login", { method: "POST", body: payload }),
+  logout: () => apiRequest<void>("/auth/logout", { method: "POST" }),
+  session: () => apiRequest<AuthSessionResponse>("/auth/session"),
+  register: (payload: { email: string; password: string }) =>
+    apiRequest<AuthRegisterResponse>("/auth/register", { method: "POST", body: payload }),
+  requestPasswordReset: (payload: { email: string }) =>
+    apiRequest<AuthPasswordResetResponse>("/auth/password-reset", { method: "POST", body: payload })
 };
 
 export const settingsApi = {

@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { buildApp } from "../src/app.js";
 import { InMemoryAuthSessionStore } from "../src/modules/identity-access/auth-session-store.js";
 import type { KeycloakOidcClient } from "../src/modules/identity-access/keycloak-oidc-client.js";
+import { KeycloakOidcClientError } from "../src/modules/identity-access/keycloak-oidc-client.js";
 import type { TokenVerifier } from "../src/modules/identity-access/token-verifier.js";
 import { ApiError } from "../src/shared/api-error.js";
 import { createTestDocumentService } from "./helpers/test-document-service.js";
@@ -50,13 +51,32 @@ describe("auth session routes", () => {
       settingsService: createTestSettingsService()
     }
   );
+  const appWithoutOidc = buildApp(
+    {
+      NODE_ENV: "test",
+      API_PORT: 4000,
+      CORS_ALLOWED_ORIGINS: "*",
+      AUTH_SESSION_COOKIE_NAME: "glossadocs_session",
+      AUTH_SESSION_TTL_SECONDS: 3600,
+      AUTH_SESSION_SECURE_COOKIE: false
+    } as any,
+    {
+      tokenVerifier,
+      keycloakOidcClient: null,
+      authSessionStore: new InMemoryAuthSessionStore(),
+      documentService: createTestDocumentService(),
+      settingsService: createTestSettingsService()
+    } as any
+  );
 
   beforeAll(async () => {
     await app.ready();
+    await appWithoutOidc.ready();
   });
 
   afterAll(async () => {
     await app.close();
+    await appWithoutOidc.close();
   });
 
   it("POST /auth/login sets session cookie and returns user profile", async () => {
@@ -86,6 +106,14 @@ describe("auth session routes", () => {
     expect(response.body.code).toBe("AUTH_MISSING_SESSION");
   });
 
+  it("GET /auth/session returns 401 when cookie session is invalid", async () => {
+    const response = await request(app.server)
+      .get("/auth/session")
+      .set("Cookie", "glossadocs_session=missing-session");
+    expect(response.status).toBe(401);
+    expect(response.body.code).toBe("AUTH_INVALID_SESSION");
+  });
+
   it("supports cookie session auth on /me", async () => {
     const loginResponse = await request(app.server).post("/auth/login").send({
       username: "alice@example.com",
@@ -112,5 +140,29 @@ describe("auth session routes", () => {
       .set("Cookie", cookie as string);
     expect(logoutResponse.status).toBe(204);
     expect(logoutResponse.headers["set-cookie"]?.at(0)).toContain("glossadocs_session=;");
+  });
+
+  it("POST /auth/login returns 401 for invalid credentials", async () => {
+    vi.mocked(keycloakOidcClient.loginWithPassword).mockRejectedValueOnce(
+      new KeycloakOidcClientError("KEYCLOAK_OIDC_INVALID_CREDENTIALS", "Invalid username or password")
+    );
+
+    const response = await request(app.server).post("/auth/login").send({
+      username: "alice@example.com",
+      password: "wrong"
+    });
+
+    expect(response.status).toBe(401);
+    expect(response.body.code).toBe("AUTH_INVALID_CREDENTIALS");
+  });
+
+  it("POST /auth/login returns 500 when oidc login is not configured", async () => {
+    const response = await request(appWithoutOidc.server).post("/auth/login").send({
+      username: "alice@example.com",
+      password: "secret"
+    });
+
+    expect(response.status).toBe(500);
+    expect(response.body.code).toBe("CONFIG_KEYCLOAK_OIDC_INCOMPLETE");
   });
 });

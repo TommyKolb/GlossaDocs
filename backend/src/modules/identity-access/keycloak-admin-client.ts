@@ -15,6 +15,15 @@ export class KeycloakAdminClientError extends Error {
   }
 }
 
+export function isKeycloakAdminErrorCode(
+  error: unknown,
+  expectedCode: KeycloakAdminClientErrorCode
+): boolean {
+  return error instanceof KeycloakAdminClientError || (typeof error === "object" && error !== null)
+    ? (error as { code?: string }).code === expectedCode
+    : false;
+}
+
 export interface KeycloakAdminClient {
   createUser(args: { email: string; password: string }): Promise<void>;
   sendPasswordResetEmail(args: { email: string }): Promise<void>;
@@ -101,6 +110,8 @@ export class HttpKeycloakAdminClient implements KeycloakAdminClient {
         firstName: localPart,
         lastName: "User",
         enabled: true,
+        // DEV-ONLY posture: this bypasses email verification so account creation/login works
+        // without a real outbound email flow. Must be reverted before production.
         emailVerified: true,
         requiredActions: []
       })

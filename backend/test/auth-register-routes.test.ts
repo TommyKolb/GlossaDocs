@@ -37,13 +37,28 @@ describe("POST /auth/register", () => {
       keycloakAdminClient
     } as any
   );
+  const appWithoutAdmin = buildApp(
+    {
+      NODE_ENV: "test",
+      API_PORT: 4000,
+      CORS_ALLOWED_ORIGINS: "*"
+    } as any,
+    {
+      tokenVerifier,
+      documentService: createTestDocumentService(),
+      settingsService: createTestSettingsService(),
+      keycloakAdminClient: null
+    } as any
+  );
 
   beforeAll(async () => {
     await app.ready();
+    await appWithoutAdmin.ready();
   });
 
   afterAll(async () => {
     await app.close();
+    await appWithoutAdmin.close();
   });
 
   it("creates a Keycloak user for valid email/password", async () => {
@@ -82,6 +97,28 @@ describe("POST /auth/register", () => {
 
     expect(response.status).toBe(400);
     expect(response.body.code).toBe("VALIDATION_ERROR");
+  });
+
+  it("returns 500 when keycloak admin configuration is incomplete", async () => {
+    const response = await request(appWithoutAdmin.server).post("/auth/register").send({
+      email: "new.user@example.com",
+      password: "correct horse battery staple"
+    });
+
+    expect(response.status).toBe(500);
+    expect(response.body.code).toBe("CONFIG_KEYCLOAK_ADMIN_INCOMPLETE");
+  });
+
+  it("returns 502 when keycloak is unavailable", async () => {
+    vi.mocked(keycloakAdminClient.createUser).mockRejectedValueOnce(new Error("upstream down"));
+
+    const response = await request(app.server).post("/auth/register").send({
+      email: "new.user@example.com",
+      password: "correct horse battery staple"
+    });
+
+    expect(response.status).toBe(502);
+    expect(response.body.code).toBe("AUTH_IDP_UNAVAILABLE");
   });
 });
 

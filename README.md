@@ -34,7 +34,8 @@ GlossaDocs aims to make multilingual writing feel native instead of bolted on. T
   - Per-document language selector for `en`, `de`, `ru`
   - Direction handling scaffold exists for future RTL languages
 - Auth state:
-  - Login/guest flow is currently simulated with local storage placeholders (no real backend auth yet)
+  - App-hosted login/signup/reset are backend-integrated through Keycloak and httpOnly session cookies.
+  - Guest mode remains local-only and stores state in local storage.
 
 
 ## Tech Stack
@@ -146,6 +147,7 @@ Authenticated mode uses **Keycloak** for identity, with app-hosted auth UI and b
 - **Create account**:
   - Uses the app-hosted **Create your account** screen, which calls `POST /auth/register` on the backend.
   - The backend creates the user in Keycloak; the app never stores or sees the raw password.
+  - Current dev setup does **not** enforce email verification yet so login works without outbound email delivery.
 - **Forgot password**:
   - Uses the app-hosted **Reset your password** screen, which calls `POST /auth/password-reset`.
   - The backend asks Keycloak to send a reset email. The user sees a generic success message, regardless of whether the account exists, to avoid leaking account existence.
@@ -155,6 +157,8 @@ Security notes:
 - Passwords are handled **only** by Keycloak; the app does not store them.
 - Authenticated browser sessions are stored in backend-managed httpOnly cookies (no bearer token in frontend local storage).
 - All user data persisted by the app continues to respect the existing encryption and sanitization rules documented below.
+- In production, `CORS_ALLOWED_ORIGINS` must be explicit (wildcard `*` is rejected when credentialed cookies are enabled).
+- Before production: re-enable mandatory email verification for new accounts and remove dev credential hints from the login UI.
 
 ### Adding New Languages
 
@@ -207,6 +211,6 @@ The frontend rich-text editor should only expose formatting that survives this s
 
 ## Current Limitations
 
-- Session storage is currently in-memory on the backend (suitable for local/dev; use shared session storage for multi-instance production).
+- Session storage defaults to in-memory for local/dev. Use `AUTH_SESSION_STORE=redis` with `REDIS_URL` for multi-instance production.
 - No collaboration/sharing yet.
 - Language features are in progress; current language selection is foundational, with advanced input-method behavior planned.

@@ -5,6 +5,7 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { SignUp } from "@/app/components/SignUp";
+import { getApiBaseUrl } from "@/app/api/client";
 
 vi.mock("sonner", () => ({
   toast: {
@@ -70,5 +71,56 @@ describe("SignUp validation UX", () => {
     const submit = screen.getAllByRole("button", { name: /Create account/i }).at(-1)!;
     expect(submit).toBeDisabled();
     expect(vi.mocked(toast.error)).not.toHaveBeenCalled();
+  });
+
+  it("shows account-exists message for AUTH_EMAIL_TAKEN", async () => {
+    const fetchMock = vi.mocked(globalThis.fetch);
+    const onAccountCreated = vi.fn();
+    const { toast } = await import("sonner");
+    render(<SignUp onCancel={() => {}} onAccountCreated={onAccountCreated} />);
+    const user = userEvent.setup();
+
+    await user.type(screen.getByLabelText(/^Email$/i), "taken@example.com");
+    await user.type(screen.getByLabelText(/^Password$/i), "12345678");
+    await user.type(screen.getByLabelText(/^Confirm password$/i), "12345678");
+
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 409,
+      json: async () => ({ code: "AUTH_EMAIL_TAKEN", message: "Email is already in use" })
+    } as Response);
+
+    await user.click(screen.getByRole("button", { name: /Create account/i }));
+    await waitFor(() =>
+      expect(screen.getByText(/already exists\. Try signing in instead\./i)).toBeInTheDocument()
+    );
+    expect(onAccountCreated).not.toHaveBeenCalled();
+    expect(vi.mocked(toast.error)).toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${getApiBaseUrl()}/auth/register`,
+      expect.objectContaining({
+        method: "POST",
+        credentials: "include"
+      })
+    );
+  });
+
+  it("shows generic server error for failed registration", async () => {
+    const fetchMock = vi.mocked(globalThis.fetch);
+    render(<SignUp onCancel={() => {}} onAccountCreated={() => {}} />);
+    const user = userEvent.setup();
+
+    await user.type(screen.getByLabelText(/^Email$/i), "user@example.com");
+    await user.type(screen.getByLabelText(/^Password$/i), "12345678");
+    await user.type(screen.getByLabelText(/^Confirm password$/i), "12345678");
+
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: async () => ({ message: "Unable to create account" })
+    } as Response);
+
+    await user.click(screen.getByRole("button", { name: /Create account/i }));
+    await waitFor(() => expect(screen.getByText(/Unable to create account/i)).toBeInTheDocument());
   });
 });

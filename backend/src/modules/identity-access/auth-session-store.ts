@@ -7,15 +7,15 @@ export interface AuthSession {
 }
 
 export interface AuthSessionStore {
-  create(args: { accessToken: string; ttlSeconds: number }): AuthSession;
-  get(sessionId: string): AuthSession | null;
-  delete(sessionId: string): void;
+  create(args: { accessToken: string; ttlSeconds: number }): Promise<AuthSession>;
+  get(sessionId: string): Promise<AuthSession | null>;
+  delete(sessionId: string): Promise<void>;
 }
 
 export class InMemoryAuthSessionStore implements AuthSessionStore {
   private readonly sessions = new Map<string, AuthSession>();
 
-  public create(args: { accessToken: string; ttlSeconds: number }): AuthSession {
+  public async create(args: { accessToken: string; ttlSeconds: number }): Promise<AuthSession> {
     const session: AuthSession = {
       id: randomUUID(),
       accessToken: args.accessToken,
@@ -25,7 +25,7 @@ export class InMemoryAuthSessionStore implements AuthSessionStore {
     return session;
   }
 
-  public get(sessionId: string): AuthSession | null {
+  public async get(sessionId: string): Promise<AuthSession | null> {
     const session = this.sessions.get(sessionId);
     if (!session) {
       return null;
@@ -39,7 +39,7 @@ export class InMemoryAuthSessionStore implements AuthSessionStore {
     return session;
   }
 
-  public delete(sessionId: string): void {
+  public async delete(sessionId: string): Promise<void> {
     this.sessions.delete(sessionId);
   }
 }

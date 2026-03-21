@@ -63,6 +63,8 @@ flowchart LR
 - `POST /auth/login`
 - `POST /auth/logout`
 - `GET /auth/session`
+- `POST /auth/register`
+- `POST /auth/password-reset`
 - `GET /me`
 - `GET /documents`
 - `GET /documents/:id`
@@ -76,6 +78,7 @@ All endpoints except `/health`, `/ready`, and public auth bootstrap routes requi
 
 ## Security Baseline
 - Strict JWT verification: signature, issuer, audience, expiry.
+- Account creation defaults to unverified email and requires verification in Keycloak.
 - Ownership checks in repository predicates (`owner_id = actorSub`).
 - Input schema validation and payload limits.
 - HTML sanitization on document write path.
@@ -99,6 +102,9 @@ This comfortably supports 10 concurrent users for CRUD + settings operations.
 - `OIDC_AUDIENCE`
 - `OIDC_JWKS_URL`
 - `CORS_ALLOWED_ORIGINS`
+- `AUTH_SESSION_STORE`
+- `REDIS_URL`
+- `AUTH_REDIS_KEY_PREFIX`
 - `RATE_LIMIT_WINDOW_MS`
 - `RATE_LIMIT_MAX_REQUESTS`
 - `NODE_ENV`

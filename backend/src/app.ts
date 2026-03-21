@@ -33,6 +33,7 @@ import {
   InMemoryAuthSessionStore,
   type AuthSessionStore
 } from "./modules/identity-access/auth-session-store.js";
+import { RedisAuthSessionStore } from "./modules/identity-access/redis-auth-session-store.js";
 import type { KeycloakOidcClient } from "./modules/identity-access/keycloak-oidc-client.js";
 import {
   HttpKeycloakOidcClient,
@@ -73,6 +74,66 @@ function resolveTokenVerifier(config: BuildAppConfig, injected?: TokenVerifier):
   });
 }
 
+function resolveCorsOrigin(config: BuildAppConfig): true | string[] {
+  const configuredOrigins = config.CORS_ALLOWED_ORIGINS.trim();
+  const isWildcard = configuredOrigins === "*";
+
+  if (isWildcard && config.NODE_ENV === "production") {
+    throw new ApiError(
+      500,
+      "CONFIG_CORS_INSECURE",
+      "CORS_ALLOWED_ORIGINS cannot be '*' in production when credentials are enabled"
+    );
+  }
+
+  if (isWildcard) {
+    return true;
+  }
+
+  const origins = configuredOrigins
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter((origin) => origin.length > 0);
+
+  if (origins.length === 0) {
+    throw new ApiError(500, "CONFIG_CORS_INVALID", "CORS_ALLOWED_ORIGINS must include at least one origin");
+  }
+
+  return origins;
+}
+
+function resolveAuthSessionStore(config: BuildAppConfig, injected?: AuthSessionStore): AuthSessionStore {
+  if (injected) {
+    return injected;
+  }
+
+  const selectedStore = config.AUTH_SESSION_STORE ?? "memory";
+  if (selectedStore === "redis") {
+    if (!config.REDIS_URL) {
+      throw new ApiError(
+        500,
+        "CONFIG_REDIS_MISSING",
+        "REDIS_URL must be configured when AUTH_SESSION_STORE=redis"
+      );
+    }
+
+    return new RedisAuthSessionStore({
+      redisUrl: config.REDIS_URL,
+      keyPrefix: config.AUTH_REDIS_KEY_PREFIX
+    });
+  }
+
+  if (config.NODE_ENV === "production") {
+    throw new ApiError(
+      500,
+      "CONFIG_SESSION_STORE_INSECURE",
+      "AUTH_SESSION_STORE=memory is not allowed in production; use AUTH_SESSION_STORE=redis"
+    );
+  }
+
+  return new InMemoryAuthSessionStore();
+}
+
 export function buildApp(config: BuildAppConfig, options: BuildAppOptions = {}): FastifyInstance {
   const app = Fastify({
     logger: config.NODE_ENV !== "test"
@@ -87,7 +148,7 @@ export function buildApp(config: BuildAppConfig, options: BuildAppOptions = {}):
   });
 
   void app.register(cors, {
-    origin: config.CORS_ALLOWED_ORIGINS === "*" ? true : config.CORS_ALLOWED_ORIGINS,
+    origin: resolveCorsOrigin(config),
     methods: ["GET", "HEAD", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Authorization", "Content-Type"],
     credentials: true
@@ -147,7 +208,7 @@ export function buildApp(config: BuildAppConfig, options: BuildAppOptions = {}):
           })
         )
       : null);
-  const authSessionStore = options.authSessionStore ?? new InMemoryAuthSessionStore();
+  const authSessionStore = resolveAuthSessionStore(config, options.authSessionStore);
 
   app.decorate("authSessionStore", authSessionStore);
   app.decorate("authSessionCookieName", config.AUTH_SESSION_COOKIE_NAME ?? "glossadocs_session");
@@ -156,7 +217,6 @@ export function buildApp(config: BuildAppConfig, options: BuildAppOptions = {}):
   void app.register(authPublicRoutes, { config });
   void app.register(authSessionRoutes, {
     config: {
-      ...config,
       AUTH_SESSION_COOKIE_NAME: config.AUTH_SESSION_COOKIE_NAME ?? "glossadocs_session",
       AUTH_SESSION_TTL_SECONDS: config.AUTH_SESSION_TTL_SECONDS ?? 3600,
       AUTH_SESSION_SECURE_COOKIE: config.AUTH_SESSION_SECURE_COOKIE ?? false

@@ -75,6 +75,21 @@ describe("POST /auth/password-reset", () => {
     });
   });
 
+  it("returns 200 even when keycloak returns a transient error", async () => {
+    vi.mocked(keycloakAdminClient.sendPasswordResetEmail).mockRejectedValueOnce(
+      new Error("Keycloak timeout")
+    );
+
+    const response = await request(app.server).post("/auth/password-reset").send({
+      email: "user@example.com"
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      message: "If an account exists for that email, a reset message has been sent."
+    });
+  });
+
   it("returns 400 for invalid email", async () => {
     const response = await request(app.server).post("/auth/password-reset").send({
       email: "not-an-email"

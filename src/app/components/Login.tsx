@@ -44,7 +44,7 @@ export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: Log
     return () => clearInterval(interval);
   }, []);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     const trimmedUsername = username.trim();
@@ -69,12 +69,11 @@ export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: Log
       const user = await loginWithCredentials({ username: trimmedUsername, password });
       toast.success(`Welcome back, ${user.username}!`);
       onLoginSuccess(user);
-    } catch (error) {
+    } catch {
       setFormErrors({
         general: 'Login failed. Please try again.',
       });
       toast.error('Login failed. Please try again.');
-      console.error('Login error:', error);
     } finally {
       setIsLoading(false);
     }
@@ -88,7 +87,6 @@ export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: Log
       onLoginSuccess(user);
     } catch (error) {
       toast.error('Failed to continue as guest. Please try again.');
-      console.error('Guest login error:', error);
     } finally {
       setIsLoading(false);
     }

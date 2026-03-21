@@ -44,9 +44,13 @@ flowchart TB
 - `POST /auth/login` -> exchanges username/password with Keycloak and sets httpOnly session cookie
 - `POST /auth/logout` -> clears session cookie
 - `GET /auth/session` -> `{ user: { sub, username, email? } }`
+- `POST /auth/register` -> creates a Keycloak user (dev currently bypasses email verification; re-enable before production)
+- `POST /auth/password-reset` -> triggers Keycloak reset flow and returns a generic response
 - `GET /me` -> `{ sub, username, email, scopes }`
 
 `/me.sub` is the external OIDC-standard field name. Internally this module maps `sub` to `AuthenticatedPrincipal.actorSub`.
+
+Session storage mode is environment-configurable: local/dev can use in-memory storage, while production should use Redis-backed sessions (`AUTH_SESSION_STORE=redis`).
 
 ## Classes, Methods, Fields
 - **Public** `AuthMiddleware`

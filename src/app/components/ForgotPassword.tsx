@@ -4,7 +4,8 @@ import { toast } from "sonner";
 
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { getApiBaseUrl } from "../api/client";
+import { ApiClientError } from "../api/client";
+import { authApi } from "../api/endpoints";
 
 interface ForgotPasswordProps {
   onCancel: () => void;
@@ -16,7 +17,7 @@ export function ForgotPassword({ onCancel }: ForgotPasswordProps) {
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
     setStatus(null);
@@ -29,21 +30,17 @@ export function ForgotPassword({ onCancel }: ForgotPasswordProps) {
 
     setIsSubmitting(true);
     try {
-      const response = await fetch(`${getApiBaseUrl()}/auth/password-reset`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ email: trimmedEmail })
-      });
-      const data = (await response.json().catch(() => ({}))) as { message?: string };
-      if (!response.ok) {
-        throw new Error(data.message ?? "Password reset request failed");
-      }
-
+      await authApi.requestPasswordReset({ email: trimmedEmail });
       const msg = "If an account exists for that email, a reset message has been sent.";
       setStatus(msg);
-      toast.success("Password reset email sent.");
+      toast.message(msg);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Password reset request failed";
+      const message =
+        err instanceof ApiClientError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Password reset request failed";
       setError(message);
       toast.error(message);
     } finally {

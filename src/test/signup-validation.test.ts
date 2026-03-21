@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import { isSignupEmailValid, isSignupPasswordValid } from "@/app/utils/signup-validation";
+import { isSignupEmailValid, isSignupPasswordValid } from "../app/utils/signup-validation";
 
 describe("signup-validation", () => {
   it("rejects obviously invalid emails", () => {
     expect(isSignupEmailValid("")).toBe(false);
-    expect(isSignupEmailValid("a@a")).toBe(false);
     expect(isSignupEmailValid("not-an-email")).toBe(false);
   });
 
-  it("accepts typical valid emails", () => {
+  it("accepts basic email-like values and defers strict checks to backend", () => {
+    expect(isSignupEmailValid("a@a")).toBe(true);
     expect(isSignupEmailValid("user@example.com")).toBe(true);
     expect(isSignupEmailValid("  user@example.com  ")).toBe(true);
   });

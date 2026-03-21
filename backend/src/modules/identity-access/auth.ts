@@ -26,7 +26,7 @@ export async function requireAuth(
   const sessionCookieName = request.server.authSessionCookieName;
   const sessionCookieValue = sessionCookieName ? request.cookies?.[sessionCookieName] : undefined;
   if (sessionCookieValue) {
-    const session = request.server.authSessionStore.get(sessionCookieValue);
+    const session = await request.server.authSessionStore.get(sessionCookieValue);
     if (session) {
       token = session.accessToken;
     }

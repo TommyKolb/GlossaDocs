@@ -3,10 +3,10 @@ import { z } from "zod";
 
 import { ApiError } from "../../shared/api-error.js";
 import type { KeycloakAdminClient } from "./keycloak-admin-client.js";
-import { KeycloakAdminClientError } from "./keycloak-admin-client.js";
+import { isKeycloakAdminErrorCode } from "./keycloak-admin-client.js";
 
 const registerSchema = z.object({
-  email: z.string().email(),
+  email: z.email(),
   password: z.string().min(8)
 });
 
@@ -26,10 +26,7 @@ export const authRegisterRoutes: FastifyPluginAsync<AuthRegisterRoutesOptions> =
       await options.keycloakAdminClient.createUser({ email, password });
       return reply.status(201).send({ message: "Account created." });
     } catch (err) {
-      if (err instanceof KeycloakAdminClientError && err.code === "KEYCLOAK_USER_EXISTS") {
-        throw new ApiError(409, "AUTH_EMAIL_TAKEN", "Email is already in use");
-      }
-      if (typeof err === "object" && err && (err as any).code === "KEYCLOAK_USER_EXISTS") {
+      if (isKeycloakAdminErrorCode(err, "KEYCLOAK_USER_EXISTS")) {
         throw new ApiError(409, "AUTH_EMAIL_TAKEN", "Email is already in use");
       }
       throw new ApiError(502, "AUTH_IDP_UNAVAILABLE", "Unable to create account");

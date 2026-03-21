@@ -4,7 +4,8 @@ import { toast } from "sonner";
 
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { getApiBaseUrl } from "../api/client";
+import { ApiClientError } from "../api/client";
+import { authApi } from "../api/endpoints";
 import {
   isSignupEmailValid,
   isSignupPasswordValid,
@@ -74,7 +75,7 @@ export function SignUp({ onCancel, onAccountCreated }: SignUpProps) {
     return `To continue: ${text}.`;
   }, [canSubmit, trimmedEmail, emailOk, password, passwordOk, passwordsMatch]);
 
-  const handleSubmit = async (e: React.SubmitEvent) => {
+  const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     setServerError(null);
 
@@ -84,35 +85,24 @@ export function SignUp({ onCancel, onAccountCreated }: SignUpProps) {
 
     setIsSubmitting(true);
     try {
-      const response = await fetch(`${getApiBaseUrl()}/auth/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ email: trimmedEmail, password })
-      });
-      const data = (await response.json().catch(() => ({}))) as {
-        message?: string;
-        code?: string;
-      };
-
-      if (!response.ok) {
-        if (response.status === 409 && data.code === "AUTH_EMAIL_TAKEN") {
+      await authApi.register({ email: trimmedEmail, password });
+      toast.success("Account created. You can sign in now.");
+      onAccountCreated(trimmedEmail);
+    } catch (error) {
+      if (error instanceof ApiClientError) {
+        if (error.status === 409 && error.code === "AUTH_EMAIL_TAKEN") {
           const msg = "An account with this email already exists. Try signing in instead.";
           setServerError(msg);
           toast.error(msg);
           return;
         }
-        const msg =
-          typeof data.message === "string" && data.message.trim()
-            ? data.message
-            : "Could not create your account. Please try again.";
+        const msg = error.message?.trim()
+          ? error.message
+          : "Could not create your account. Please try again.";
         setServerError(msg);
         toast.error(msg);
         return;
       }
-
-      toast.success("Account created. You can sign in now.");
-      onAccountCreated(trimmedEmail);
-    } catch {
       const msg = "Network error. Check your connection and try again.";
       setServerError(msg);
       toast.error(msg);

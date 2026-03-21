@@ -3,10 +3,10 @@ import { z } from "zod";
 
 import { ApiError } from "../../shared/api-error.js";
 import type { KeycloakAdminClient } from "./keycloak-admin-client.js";
-import { KeycloakAdminClientError } from "./keycloak-admin-client.js";
+import { isKeycloakAdminErrorCode } from "./keycloak-admin-client.js";
 
 const resetSchema = z.object({
-  email: z.string().email()
+  email: z.email()
 });
 
 interface AuthPasswordResetRoutesOptions {
@@ -28,9 +28,7 @@ export const authPasswordResetRoutes: FastifyPluginAsync<AuthPasswordResetRoutes
       await options.keycloakAdminClient.sendPasswordResetEmail({ email });
     } catch (err) {
       // Security: do not leak whether a user exists.
-      if (err instanceof KeycloakAdminClientError && err.code === "KEYCLOAK_USER_NOT_FOUND") {
-        // swallow
-      } else if (typeof err === "object" && err && (err as any).code === "KEYCLOAK_USER_NOT_FOUND") {
+      if (isKeycloakAdminErrorCode(err, "KEYCLOAK_USER_NOT_FOUND")) {
         // swallow
       } else {
         // treat transient IdP errors as a no-op for privacy; user sees generic success.

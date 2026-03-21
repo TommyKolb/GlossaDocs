@@ -14,13 +14,21 @@ const loginSchema = z.object({
 });
 
 interface AuthSessionRoutesOptions {
-  config: AppConfig;
+  config: Pick<
+    AppConfig,
+    "AUTH_SESSION_COOKIE_NAME" | "AUTH_SESSION_TTL_SECONDS" | "AUTH_SESSION_SECURE_COOKIE"
+  >;
   tokenVerifier: TokenVerifier;
   authSessionStore: AuthSessionStore;
   keycloakOidcClient: KeycloakOidcClient | null;
 }
 
-function getCookieOptions(config: AppConfig): {
+function getCookieOptions(
+  config: Pick<
+    AppConfig,
+    "AUTH_SESSION_COOKIE_NAME" | "AUTH_SESSION_TTL_SECONDS" | "AUTH_SESSION_SECURE_COOKIE"
+  >
+): {
   cookieName: string;
   maxAgeSeconds: number;
   secure: boolean;
@@ -45,7 +53,7 @@ export const authSessionRoutes: FastifyPluginAsync<AuthSessionRoutesOptions> = a
       const login = await options.keycloakOidcClient.loginWithPassword({ username, password });
       const principal = await options.tokenVerifier.verify(login.accessToken);
       const sessionTtlSeconds = Math.max(1, Math.min(maxAgeSeconds, login.expiresInSeconds));
-      const session = options.authSessionStore.create({
+      const session = await options.authSessionStore.create({
         accessToken: login.accessToken,
         ttlSeconds: sessionTtlSeconds
       });
@@ -83,7 +91,7 @@ export const authSessionRoutes: FastifyPluginAsync<AuthSessionRoutesOptions> = a
     const { cookieName, secure } = getCookieOptions(options.config);
     const sessionId = request.cookies[cookieName];
     if (sessionId) {
-      options.authSessionStore.delete(sessionId);
+      await options.authSessionStore.delete(sessionId);
     }
     reply.clearCookie(cookieName, {
       path: "/",
@@ -103,7 +111,7 @@ export const authSessionRoutes: FastifyPluginAsync<AuthSessionRoutesOptions> = a
           throw new ApiError(401, "AUTH_MISSING_SESSION", "No active session");
         }
 
-        const session = options.authSessionStore.get(sessionId);
+        const session = await options.authSessionStore.get(sessionId);
         if (!session) {
           throw new ApiError(401, "AUTH_INVALID_SESSION", "Session is missing or expired");
         }

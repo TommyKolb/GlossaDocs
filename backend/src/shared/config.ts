@@ -51,6 +51,12 @@ const configSchema = z.object({
   AUTH_SESSION_TTL_SECONDS: z.coerce.number().int().positive().default(3600),
   /** If true, sets Secure flag on auth session cookie. */
   AUTH_SESSION_SECURE_COOKIE: booleanFromEnv.default(false),
+  /** Session backend used by auth routes. */
+  AUTH_SESSION_STORE: z.enum(["memory", "redis"]).default("memory"),
+  /** Redis URL used when AUTH_SESSION_STORE=redis. */
+  REDIS_URL: z.string().optional(),
+  /** Prefix for Redis-backed session keys. */
+  AUTH_REDIS_KEY_PREFIX: z.string().default("glossadocs:session:"),
   /** Base64-encoded 32-byte key for document title/content encryption at rest. Optional. */
   DOCUMENT_ENCRYPTION_KEY: z.string().optional()
 });

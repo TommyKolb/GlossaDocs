@@ -5,6 +5,7 @@
   "registrationAllowed": true,
   "registrationEmailAsUsername": true,
   "resetPasswordAllowed": true,
+  "verifyEmail": false,
   "smtpServer": {
     "host": "mailpit",
     "port": "1025",

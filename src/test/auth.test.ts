@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  continueAsGuest,
+  getCurrentUser,
   getAuthenticatedUserFromBackend,
   loginWithCredentials,
   logout
@@ -92,5 +94,19 @@ describe("auth utilities", () => {
     const user = await getAuthenticatedUserFromBackend();
     expect(user).toBeNull();
     expect(localStorage.getItem("glossadocs_user")).toBeNull();
+  });
+
+  it("getCurrentUser clears malformed stored user data", () => {
+    localStorage.setItem("glossadocs_user", JSON.stringify({ id: "user-1", isGuest: false }));
+    const user = getCurrentUser();
+    expect(user).toBeNull();
+    expect(localStorage.getItem("glossadocs_user")).toBeNull();
+  });
+
+  it("continueAsGuest stores and returns guest profile", async () => {
+    const user = await continueAsGuest();
+    expect(user.isGuest).toBe(true);
+    expect(user.username).toBe("Guest");
+    expect(localStorage.getItem("glossadocs_user")).toContain('"isGuest":true');
   });
 });

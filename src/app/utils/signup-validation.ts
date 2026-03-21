@@ -1,16 +1,15 @@
 /**
- * Mirrors backend `auth-register-routes` rules so the UI can enable submit only when
- * the server will accept the payload (z.string().email() + password min 8).
+ * Keep frontend checks intentionally coarse and let the backend stay the source of truth.
+ * This avoids drift with server-side zod validation.
  */
 
 export const SIGNUP_PASSWORD_MIN_LENGTH = 8;
 
-/** Aligns with typical `z.string().email()` expectations (rejects values like `a@a`). */
+/** Basic UX check only. The backend performs full validation. */
 export function isSignupEmailValid(email: string): boolean {
   const trimmed = email.trim();
   if (!trimmed) return false;
-  // Requires a domain with at least one dot (covers common invalid short forms).
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
+  return trimmed.includes("@");
 }
 
 export function isSignupPasswordValid(password: string): boolean {

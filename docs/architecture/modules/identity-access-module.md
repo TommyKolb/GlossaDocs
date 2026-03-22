@@ -5,10 +5,11 @@
 - Validate JWT signature, issuer, audience, and expiry.
 - Build authenticated principal (`actorSub`, username, scopes).
 - Expose frontend bootstrap endpoint (`/me`).
+- Handle app-hosted auth routes (`/auth/login`, `/auth/logout`, `/auth/session`).
+- Support app-hosted account creation and password reset orchestration.
 
 **Does not do**
 - Password storage or verification logic.
-- Custom login or password reset flows.
 - Document mutation logic.
 
 ## Internal Architecture
@@ -40,9 +41,16 @@ flowchart TB
 - `user_profiles(sub text pk, username text, email text, created_at timestamptz, updated_at timestamptz)`
 
 ## External REST API
+- `POST /auth/login` -> exchanges username/password with Keycloak and sets httpOnly session cookie
+- `POST /auth/logout` -> clears session cookie
+- `GET /auth/session` -> `{ user: { sub, username, email? } }`
+- `POST /auth/register` -> creates a Keycloak user (dev currently bypasses email verification; re-enable before production)
+- `POST /auth/password-reset` -> triggers Keycloak reset flow and returns a generic response
 - `GET /me` -> `{ sub, username, email, scopes }`
 
 `/me.sub` is the external OIDC-standard field name. Internally this module maps `sub` to `AuthenticatedPrincipal.actorSub`.
+
+Session storage mode is environment-configurable: local/dev can use in-memory storage, while production should use Redis-backed sessions (`AUTH_SESSION_STORE=redis`).
 
 ## Classes, Methods, Fields
 - **Public** `AuthMiddleware`

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../api/endpoints", () => ({
+vi.mock("@/app/api/endpoints", () => ({
   documentsApi: {
     list: vi.fn(),
     get: vi.fn(),
@@ -10,12 +10,11 @@ vi.mock("../api/endpoints", () => ({
   }
 }));
 
-vi.mock("./session-mode", () => ({
-  isAuthenticatedMode: vi.fn(() => true),
-  requireAccessToken: vi.fn(() => "test-token")
+vi.mock("@/app/data/session-mode", () => ({
+  isAuthenticatedMode: vi.fn(() => true)
 }));
 
-vi.mock("../utils/db", () => ({
+vi.mock("@/app/utils/db", () => ({
   deleteDocument: vi.fn(),
   getAllDocuments: vi.fn(),
   getDocument: vi.fn(),
@@ -30,8 +29,8 @@ describe("document repository remote persistence", () => {
 
   it("creates first for unknown UUID in authenticated mode", async () => {
     const [{ saveDocument }, { documentsApi }] = await Promise.all([
-      import("./document-repository"),
-      import("../api/endpoints")
+      import("@/app/data/document-repository"),
+      import("@/app/api/endpoints")
     ]);
 
     const createdAtIso = "2026-03-10T12:00:00.000Z";
@@ -58,7 +57,7 @@ describe("document repository remote persistence", () => {
 
     expect(documentsApi.update).not.toHaveBeenCalled();
     expect(documentsApi.create).toHaveBeenCalledTimes(1);
-    expect(documentsApi.create).toHaveBeenCalledWith("test-token", {
+    expect(documentsApi.create).toHaveBeenCalledWith({
       title: "Draft",
       content: "<p>hello</p>",
       language: "en"

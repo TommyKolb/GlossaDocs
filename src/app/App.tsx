@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react';
 import { DocumentList } from './components/DocumentList';
 import { Editor } from './components/Editor';
 import { Login } from './components/Login';
+import { SignUp } from './components/SignUp';
+import { ForgotPassword } from './components/ForgotPassword';
 import { LoadingSpinner } from './components/LoadingSpinner';
 import { Toaster } from './components/ui/sonner';
 import { getAuthenticatedUserFromBackend, type User } from './utils/auth';
@@ -11,6 +13,7 @@ import { UI_CONSTANTS } from './utils/constants';
 export default function App() {
   const [user, setUser] = useState<User | null | undefined>(undefined);
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null | undefined>(undefined);
+  const [authView, setAuthView] = useState<'login' | 'signup' | 'forgot'>('login');
 
   // Check for existing user session on mount
   useEffect(() => {
@@ -43,7 +46,20 @@ export default function App() {
   if (!user) {
     return (
       <div className="size-full">
-        <Login onLoginSuccess={handleLoginSuccess} />
+        {authView === 'login' ? (
+          <Login
+            onLoginSuccess={handleLoginSuccess}
+            onCreateAccount={() => setAuthView('signup')}
+            onForgotPassword={() => setAuthView('forgot')}
+          />
+        ) : authView === 'signup' ? (
+          <SignUp
+            onCancel={() => setAuthView('login')}
+            onAccountCreated={() => setAuthView('login')}
+          />
+        ) : (
+          <ForgotPassword onCancel={() => setAuthView('login')} />
+        )}
         <Toaster />
       </div>
     );

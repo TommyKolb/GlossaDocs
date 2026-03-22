@@ -34,7 +34,8 @@ GlossaDocs aims to make multilingual writing feel native instead of bolted on. T
   - Per-document language selector for `en`, `de`, `ru`
   - Direction handling scaffold exists for future RTL languages
 - Auth state:
-  - Login/guest flow is currently simulated with local storage placeholders (no real backend auth yet)
+  - App-hosted login/signup/reset are backend-integrated through Keycloak and httpOnly session cookies.
+  - Guest mode remains local-only and stores state in local storage.
 
 
 ## Tech Stack
@@ -46,6 +47,11 @@ GlossaDocs aims to make multilingual writing feel native instead of bolted on. T
 - File conversion/export libraries:
   - `mammoth` for `.docx` import
   - `docx` and `jspdf` for export
+
+## Tests
+
+- **Frontend:** Vitest + Testing Library; spec files live under `src/test/` (`*.test.ts` / `*.test.tsx`). Run `npm run test:frontend` from the repo root.
+- **Backend:** Vitest; spec files live under `backend/test/`. Run `npm run test:backend` (or `npm --prefix backend test`).
 
 ## Running Locally
 
@@ -60,6 +66,7 @@ Run everything (frontend + backend + Postgres + Keycloak) with one command:
    - Frontend: `http://localhost:5173`
    - Backend health: `http://localhost:4000/health`
    - Keycloak admin: `http://localhost:8080` (admin/admin)
+  - Dev email inbox (Mailpit): `http://localhost:8025`
 
 Stop the stack:
 
@@ -67,9 +74,19 @@ Stop the stack:
 
 Docker dev credentials for authenticated mode:
 
-- Username: `devuser`
+- Email: `devuser@example.com`
 - Password: `devpass`
-- Backend token verification is configured to accept Keycloak issuer `http://localhost:8080/realms/glossadocs` in Docker mode.
+- In Docker mode, backend token verification uses the internal Keycloak issuer URL `http://keycloak:8080/realms/glossadocs`.
+
+### Creating an account (email + password) and resetting passwords
+
+This branch uses **Keycloak** for signup and password reset (the app does not store passwords).
+
+- **Create account**: on the login screen, click **Create account** and register with your email + password.
+- **Forgot password**: on the login screen, click **Forgot password?** and follow the email reset flow.
+- **Dev email inbox**: reset emails are delivered to Mailpit at `http://localhost:8025`.
+
+Privacy promise: **Your email will never be used for spam or shared with anyone else.**
 
 ### Quick start without database (guest mode only)
 
@@ -118,31 +135,30 @@ Set the backend URL with:
 
 If `VITE_API_BASE_URL` is not set, the frontend defaults to `http://localhost:4000`.
 
-### Dev Auth Placeholder (Temporary)
+### Authentication (App-Hosted UI + Keycloak + Cookie Session)
 
-Authentication is still mocked for development:
+Authenticated mode uses **Keycloak** for identity, with app-hosted auth UI and backend-managed sessions:
 
-- Frontend first tries to exchange credentials against local Keycloak (`devuser` / `devpass` in Docker setup).
-- If no OIDC token exchange is available, a JWT string can be provided manually as the password for development.
-- The access token is stored as `authToken` in local storage and sent as `Authorization: Bearer <token>`.
+- **Sign in**:
+  - On the login screen, enter your email + password once.
+  - The frontend calls backend `POST /auth/login`.
+  - The backend exchanges credentials with Keycloak and sets an **httpOnly session cookie**.
+  - The frontend bootstraps the user through `GET /auth/session`.
+- **Create account**:
+  - Uses the app-hosted **Create your account** screen, which calls `POST /auth/register` on the backend.
+  - The backend creates the user in Keycloak; the app never stores or sees the raw password.
+  - Current dev setup does **not** enforce email verification yet so login works without outbound email delivery.
+- **Forgot password**:
+  - Uses the app-hosted **Reset your password** screen, which calls `POST /auth/password-reset`.
+  - The backend asks Keycloak to send a reset email. The user sees a generic success message, regardless of whether the account exists, to avoid leaking account existence.
 
-Practical implication:
+Security notes:
 
-- For Docker full-stack mode, use `devuser` / `devpass`.
-
-### OIDC/Keycloak Replacement TODO (Planned)
-
-When moving to real authentication (OIDC Auth Code + PKCE), replace the placeholder logic in:
-
-- `src/app/utils/auth.ts`
-  - `loginWithCredentials()` -> replace with real OIDC sign-in flow/token acquisition
-  - `getAccessToken()` storage strategy -> replace with secure token/session handling
-  - `logout()` -> call IdP end-session / revoke tokens as appropriate
-  - `getAuthenticatedUserFromBackend()` -> add refresh/reauth behavior on auth failures
-- `src/app/components/Login.tsx`
-  - replace mocked login form submission with OIDC sign-in entrypoint
-
-Keep guest mode available and local-only unless product requirements change.
+- Passwords are handled **only** by Keycloak; the app does not store them.
+- Authenticated browser sessions are stored in backend-managed httpOnly cookies (no bearer token in frontend local storage).
+- All user data persisted by the app continues to respect the existing encryption and sanitization rules documented below.
+- In production, `CORS_ALLOWED_ORIGINS` must be explicit (wildcard `*` is rejected when credentialed cookies are enabled).
+- Before production: re-enable mandatory email verification for new accounts and remove dev credential hints from the login UI.
 
 ### Adding New Languages
 
@@ -195,6 +211,6 @@ The frontend rich-text editor should only expose formatting that survives this s
 
 ## Current Limitations
 
-- Backend exists, but frontend authentication is still in temporary dev mode (not real OIDC login flow yet).
+- Session storage defaults to in-memory for local/dev. Use `AUTH_SESSION_STORE=redis` with `REDIS_URL` for multi-instance production.
 - No collaboration/sharing yet.
 - Language features are in progress; current language selection is foundational, with advanced input-method behavior planned.

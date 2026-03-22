@@ -8,23 +8,51 @@ import type {
   UserSettings
 } from "./contracts";
 
+export interface AuthSessionUser {
+  sub: string;
+  username: string;
+  email?: string;
+}
+
+export interface AuthSessionResponse {
+  user: AuthSessionUser;
+}
+
+interface AuthRegisterResponse {
+  message: string;
+}
+
+interface AuthPasswordResetResponse {
+  message: string;
+}
+
 export const meApi = {
-  get: (token: string) => apiRequest<MeResponse>("/me", { token })
+  get: () => apiRequest<MeResponse>("/me")
+};
+
+export const authApi = {
+  login: (payload: { username: string; password: string }) =>
+    apiRequest<AuthSessionResponse>("/auth/login", { method: "POST", body: payload }),
+  logout: () => apiRequest<void>("/auth/logout", { method: "POST" }),
+  session: () => apiRequest<AuthSessionResponse>("/auth/session"),
+  register: (payload: { email: string; password: string }) =>
+    apiRequest<AuthRegisterResponse>("/auth/register", { method: "POST", body: payload }),
+  requestPasswordReset: (payload: { email: string }) =>
+    apiRequest<AuthPasswordResetResponse>("/auth/password-reset", { method: "POST", body: payload })
 };
 
 export const settingsApi = {
-  get: (token: string) => apiRequest<UserSettings>("/settings", { token }),
-  update: (token: string, payload: UpdateUserSettingsPayload) =>
-    apiRequest<UserSettings>("/settings", { method: "PUT", token, body: payload })
+  get: () => apiRequest<UserSettings>("/settings"),
+  update: (payload: UpdateUserSettingsPayload) =>
+    apiRequest<UserSettings>("/settings", { method: "PUT", body: payload })
 };
 
 export const documentsApi = {
-  list: (token: string) => apiRequest<ApiDocument[]>("/documents", { token }),
-  get: (token: string, id: string) => apiRequest<ApiDocument>(`/documents/${id}`, { token }),
-  create: (token: string, payload: CreateApiDocumentPayload) =>
-    apiRequest<ApiDocument>("/documents", { method: "POST", token, body: payload }),
-  update: (token: string, id: string, payload: UpdateApiDocumentPayload) =>
-    apiRequest<ApiDocument>(`/documents/${id}`, { method: "PUT", token, body: payload }),
-  remove: (token: string, id: string) =>
-    apiRequest<void>(`/documents/${id}`, { method: "DELETE", token })
+  list: () => apiRequest<ApiDocument[]>("/documents"),
+  get: (id: string) => apiRequest<ApiDocument>(`/documents/${id}`),
+  create: (payload: CreateApiDocumentPayload) =>
+    apiRequest<ApiDocument>("/documents", { method: "POST", body: payload }),
+  update: (id: string, payload: UpdateApiDocumentPayload) =>
+    apiRequest<ApiDocument>(`/documents/${id}`, { method: "PUT", body: payload }),
+  remove: (id: string) => apiRequest<void>(`/documents/${id}`, { method: "DELETE" })
 };

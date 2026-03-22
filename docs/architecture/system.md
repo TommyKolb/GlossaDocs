@@ -1,111 +1,118 @@
 # GlossaDocs Backend System Architecture
 
 This is the system-level architecture for the single backend that supports:
+
 - Story 1: basic editor with durable document save
 - Story 3: Russian on-screen keyboard with persisted user preference
 
+**Module-level detail:** each bounded area has a dedicated page under [Module Architecture](backend-architecture.md#module-architecture) (`docs/architecture/modules/`).
+
 ## Design Goals
+
 - One backend system, no story-specific backend silos.
-- Standards-based authentication (OIDC/Keycloak), no custom password handling.
-- Durable storage for all required features.
-- Local-first development flow with minimal AWS architecture drift.
+- Standards-based authentication (OIDC/Keycloak); the app does not store passwords.
+- Durable storage for documents, settings, and audit events; session tokens stored server-side (memory or Redis) when using cookie sessions.
+- Local-first development with minimal AWS architecture drift.
 
 ## Unified System Description
-GlossaDocs uses a modular monolith in Fastify. The API edge receives all web traffic, validates requests, authenticates via JWT, and routes to domain modules. Domain modules persist state in PostgreSQL and enforce authorization invariants (especially ownership for documents).
+
+GlossaDocs uses a **modular monolith** in Fastify (`backend/src/app.ts` composes plugins). Incoming requests pass through **CORS**, **cookies**, and a **global error handler** ([API Edge Module](modules/api-edge-module.md)), then **route plugins** for identity, documents, settings, and **response-time audit hooks** ([Operational Store Module](modules/operational-store-module.md)).
+
+**Authentication:** the API accepts either an **httpOnly session cookie** (opaque id → access token in `AuthSessionStore`) or **`Authorization: Bearer`** with the same JWT verifier ([Identity and Access Module](modules/identity-access-module.md)). Protected routes resolve `actorSub` from the verified token and enforce **ownership** in SQL (`owner_id = actorSub`) for documents and settings.
 
 Naming conventions:
+
 - OIDC claim / external identity field: `sub`
 - Internal runtime identity variable: `actorSub`
 - Domain storage owner key: `owner_id`
 
 Key architectural separations:
-- **Identity and access**: token verification and principal extraction
-- **Documents**: user-owned document CRUD
-- **Input preferences**: user settings like `keyboardVisible` and `lastUsedLocale`
-- **API edge/platform**: validation, rate limiting, error mapping, health
+
+- **Identity and access:** JWT verification, session-backed login/logout, Keycloak admin flows for register / password reset
+- **Documents:** user-owned document CRUD, sanitization, optional encryption at rest
+- **Input preferences:** per-user settings (`keyboardVisible`, `lastUsedLocale`)
+- **API edge:** centralized error mapping and health/readiness endpoints (no domain logic)
+- **Operational store:** append-only HTTP audit trail in PostgreSQL (no idempotency store in this codebase)
 
 ## Unified Mermaid Diagram
 
 ```mermaid
 flowchart LR
-  user[WriterBrowser] --> fe[ReactFrontend]
-  fe -->|"EmailPasswordToBackend"| api[FastifyApi]
-  api -->|"OIDC TokenExchange"| kc[KeycloakIdP]
-  fe -->|"HttpOnlySessionCookie"| api
-
-  subgraph app [GlossaDocsBackend]
-    edge[ApiEdgeModule]
-    idm[IdentityAccessModule]
-    docm[DocumentModule]
-    setm[InputPreferencesModule]
-    obs[OperationalStoreModule]
-    edge --> idm
-    edge --> docm
-    edge --> setm
-    edge --> obs
+  fe[ReactFrontend] -->|"Cookie + JSON API"| fastify[FastifyApp]
+  fastify -->|"Resource Owner Password"| kc[Keycloak]
+  subgraph modules [Domain and cross-cutting plugins]
+    edge[ApiEdge errors + health]
+    idm[IdentityAccess]
+    docm[Documents]
+    setm[InputPreferences]
+    obs[OperationalStore audit hook]
   end
-
-  idm -->|"JWKS / OIDC metadata cache"| kc
-  docm -->|"CRUD + ownership checks"| pg[(PostgreSQL)]
-  setm -->|"User settings"| pg
-  obs -->|"Audit + optional idempotency"| pg
+  fastify --> modules
+  idm -->|"JWKS verify access tokens"| kc
+  docm --> pg[(PostgreSQL)]
+  setm --> pg
+  obs -->|"insert api_audit_events"| pg
 ```
 
-## Design Justification (Senior Review)
-- **Security boundary correctness**: credential verification remains in Keycloak; app verifies signed tokens only.
-- **Operational pragmatism**: a modular monolith avoids early distributed-system complexity while preserving strong boundaries.
-- **Extensibility**: Story 3 extends settings without changing document APIs or auth model.
-- **Cloud portability**: unchanged boundaries across local Docker and AWS ECS/RDS.
+### Design Justification (Senior Review)
+
+- **Security boundary:** credential verification stays in Keycloak; GlossaDocs verifies **signed** JWTs and never persists user passwords.
+- **Modular monolith:** avoids distributed-system overhead while keeping replaceable ports (`DocumentRepository`, `SettingsRepository`, `AuditWriter`).
+- **Extensibility:** Story 3 adds settings without changing document or auth contracts.
+- **Cloud portability:** same module boundaries for Docker Compose, ECS, or Lambda (see `README.md`).
 
 ## Cross-Module REST API Surface
-- `GET /health`
-- `GET /ready`
-- `POST /auth/login`
-- `POST /auth/logout`
-- `GET /auth/session`
-- `POST /auth/register`
-- `POST /auth/password-reset`
-- `GET /me`
-- `GET /documents`
-- `GET /documents/:id`
-- `POST /documents`
-- `PUT /documents/:id`
-- `DELETE /documents/:id`
-- `GET /settings`
-- `PUT /settings`
 
-All endpoints except `/health`, `/ready`, and public auth bootstrap routes require an authenticated session (cookie or Bearer JWT).
+| Area | Endpoints |
+|------|-----------|
+| Health | `GET /health`, `GET /ready` |
+| Public auth metadata | `GET /auth/public` (optional; OIDC URLs for alternate clients) |
+| Session auth | `POST /auth/login`, `POST /auth/logout`, `GET /auth/session` |
+| Account | `POST /auth/register`, `POST /auth/password-reset` |
+| Authenticated | `GET /me`, `GET/POST/PUT/DELETE /documents`, `GET/PUT /settings` |
+
+**Auth model:** `GET /health` and `GET /ready` are unauthenticated. **`POST /auth/login`**, **`POST /auth/register`**, **`POST /auth/password-reset`**, and **`GET /auth/public`** do not require a prior session (logout clears cookie without Bearer). **`GET /auth/session`** requires a valid session cookie. All other routes in the table above use **`requireAuth`**: session cookie **or** `Authorization: Bearer` with a valid access token.
 
 ## Security Baseline
-- Strict JWT verification: signature, issuer, audience, expiry.
-- Account creation defaults to unverified email and requires verification in Keycloak.
-- Ownership checks in repository predicates (`owner_id = actorSub`).
-- Input schema validation and payload limits.
-- HTML sanitization on document write path.
-- Audit logs for mutating operations.
+
+- JWT verification: signature (JWKS), issuer, audience, expiry (`JoseTokenVerifier`).
+- Registration and password reset are **delegated to Keycloak** (Admin API). Current server code may mark new users **email-verified** for dev convenience; production posture should follow Keycloak realm policy (see `HttpKeycloakAdminClient` in the identity module doc).
+- Ownership enforced in repositories: `owner_id = actorSub` for documents and settings.
+- Request bodies validated with **Zod** on mutating routes.
+- HTML sanitization on document write path (see [Document Module](modules/document-module.md)).
+- Mutating requests logged to **`api_audit_events`** (see [Operational Store Module](modules/operational-store-module.md)).
+
+**Not implemented in this backend:** application-level rate limiting, idempotency key storage, or request body size overrides beyond Fastify defaults.
 
 ## Capacity Baseline
-- 1 Fastify instance (0.5 vCPU, 1 GB RAM)
-- 1 PostgreSQL instance with pooling
+
+- 1 Fastify instance (example: 0.5 vCPU, 1 GB RAM)
+- 1 PostgreSQL instance with connection pooling (`backend/src/shared/db.ts`)
 - Keycloak single node for low traffic
 
-This comfortably supports 10 concurrent users for CRUD + settings operations.
+This comfortably supports small-team CRUD + settings workloads; tune pools and instances for production SLAs.
 
 ## Deployment Mapping
-- **Local**: Docker Compose with API + PostgreSQL + Keycloak
-- **AWS target**: API on ECS/EC2, PostgreSQL on RDS, Keycloak on ECS/EC2, CloudFront + ALB edge
+
+- **Local:** Docker Compose with API + PostgreSQL + Keycloak (+ optional Redis for sessions)
+- **AWS target:** API on ECS/EC2 or Lambda, PostgreSQL on RDS, Keycloak on ECS/EC2, CloudFront + ALB edge
 
 ## Runtime Configuration
-- `API_PORT`
-- `DATABASE_URL`
-- `OIDC_ISSUER_URL`
-- `OIDC_AUDIENCE`
-- `OIDC_JWKS_URL`
-- `CORS_ALLOWED_ORIGINS`
-- `AUTH_SESSION_STORE`
-- `REDIS_URL`
-- `AUTH_REDIS_KEY_PREFIX`
-- `RATE_LIMIT_WINDOW_MS`
-- `RATE_LIMIT_MAX_REQUESTS`
-- `NODE_ENV`
 
+Variables consumed via `getConfig` / `buildApp` in this repo (see `backend/src/shared/config.ts` and `backend/src/app.ts`):
+
+| Variable | Purpose |
+|----------|---------|
+| `NODE_ENV` | `development` \| `test` \| `production` |
+| `API_PORT` | Listen port |
+| `CORS_ALLOWED_ORIGINS` | Comma-separated origins or `*` (wildcard rejected in production with credentials) |
+| `DATABASE_URL` | PostgreSQL connection string |
+| `OIDC_ISSUER_URL`, `OIDC_AUDIENCE`, `OIDC_JWKS_URL` | JWT verification for `JoseTokenVerifier` |
+| `OIDC_PUBLIC_ISSUER_URL`, `OIDC_PUBLIC_CLIENT_ID`, `OIDC_PUBLIC_REDIRECT_URI` | Optional; `GET /auth/public` |
+| `KEYCLOAK_ADMIN_URL`, `KEYCLOAK_REALM`, `KEYCLOAK_ADMIN_USERNAME`, `KEYCLOAK_ADMIN_PASSWORD` | Keycloak Admin API (register / reset) |
+| `KEYCLOAK_TOKEN_URL`, `KEYCLOAK_CLIENT_ID`, `KEYCLOAK_CLIENT_SECRET` | Resource-owner password grant for `POST /auth/login` |
+| `AUTH_SESSION_COOKIE_NAME`, `AUTH_SESSION_TTL_SECONDS`, `AUTH_SESSION_SECURE_COOKIE` | Session cookie |
+| `AUTH_SESSION_STORE`, `REDIS_URL`, `AUTH_REDIS_KEY_PREFIX` | `memory` (dev) or `redis` (production sessions) |
+| `DOCUMENT_ENCRYPTION_KEY` | Optional AES-GCM for document title/content at rest |
+
+For Lambda/OIDC deploy targets, see `README.md` (OIDC env vars for the handler).

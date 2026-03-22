@@ -72,15 +72,17 @@ All **application** relational state is in the database named in **`DATABASE_URL
 
 ### Docker Compose (recommended full stack)
 
-From the **repository root** (runs API, Postgres, Keycloak, Mailpit, frontend):
+From the **repository root** (runs API, Postgres, Keycloak, Mailpit, frontend). You do **not** need `npm install` on the host for this path: images build with `npm ci` inside Docker. You **do** need the Docker daemon running.
 
 ```bash
 npm run dev:docker
 ```
 
+Equivalent without Node/npm: `docker compose up --build`. Stop with `npm run dev:docker:down` or `docker compose down`.
+
 The backend container runs migrations on startup (`node-pg-migrate up`) then `node dist/server.js`.
 
-**Stop (containers down, named volumes preserved unless you remove them):**
+**Stop (containers down; volumes kept unless you use `-v`):**
 
 ```bash
 npm run dev:docker:down

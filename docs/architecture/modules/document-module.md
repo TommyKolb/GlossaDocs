@@ -1,103 +1,160 @@
 # Document Module
 
+**Code path:** `backend/src/modules/documents/`
+
+Owns **user-scoped rich-text documents**: create, list, read, update, delete. Enforces **ownership** with `owner_id = actorSub` on every query. Applies **HTML sanitization** on write via `DocumentService` (`backend/src/shared/document-sanitizer.ts`). Optional **AES-GCM encryption** for `title` and `content` at rest when `DOCUMENT_ENCRYPTION_KEY` is set (`PgDocumentRepository` + `backend/src/shared/document-encryption.ts`).
+
 ## Features
-**Can do**
-- Create/list/read/update/delete documents for authenticated users.
-- Enforce strict ownership for all reads/writes.
-- Persist title/content/language with creation and update timestamps.
 
-**Does not do**
-- Realtime collaboration.
-- Operational transform / CRDT merge logic.
-- Full-text indexing/search in V1.
+**What it does**
+- CRUD for documents keyed by authenticated **`actorSub`** (stored as `owner_id`).
+- Validates **language** against `SUPPORTED_DOCUMENT_LANGUAGES` (`en`, `de`, `ru`) at the HTTP and DB constraint level.
+- Sanitizes **title** (plain text) and **content** (allowlisted HTML) before persistence.
+- Lists documents for an owner ordered by **`updated_at` descending**.
+- Encrypts title/content in the repository layer when an encryption key is configured.
 
-## Internal Architecture
+**What it does not do**
+- Real-time collaboration, OT/CRDT, or locking.
+- Full-text search or secondary indexes on body text.
+- Sharing or ACLs beyond single-owner rows.
+- File/blob storage for attachments (images are embedded as data URLs in HTML after frontend constraints).
+
+## Internal architecture
 
 ```mermaid
 flowchart TB
-  ctrl[DocumentsController] --> svc[DocumentService]
-  svc --> repo[DocumentRepository]
-  repo --> db[(PostgreSQL documents)]
+  dr[documentRoutes Fastify plugin]
+  ra[requireAuth + requireActorSub]
+  svc[DocumentService]
+  repo[DocumentRepository]
+  pg[PgDocumentRepository]
+  sql[(PostgreSQL documents)]
+  dr --> ra
+  dr --> svc
+  svc --> repo
+  repo --> pg
+  pg --> sql
+  san[sanitizeDocumentTitle/Content] -.-> svc
 ```
 
-### Design Justification
-- Service layer centralizes invariants (ownership, timestamp policy).
-- Repository isolates SQL and supports deterministic tests.
-- Controller remains thin and transport-focused.
+### Design justification (senior review)
 
-## Data Abstractions
-- `DocumentAggregate`
-  - `id`, `ownerId`, `title`, `contentHtml`, `language`, `createdAt`, `updatedAt`
-- `DocumentPatch`
-  - partial update DTO (`title`, `content`, `language`)
+- **`DocumentRepository` interface** enables unit tests of `DocumentService` with an in-memory fake without PostgreSQL.
+- **Sanitization in the service layer** keeps routes thin and guarantees no repository bypasses policy.
+- **Encryption at the repository** keeps SQL unaware of plaintext shape; ciphertext is still `text` in PostgreSQL.
+- **404 for missing or cross-tenant id** avoids leaking existence of other users’ UUIDs.
 
-## Stable Storage Mechanism
-- PostgreSQL `documents` table.
+## Data abstractions
 
-## Storage Schemas
-- `documents(id uuid pk, owner_id text not null, title text not null, content text not null, language text not null, created_at timestamptz not null, updated_at timestamptz not null)`
-- Indexes:
-  - `idx_documents_owner_updated(owner_id, updated_at desc)`
-  - `idx_documents_id_owner(id, owner_id)`
+| Type | Purpose |
+|------|---------|
+| `DocumentAggregate` | API/repository result: `id`, `ownerId`, `title`, `content`, `language`, ISO8601 `createdAt`/`updatedAt`. |
+| `CreateDocumentDto` | `title`, `content`, `language`. |
+| `UpdateDocumentDto` | Optional `title`, `content`, `language`. |
+| `DocumentRepository` | Persistence port: `findByOwner`, `findOwnedById`, `insert`, `updateOwned`, `deleteOwned`. |
+| `DocumentLanguage` | Union type from `shared/document-languages.ts`. |
 
-## External REST API
-- `GET /documents`
-- `GET /documents/:id`
-- `POST /documents`
-- `PUT /documents/:id`
-- `DELETE /documents/:id`
+## Stable storage mechanism
 
-## Classes, Methods, Fields
-- **Public** `DocumentsController`
-  - `public list(req, reply): Promise<void>`
-  - `public get(req, reply): Promise<void>`
-  - `public create(req, reply): Promise<void>`
-  - `public update(req, reply): Promise<void>`
-  - `public remove(req, reply): Promise<void>`
-- **Public** `DocumentService`
-  - `public listByOwner(actorSub: string): Promise<DocumentAggregate[]>`
-  - `public getOwned(actorSub: string, id: string): Promise<DocumentAggregate | null>`
-  - `public createOwned(actorSub: string, payload: CreateDocumentDto): Promise<DocumentAggregate>`
-  - `public updateOwned(actorSub: string, id: string, patch: UpdateDocumentDto): Promise<DocumentAggregate | null>`
-  - `public deleteOwned(actorSub: string, id: string): Promise<boolean>`
-  - `private now(): Date`
-- **Public** `DocumentRepository`
-  - `public findByOwner(actorSub: string): Promise<DocumentRow[]>`
-  - `public findOwnedById(actorSub: string, id: string): Promise<DocumentRow | null>`
-  - `public insert(row: NewDocumentRow): Promise<DocumentRow>`
-  - `public updateOwned(actorSub: string, id: string, patch: PartialDocumentRow): Promise<DocumentRow | null>`
-  - `public deleteOwned(actorSub: string, id: string): Promise<boolean>`
+**PostgreSQL** table **`documents`** — durable across process restarts. All document state lives here for authenticated API usage.
 
-`actorSub` is mapped to `owner_id` in SQL predicates.
+## Storage schema (PostgreSQL)
 
-## Class Hierarchy Diagram
+**Table `documents`** (from migrations)
+
+| Column | Type | Notes |
+|--------|------|--------|
+| `id` | `uuid` | PK, `gen_random_uuid()` |
+| `owner_id` | `text` | Keycloak `sub` |
+| `title` | `text` | Plain text after sanitization; may be ciphertext |
+| `content` | `text` | Sanitized HTML; may be ciphertext |
+| `language` | `text` | Check: `in ('en','de','ru')` |
+| `created_at` | `timestamptz` | |
+| `updated_at` | `timestamptz` | Bumped on update |
+
+**Indexes:** `(owner_id, updated_at)`, `(id, owner_id)`.
+
+## External HTTP API
+
+| Method | Path | Body | Response |
+|--------|------|------|----------|
+| `GET` | `/documents` | — | `DocumentAggregate[]` |
+| `GET` | `/documents/:id` | — | `DocumentAggregate` or `404` |
+| `POST` | `/documents` | `CreateDocumentDto` (Zod) | `201` + aggregate |
+| `PUT` | `/documents/:id` | Partial update (≥1 field) | aggregate or `404` |
+| `DELETE` | `/documents/:id` | — | `204` or `404` |
+
+**Auth:** `requireAuth` + `requireActorSub` on all routes.
+
+**Zod:** `id` param must be UUID string.
+
+## Declarations (TypeScript)
+
+### `types.ts` — exported
+
+- `DocumentAggregate`, `CreateDocumentDto`, `UpdateDocumentDto`, re-export `DocumentLanguage`.
+
+### `document-repository.ts` — exported
+
+| Symbol | Visibility |
+|--------|------------|
+| `DocumentRepository` interface | **Exported** |
+| Methods `findByOwner`, `findOwnedById`, `insert`, `updateOwned`, `deleteOwned` | **Exported** (interface) |
+
+### `document-service.ts`
+
+| Symbol | Visibility |
+|--------|------------|
+| `DocumentService` class | **Exported** |
+| `repository` | **private** field |
+| `listByOwner`, `getOwned`, `createOwned`, `updateOwned`, `deleteOwned` | **public** methods |
+
+### `pg-document-repository.ts`
+
+| Symbol | Visibility |
+|--------|------------|
+| `PgDocumentRepositoryOptions` | **Exported** |
+| `PgDocumentRepository` class | **Exported** |
+| `databaseUrl`, `encryptionKey` | **private** fields |
+| `findByOwner`, `findOwnedById`, `insert`, `updateOwned`, `deleteOwned` | **public** methods |
+| `DocumentRow` interface, `toAggregate` function | **Not exported** (file-private) |
+
+### `document-routes.ts`
+
+| Symbol | Visibility |
+|--------|------------|
+| `documentRoutes` | **Exported** (`FastifyPluginAsync`) |
+| Zod schemas `createDocumentSchema`, `updateDocumentSchema`, `paramsSchema` | **Not exported** |
+
+## Class hierarchy (module-internal)
+
 ```mermaid
 classDiagram
-  class NullableDocumentAggregate
-  class NullableDocumentRow
-  class DocumentsController {
-    +list(req, reply) Promise~void~
-    +get(req, reply) Promise~void~
-    +create(req, reply) Promise~void~
-    +update(req, reply) Promise~void~
-    +remove(req, reply) Promise~void~
+  class DocumentRepository {
+    <<interface>>
+    +findByOwner(actorSub)
+    +findOwnedById(actorSub, id)
+    +insert(actorSub, payload)
+    +updateOwned(actorSub, id, patch)
+    +deleteOwned(actorSub, id)
+  }
+  class PgDocumentRepository {
+    -databaseUrl
+    -encryptionKey
+    +findByOwner(actorSub)
+    +findOwnedById(actorSub, id)
+    +insert(actorSub, payload)
+    +updateOwned(actorSub, id, patch)
+    +deleteOwned(actorSub, id)
   }
   class DocumentService {
-    +listByOwner(actorSub) Promise~DocumentAggregate[]~
-    +getOwned(actorSub, id) Promise~NullableDocumentAggregate~
-    +createOwned(actorSub, payload) Promise~DocumentAggregate~
-    +updateOwned(actorSub, id, patch) Promise~NullableDocumentAggregate~
-    +deleteOwned(actorSub, id) Promise~boolean~
-    -now() Date
+    -repository DocumentRepository
+    +listByOwner(actorSub)
+    +getOwned(actorSub, id)
+    +createOwned(actorSub, payload)
+    +updateOwned(actorSub, id, patch)
+    +deleteOwned(actorSub, id)
   }
-  class DocumentRepository {
-    +findByOwner(actorSub) Promise~DocumentRow[]~
-    +findOwnedById(actorSub, id) Promise~NullableDocumentRow~
-    +insert(row) Promise~DocumentRow~
-    +updateOwned(actorSub, id, patch) Promise~NullableDocumentRow~
-    +deleteOwned(actorSub, id) Promise~boolean~
-  }
-  DocumentsController --> DocumentService
-  DocumentService --> DocumentRepository
+  DocumentRepository <|.. PgDocumentRepository
+  DocumentService --> DocumentRepository : uses
 ```
-

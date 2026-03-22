@@ -1,89 +1,122 @@
 # API Edge Module
 
+**Code path:** `backend/src/modules/api-edge/`
+
+This module is the HTTP **cross-cutting surface** for consistent errors and platform health. It does **not** register domain routes; `buildApp` in `backend/src/app.ts` composes Fastify plugins from domain modules alongside this one.
+
 ## Features
-**Can do**
-- Route registration and request lifecycle orchestration.
-- Input validation, auth guard invocation, error translation.
-- CORS, rate limiting, idempotency handling, request tracing.
-- Health/readiness endpoint handling.
 
-**Does not do**
-- Document/domain business logic.
-- Ownership decisions or settings logic.
-- Long-term data modeling for domain entities.
+**What it does**
+- Registers a **global Fastify error handler** that maps typed application errors and validation failures to stable JSON responses.
+- Exposes **liveness** (`GET /health`) and **readiness** (`GET /ready`) routes for orchestrators and load balancers.
 
-## Internal Architecture
-The API edge is the composition root. It wires middleware, controllers, and domain service ports.
+**What it does not do**
+- Authentication, authorization, or session handling (see [Identity and Access Module](identity-access-module.md)).
+- Domain rules for documents or settings.
+- Rate limiting, request tracing middleware, or idempotency storage (none of these are implemented in the current codebase).
+- Audit persistence (see [Operational Store Module](operational-store-module.md); wired separately in `app.ts`).
+
+## Internal architecture
+
+The module is intentionally small: two exported units with no shared internal state. The composition root (`buildApp`) registers `registerErrorHandler` once, then mounts `healthRoutes` as a Fastify plugin.
 
 ```mermaid
-flowchart TB
-  req[HTTPRequest] --> middleware[Validation + Auth + RateLimit]
-  middleware --> router[RouteHandler]
-  router --> service[DomainServicePort]
-  service --> router
-  router --> resp[HTTPResponse]
-  middleware --> err[ErrorMapper]
-  err --> resp
+flowchart LR
+  subgraph apiEdge [API Edge Module]
+    eh[registerErrorHandler]
+    hr[healthRoutes]
+  end
+  req[IncomingRequest] --> fastify[Fastify pipeline]
+  fastify --> eh
+  fastify --> hr
+  eh -->|ApiError / ZodError / unknown| json[JSON error body]
+  hr -->|GET /health /ready| ok[JSON status payload]
 ```
 
-### Design Justification
-- Keeps HTTP/framework concerns separate from domain logic.
-- Enables domain testing without HTTP stack dependency.
-- Supports incremental hardening (rate limits, idempotency) at a single edge point.
+### Design justification (senior review)
 
-## Data Abstractions
-- `RequestContext`: `requestId`, `actorSub`, `scopes`, trace metadata
-- `ApiError`: typed hierarchy mapped to deterministic HTTP responses
+- **Single error handler** centralizes response shape (`code`, `message`, `requestId`) so domain modules can throw `ApiError` or rely on Zod without duplicating HTTP mapping.
+- **Health vs readiness** are split so you can later make `/ready` depend on DB or JWKS without changing liveness semantics.
+- **No faux “API server” class** keeps the module aligned with Fastify’s plugin model and avoids an extra abstraction layer that the repo does not use.
 
-## Stable Storage Mechanism
-PostgreSQL operational tables (phased):
-- Required now: `api_audit_events`
-- Optional later (endpoint-driven): `api_idempotency_keys`
-- Rate limiting persistence is not required in V1; prefer edge controls (ALB/WAF) or in-process guard for low traffic.
+Related cross-cutting types live outside this folder: `RequestContext` and `createRequestContext` are in `backend/src/shared/request-context.ts` and are attached in `app.ts`’s `onRequest` hook.
 
-## Storage Schemas
-- `api_audit_events(id uuid pk, actor_sub text, route text, method text, status_code int, created_at timestamptz, payload_hash text)`
-- `api_idempotency_keys(key text pk, actor_sub text, route text, response_code int, response_body jsonb, expires_at timestamptz)` (optional, when endpoint idempotency is required)
+## Data abstraction
 
-## External REST API
-- `GET /health`
-- `GET /ready`
+- **Error mapping input:** `ApiError` (`backend/src/shared/api-error.ts`), `ZodError`, or any other `Error`.
+- **No persistent domain entities** in this module.
 
-## Classes, Methods, Fields
-- **Public** `ApiServer`
-  - `public start(): Promise<void>`
-  - `public stop(): Promise<void>`
-  - `private app: FastifyInstance`
-- **Public** `RequestContextFactory`
-  - `public fromRequest(req): RequestContext`
-  - `private buildRequestId(): string`
-- **Public** `RateLimitGuard`
-  - `public check(ctx: RequestContext): Promise<void>`
-  - `private repo: RateLimitRepository`
-- **Private** `ErrorMapper`
-  - `public toHttp(err: unknown): HttpErrorPayload`
+## Stable storage mechanism
 
-## Class Hierarchy Diagram
+**None.** This module does not own durable state. Readiness may later query PostgreSQL or external dependencies; today `/ready` returns a static payload.
+
+## Storage / wire schemas
+
+**HTTP error body (non-Zod failure path)**
+
+| Field | Type | Notes |
+|-------|------|--------|
+| `code` | string | e.g. `INTERNAL_ERROR` |
+| `message` | string | Safe message for clients |
+| `requestId` | string | Fastify request id |
+
+**Zod validation error (`400`)**
+
+| Field | Type | Notes |
+|-------|------|--------|
+| `code` | `"VALIDATION_ERROR"` | Fixed |
+| `message` | string | Fixed summary |
+| `requestId` | string | |
+| `details` | array | Zod `issues` |
+
+**Health**
+
+- `GET /health` → `{ "status": "ok" }`
+- `GET /ready` → `{ "status": "ready" }` (placeholder; no dependency checks yet)
+
+## External API (callers of this module)
+
+Other backend code does not “call” the API edge as a library; it **registers** these hooks/routes on a `FastifyInstance`. The **HTTP surface** this module adds is:
+
+| Method | Path | Auth |
+|--------|------|------|
+| `GET` | `/health` | Public |
+| `GET` | `/ready` | Public |
+
+## Declarations (TypeScript)
+
+### `error-handler.ts`
+
+| Symbol | Kind | Visibility | Notes |
+|--------|------|------------|--------|
+| `registerErrorHandler` | function | **Exported** — public API of this file | Registers `app.setErrorHandler(...)`. |
+
+**Module-private:** none (single export).
+
+### `health-routes.ts`
+
+| Symbol | Kind | Visibility | Notes |
+|--------|------|------------|--------|
+| `healthRoutes` | `FastifyPluginAsync` | **Exported** — public API of this file | Registers `/health` and `/ready`. |
+
+**Module-private:** none.
+
+## Class hierarchy (module-internal)
+
+This module has **no classes**. Relationships are “registers on” Fastify:
+
 ```mermaid
 classDiagram
-  class ApiServer {
-    +start() Promise~void~
-    +stop() Promise~void~
-    -app FastifyInstance
+  class FastifyInstance {
+    <<Fastify>>
   }
-  class RequestContextFactory {
-    +fromRequest(req) RequestContext
-    -buildRequestId() string
+  class registerErrorHandler {
+    <<function>>
+    +registerErrorHandler(app)
   }
-  class RateLimitGuard {
-    +check(ctx) Promise~void~
-    -repo RateLimitRepository
+  class healthRoutes {
+    <<FastifyPluginAsync>>
   }
-  class ErrorMapper {
-    +toHttp(err) HttpErrorPayload
-  }
-  ApiServer --> RequestContextFactory
-  ApiServer --> RateLimitGuard
-  ApiServer --> ErrorMapper
+  FastifyInstance <.. registerErrorHandler : sets error handler
+  FastifyInstance <.. healthRoutes : registers routes
 ```
-

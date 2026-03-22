@@ -2,97 +2,98 @@
 
 ## Header
 - **Story**: As a multilingual writer, I want an integrated on-screen keyboard for a non-Latin alphabet so that I can type special characters directly inside the editor.
-- **V1 scope**: Russian keyboard only (Cyrillic), phonetic mapping.
-- **Status**: Draft for implementation
+- **V1 product focus**: Russian Cyrillic using a **Latin-key phonetic mapping** (type Latin letters; get Cyrillic output). The same UI component also shows **English** and **German** Latin layouts when those document languages are selected.
+- **Status**: **Core behavior implemented** in the editor (panel, per-language layouts, physical-key remapping when the keyboard is enabled, visibility toggle + persistence). **Not implemented**: long-press variant picker; dedicated layout IDs (e.g. `ru-phonetic-v1`) separate from the `Language` enum.
 - **Depends on**:
-  - `docs/backend-architecture.md`
-  - `docs/specs/user-story-1-basic-editor-spec.md`
-- **Single-backend assumption**: Uses the same auth/session/document backend as Story 1. No separate service.
+  - [`docs/architecture/backend-architecture.md`](../architecture/backend-architecture.md)
+  - [`user-story-1-basic-editor-spec.md`](user-story-1-basic-editor-spec.md) (document save path and dual guest/auth persistence)
+- **Single-backend assumption**: Same app and backend as Story 1; no separate keyboard service.
 
 ## Goal
-Add an in-editor Russian keyboard panel that inserts characters at cursor, supports uppercase/punctuation, and persists visibility preference globally.
+Ship an in-editor on-screen keyboard that inserts text at the caret, aligns with the document’s selected language, and keeps keyboard visibility in user settings. Russian is the primary non-Latin target; German/English layouts support the same component for Latin scripts.
 
-## Current Code Baseline
-- Keyboard UI and insertion pipeline already exist in `src/app/components/Editor.tsx` and `LanguageKeyboard` integration.
-- Keyboard remapping utilities exist (`getRemappedCharacter` import in `Editor.tsx`), but persistence and backend-aware preference model are not finalized.
+## Current code baseline
+- **Layouts and remapping**: `src/app/utils/keyboardLayouts.ts` — per-`Language` row definitions, `getKeyboardLayout`, `getRemappedCharacter` for physical keys when the keyboard feature is on.
+- **Panel UI**: `src/app/components/LanguageKeyboard.tsx` — toggle, rows of keys with primary output + “type with” hint, space bar.
+- **Editor wiring**: `src/app/components/Editor.tsx` — `insertTextAtCursor` (uses `document.execCommand('insertText', …)` when available), `LanguageKeyboard` in a side column, `handleKeyDown` remapping when `isKeyboardVisible`, global **Ctrl/Cmd+D** to toggle visibility (see `src/app/utils/keyboardShortcuts.ts`).
+- **Settings**: `keyboardVisible` (boolean) via `src/app/data/settings-repository.ts` — **authenticated**: `GET/PUT /settings`; **guest**: `localStorage` key `glossadocs_guest_settings`.
+- **Backend**: `keyboardVisible` and `lastUsedLocale` on `PUT /settings` (`backend/src/modules/input-preferences/settings-routes.ts`).
 
 ## Architecture (Story 3)
 
 ```mermaid
 flowchart LR
-  user[Writer] --> fe[ReactFrontendEditor]
-  fe --> kbd[KeyboardPanelController]
-  kbd --> ins[InsertAtCursorPipeline]
-  ins --> fe
-
-  fe -->|"JWT + document save"| api[FastifyAPI]
+  user[Writer] --> fe[ReactEditor]
+  fe --> kbd[LanguageKeyboard]
+  kbd --> ins[insertTextAtCursor]
+  ins --> ce[contentEditable]
+  fe -->|"Remap when visible"| ins
+  fe -->|"Save document"| api[FastifyAPI]
+  fe -->|"keyboardVisible"| api
   api --> pg[(PostgreSQL)]
 ```
 
-### Information Flow
-1. User toggles keyboard panel (default visible).
-2. User clicks key or long-press variant.
-3. Character is inserted via same editor insertion path used for typed text.
-4. Document save/autosave persists content through Story 1 backend.
-5. Keyboard visibility preference is persisted as a global user setting (backend-backed when settings endpoint is available; local fallback during transition).
+### Information flow
+1. User opens the editor; settings load and restore **`keyboardVisible`** (default **true** in defaults).
+2. With the keyboard **visible**, typing Latin keys while the editor is focused applies **`getRemappedCharacter`** for the active document language (Russian → Cyrillic mapping).
+3. Clicking on-screen keys calls **`onInsertCharacter`** → same insertion path as typed text.
+4. **Ctrl/Cmd+D** toggles visibility and persists **`keyboardVisible`** through the settings repository (API or guest storage).
+5. Document content persists through Story 1 (**autosave** / manual save), unchanged by this story except for inserted characters.
 
-## Functional Requirements
-- Keyboard panel is visible by default.
-- User can show/hide via button (and optional hotkey later).
-- Russian layout supports:
-  - lowercase + uppercase (shift/caps behavior)
-  - punctuation keys needed for practical writing
-  - long-press variants for mapped characters
-- Key click inserts at caret and replaces selection when selection exists.
-- Insertions participate in normal undo/redo behavior.
-- Feature is scoped to Russian in V1; extensible to additional layouts later.
+## Functional requirements
 
-## Shared Backend Contract Impact
-This story relies on Story 1 document save APIs and adds one cross-story setting:
-- `keyboard_visible` (boolean) in user/app settings model.
+### Implemented
+- On-screen keyboard panel beside the editor (responsive grid); **shown by default** when settings say visible.
+- **Toggle** via button and **Ctrl/Cmd+D**; state persisted in **`keyboardVisible`**.
+- **Russian** layout: phonetic Cyrillic mapping (keys show Cyrillic output + Latin “type with” label).
+- **English / German** layouts: Latin characters (German includes umlauts / ß) for completeness when those languages are selected.
+- Click inserts at the caret; selection is replaced by insertion consistent with `insertText` / fallback range logic.
+- Physical-key remapping runs only when the on-screen keyboard is **visible** (see `Editor.tsx` guard).
 
-Recommended settings API (same backend, optional in same phase):
-- `GET /settings`
-- `PUT /settings` (partial update)
+### Not implemented (this spec vs code)
+- **Long-press** for alternate characters / variant picker.
+- **Layout registry** keyed by arbitrary layout IDs (`ru-phonetic-v1`); layouts are selected by **`Language`** in `keyboardLayouts.ts` only.
+- **Dedicated automated tests** for mapping tables and keyboard UI (listed below as follow-up).
 
-If settings API is deferred, frontend may temporarily store `keyboard_visible` locally but must migrate to backend setting key later.
+### Undo / redo
+- No custom undo stack; behavior follows the browser’s native undo for `contentEditable` / `insertText` (may vary by browser).
 
-## Data Model Additions
-- In settings storage domain (same backend service):
-  - `keyboard_visible boolean default true`
+## Shared backend contract
+Relies on Story 1 for documents. User settings:
 
-No new document table columns required for Story 3 itself.
+- `GET /settings` — returns `lastUsedLocale`, `keyboardVisible`.
+- `PUT /settings` — partial update with at least one of those fields.
 
-## UI/Behavior Contract
-- Keyboard is rendered inside editor screen, not separate modal/window.
-- Insert pipeline should call a single text insertion utility to avoid divergent behavior between physical keyboard remap and panel input.
-- Long-press interaction:
-  - short click -> primary mapped character
-  - hold -> variant picker -> selected variant insert
+Guest mode uses the same shape in local storage via `settings-repository.ts`.
 
-## Extensibility Rules
-- Layout registry keyed by layout ID (for example `ru-phonetic-v1`), not hard-coded to one locale string.
-- Locale choice and layout choice should be decoupled in future (same language may have multiple layouts).
-- Avoid embedding key maps directly in component render logic; keep them in data/config modules.
+## Data model
+- **Settings** (per user, backend): `keyboard_visible` equivalent exposed as **`keyboardVisible`** in JSON (camelCase in API). No document columns added for this story.
 
-## Acceptance Criteria
-- Russian keyboard appears by default in editor.
-- User can toggle visibility and preference persists across sessions.
-- Clicking keys inserts correct Cyrillic characters at cursor.
-- Shift/caps and punctuation behave as defined.
-- Long-press variant selection works and inserts chosen character.
-- Saving and reopening document retains inserted content via backend persistence.
+## UI / behavior contract
+- Keyboard is **in-page** next to the editor (not a separate OS window).
+- Insertion goes through **`insertTextAtCursor`** so toolbar formatting context applies where the browser allows.
+- Russian V1 is **phonetic** (Latin key → Cyrillic character), not a full system IME.
 
-## Risks and Mitigations
-- **Risk**: Insertion path divergence causes formatting/cursor bugs.
-  - **Mitigation**: one insertion utility shared by keyboard click and key remap.
-- **Risk**: Hard-coded layout blocks future language growth.
-  - **Mitigation**: layout registry + config-driven key definitions.
-- **Risk**: UX friction on desktop for long-press discoverability.
-  - **Mitigation**: tooltip/hint on first use and fallback direct key mapping.
+## Extensibility (current vs future)
+- **Today**: Add or adjust rows in `LANGUAGE_KEYBOARD_LAYOUTS` and remap tables in `keyboardLayouts.ts`.
+- **Future**: Extract a layout registry (id → key map), decouple “document language” from “active keyboard layout”, and add long-press variants without bloating `LanguageKeyboard.tsx`.
 
-## Test Plan
-- Unit tests for Russian mapping tables and long-press variant resolution.
-- Component tests for toggle + insertion + shift/caps states.
-- End-to-end: login -> open doc -> insert Cyrillic -> save -> refresh -> verify persistence.
+## Acceptance criteria (mapped to implementation)
 
+| Criterion | Status |
+|-----------|--------|
+| Russian phonetic on-screen keys insert Cyrillic at the caret | **Yes** (`LanguageKeyboard` + `RUSSIAN_LAYOUT`) |
+| Toggle visibility; preference survives reload | **Yes** (`keyboardVisible` in settings repository) |
+| Shift / CapsLock affects **physical** remapping via `getRemappedCharacter` | **Yes** |
+| Long-press variants | **No** |
+| Save/reopen retains characters (backend or guest) | **Yes** (Story 1 persistence) |
+| English/German panels | **Yes** (same component, different rows) |
+
+## Risks and mitigations
+- **Insertion divergence**: Mitigated by routing panel and remap through **`insertTextAtCursor`**.
+- **IME vs remap**: Remap is skipped during composition (`!event.nativeEvent.isComposing` in `Editor.tsx`) to avoid fighting system input methods.
+- **Discoverability of Ctrl/Cmd+D**: Button labels and helper text in `LanguageKeyboard.tsx` document the shortcut.
+
+## Test plan
+- **Recommended additions**: unit tests for `getRemappedCharacter` and layout tables; component tests for toggle + insert.
+- **Existing related coverage**: backend `backend/test/settings-routes.test.ts`; frontend auth and document repository tests elsewhere under `src/test/`.

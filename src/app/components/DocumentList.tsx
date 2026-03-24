@@ -58,6 +58,8 @@ export function DocumentList({ onSelectDocument }: DocumentListProps) {
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const dragPreviewRef = useRef<HTMLDivElement | null>(null);
   const dragOffsetRef = useRef<{ x: number; y: number }>({ x: 20, y: 20 });
+  const dragPointerRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const dragAnimationFrameRef = useRef<number | null>(null);
 
   useEffect(() => {
     loadDocuments();
@@ -69,8 +71,29 @@ export function DocumentList({ onSelectDocument }: DocumentListProps) {
         dragPreviewRef.current.remove();
         dragPreviewRef.current = null;
       }
+      if (dragAnimationFrameRef.current !== null) {
+        cancelAnimationFrame(dragAnimationFrameRef.current);
+        dragAnimationFrameRef.current = null;
+      }
     };
   }, []);
+
+  function scheduleDragPreviewPositionUpdate(): void {
+    if (dragAnimationFrameRef.current !== null) {
+      return;
+    }
+    dragAnimationFrameRef.current = requestAnimationFrame(() => {
+      dragAnimationFrameRef.current = null;
+      const preview = dragPreviewRef.current;
+      if (!preview) {
+        return;
+      }
+
+      const x = Math.max(8, dragPointerRef.current.x - dragOffsetRef.current.x);
+      const y = Math.max(8, dragPointerRef.current.y - dragOffsetRef.current.y);
+      preview.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+    });
+  }
 
   async function loadDocuments() {
     try {
@@ -224,18 +247,22 @@ export function DocumentList({ onSelectDocument }: DocumentListProps) {
 
     const preview = sourceCard.cloneNode(true) as HTMLDivElement;
     preview.style.position = 'fixed';
-    preview.style.top = `${Math.max(8, event.clientY - dragOffsetRef.current.y)}px`;
-    preview.style.left = `${Math.max(8, event.clientX - dragOffsetRef.current.x)}px`;
+    preview.style.top = '0';
+    preview.style.left = '0';
     preview.style.width = `${sourceCard.offsetWidth}px`;
     preview.style.opacity = '1';
-    preview.style.transform = 'none';
+    preview.style.transform = 'translate3d(0, 0, 0)';
     preview.style.boxShadow = '0 10px 30px rgba(0, 0, 0, 0.22)';
     preview.style.pointerEvents = 'none';
     preview.style.borderRadius = '12px';
     preview.style.zIndex = '9999';
+    preview.style.willChange = 'transform';
+    preview.style.transition = 'none';
     preview.setAttribute('aria-hidden', 'true');
     document.body.appendChild(preview);
     dragPreviewRef.current = preview;
+    dragPointerRef.current = { x: event.clientX, y: event.clientY };
+    scheduleDragPreviewPositionUpdate();
 
     // Hide the browser ghost image so only our custom preview is visible.
     const transparentDragImage = new Image();
@@ -255,14 +282,17 @@ export function DocumentList({ onSelectDocument }: DocumentListProps) {
     if (event.clientX <= 0 && event.clientY <= 0) {
       return;
     }
-
-    preview.style.left = `${Math.max(8, event.clientX - dragOffsetRef.current.x)}px`;
-    preview.style.top = `${Math.max(8, event.clientY - dragOffsetRef.current.y)}px`;
+    dragPointerRef.current = { x: event.clientX, y: event.clientY };
+    scheduleDragPreviewPositionUpdate();
   }
 
   function handleDocumentDragEnd(): void {
     setDraggingDocumentId(null);
     setDropTargetFolderId(null);
+    if (dragAnimationFrameRef.current !== null) {
+      cancelAnimationFrame(dragAnimationFrameRef.current);
+      dragAnimationFrameRef.current = null;
+    }
     if (dragPreviewRef.current) {
       dragPreviewRef.current.remove();
       dragPreviewRef.current = null;
@@ -513,10 +543,9 @@ export function DocumentList({ onSelectDocument }: DocumentListProps) {
               onDragOver={(event) => {
                 event.preventDefault();
                 event.dataTransfer.dropEffect = 'move';
-                const preview = dragPreviewRef.current;
-                if (preview && event.clientX > 0 && event.clientY > 0) {
-                  preview.style.left = `${Math.max(8, event.clientX - dragOffsetRef.current.x)}px`;
-                  preview.style.top = `${Math.max(8, event.clientY - dragOffsetRef.current.y)}px`;
+                if (event.clientX > 0 && event.clientY > 0) {
+                  dragPointerRef.current = { x: event.clientX, y: event.clientY };
+                  scheduleDragPreviewPositionUpdate();
                 }
               }}
             >
@@ -532,9 +561,15 @@ export function DocumentList({ onSelectDocument }: DocumentListProps) {
                   onDragOver={(event) => {
                     event.preventDefault();
                     event.dataTransfer.dropEffect = 'move';
-                    setDropTargetFolderId(folder.id);
+                    setDropTargetFolderId((current) => (current === folder.id ? current : folder.id));
+                    if (event.clientX > 0 && event.clientY > 0) {
+                      dragPointerRef.current = { x: event.clientX, y: event.clientY };
+                      scheduleDragPreviewPositionUpdate();
+                    }
                   }}
-                  onDragLeave={() => setDropTargetFolderId(null)}
+                  onDragLeave={() => {
+                    setDropTargetFolderId((current) => (current === folder.id ? null : current));
+                  }}
                   onDrop={(event) => {
                     void handleDropOnFolder(folder.id, event);
                   }}

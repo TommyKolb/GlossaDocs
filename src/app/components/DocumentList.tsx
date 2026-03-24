@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useState, useEffect, useRef } from 'react';
-import { FileText, Folder as FolderIcon, FolderPlus, Pencil, Trash, ChevronLeft } from 'lucide-react';
+import { FileText, Folder as FolderIcon, FolderPlus, Pencil, Trash, ChevronDown, ChevronRight, ChevronLeft } from 'lucide-react';
 import type { Document, Folder } from '../models/document';
 import {
   getAllDocuments,
@@ -26,6 +26,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from './ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from './ui/dialog';
 import { UI_CONSTANTS } from '../utils/constants';
 import { toast } from 'sonner';
 
@@ -41,6 +49,11 @@ export function DocumentList({ onSelectDocument }: DocumentListProps) {
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isMoveDialogOpen, setIsMoveDialogOpen] = useState(false);
+  const [movingDocumentId, setMovingDocumentId] = useState<string | null>(null);
+  const [moveTargetFolderId, setMoveTargetFolderId] = useState<string | null>(null);
+  const [expandedFolderIds, setExpandedFolderIds] = useState<Set<string>>(new Set());
+  const [dropTargetFolderId, setDropTargetFolderId] = useState<string | null>(null);
   const uploadInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -155,6 +168,109 @@ export function DocumentList({ onSelectDocument }: DocumentListProps) {
       .sort((a, b) => a.name.localeCompare(b.name));
   }
 
+  function toggleFolderExpanded(folderId: string): void {
+    setExpandedFolderIds((current) => {
+      const next = new Set(current);
+      if (next.has(folderId)) {
+        next.delete(folderId);
+      } else {
+        next.add(folderId);
+      }
+      return next;
+    });
+  }
+
+  function openMoveDialog(documentId: string): void {
+    const document = documents.find((doc) => doc.id === documentId);
+    setMovingDocumentId(documentId);
+    setMoveTargetFolderId(document?.folderId ?? null);
+    setIsMoveDialogOpen(true);
+  }
+
+  async function confirmMoveInDialog(): Promise<void> {
+    if (!movingDocumentId) {
+      return;
+    }
+    await handleMoveDocumentToFolder(movingDocumentId, moveTargetFolderId);
+    setIsMoveDialogOpen(false);
+    setMovingDocumentId(null);
+  }
+
+  function handleDocumentDragStart(documentId: string, event: React.DragEvent<HTMLDivElement>): void {
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', documentId);
+    event.dataTransfer.setData('application/x-glossadocs-document-id', documentId);
+  }
+
+  function handleDocumentDragEnd(): void {
+    setDropTargetFolderId(null);
+  }
+
+  async function handleDropOnFolder(folderId: string, event: React.DragEvent<HTMLButtonElement>): Promise<void> {
+    event.preventDefault();
+    const draggedDocumentId =
+      event.dataTransfer.getData('application/x-glossadocs-document-id') ||
+      event.dataTransfer.getData('text/plain');
+    setDropTargetFolderId(null);
+    if (!draggedDocumentId) {
+      return;
+    }
+    await handleMoveDocumentToFolder(draggedDocumentId, folderId);
+  }
+
+  function renderFolderTree(parentFolderId: string | null, depth = 0): React.ReactNode {
+    return childFolders(parentFolderId).map((folder) => {
+      const children = childFolders(folder.id);
+      const hasChildren = children.length > 0;
+      const isExpanded = expandedFolderIds.has(folder.id);
+      const isSelected = moveTargetFolderId === folder.id;
+
+      return (
+        <div key={folder.id}>
+          <div
+            className={`flex items-center gap-1 rounded-md px-2 py-1 ${
+              isSelected ? 'bg-blue-50 border border-blue-200' : 'border border-transparent'
+            }`}
+            style={{ marginLeft: `${depth * 14}px` }}
+          >
+            {hasChildren ? (
+              <button
+                type="button"
+                className="h-6 w-6 inline-flex items-center justify-center rounded hover:bg-gray-100"
+                onClick={() => toggleFolderExpanded(folder.id)}
+                aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${folder.name}`}
+                aria-expanded={isExpanded}
+              >
+                {isExpanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+              </button>
+            ) : (
+              <span className="h-6 w-6 inline-flex items-center justify-center text-gray-300" aria-hidden="true">
+                <ChevronRight className="size-4" />
+              </span>
+            )}
+            <button
+              type="button"
+              className="flex-1 text-left text-sm rounded px-1 py-1 hover:bg-gray-100"
+              onClick={() => setMoveTargetFolderId(folder.id)}
+              role="treeitem"
+              aria-selected={isSelected}
+            >
+              <span className="inline-flex items-center gap-2">
+                <FolderIcon className="size-4 text-blue-600" />
+                {folder.name}
+              </span>
+            </button>
+          </div>
+          {hasChildren && isExpanded && (
+            <div role="group">
+              {renderFolderTree(folder.id, depth + 1)}
+            </div>
+          )}
+        </div>
+      );
+    });
+  }
+
   function folderById(id: string | null): Folder | null {
     if (!id) {
       return null;
@@ -260,34 +376,38 @@ export function DocumentList({ onSelectDocument }: DocumentListProps) {
         {documents.length === 0 && folders.length === 0 ? (
           <EmptyDocumentState onCreateDocument={handleCreateNew} />
         ) : (
-          <div className="space-y-8">
-            <section>
-              <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
-                <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 flex items-center gap-2">
-                  <FolderIcon className="size-5 sm:size-6" aria-hidden="true" />
-                  <span>Folders</span>
-                </h2>
-                <button
-                  type="button"
-                  onClick={() => void handleCreateFolder()}
-                  className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-md border bg-white hover:bg-gray-50"
-                >
-                  <FolderPlus className="size-4" />
-                  New Folder
-                </button>
-              </div>
+          <div>
+            <div className="flex items-center justify-between gap-2 mb-3 sm:mb-4 flex-wrap">
+              <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 flex items-center gap-2 px-2 sm:px-0">
+                <FileText className="size-5 sm:size-6" aria-hidden="true" />
+                <span>Your Documents</span>
+                <span className="sr-only">
+                  ({visibleDocuments.length} document{visibleDocuments.length !== 1 ? 's' : ''})
+                </span>
+              </h2>
+              <button
+                type="button"
+                onClick={() => void handleCreateFolder()}
+                className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-md border bg-white hover:bg-gray-50"
+              >
+                <FolderPlus className="size-4" />
+                New Folder
+              </button>
+            </div>
 
-              <div className="mb-4 text-sm text-gray-600 flex items-center gap-2 flex-wrap">
+            {(activeFolderId || breadcrumbs.length > 0) && (
+              <div className="mb-3 sm:mb-4 flex items-center gap-2 flex-wrap text-sm text-gray-600">
                 <button
                   type="button"
-                  className="hover:underline"
-                  onClick={() => setActiveFolderId(null)}
+                  className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border bg-white hover:bg-gray-50"
+                  onClick={() => setActiveFolderId(activeFolder?.parentFolderId ?? null)}
                 >
-                  My Drive
+                  <ChevronLeft className="size-3.5" />
+                  Back
                 </button>
-                {breadcrumbs.map((folder) => (
+                {breadcrumbs.map((folder, index) => (
                   <span key={folder.id} className="inline-flex items-center gap-2">
-                    <span>/</span>
+                    {index > 0 && <span>/</span>}
                     <button
                       type="button"
                       className="hover:underline"
@@ -298,91 +418,134 @@ export function DocumentList({ onSelectDocument }: DocumentListProps) {
                   </span>
                 ))}
               </div>
+            )}
 
-              {activeFolderId && (
-                <div className="mb-4 flex items-center gap-2 flex-wrap">
-                  <button
-                    type="button"
-                    onClick={() => void handleRenameFolder()}
-                    className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-md border bg-white hover:bg-gray-50"
-                  >
-                    <Pencil className="size-4" />
-                    Rename
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void handleDeleteFolder()}
-                    className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-md border text-red-700 bg-white hover:bg-red-50"
-                  >
-                    <Trash className="size-4" />
-                    Delete
-                  </button>
-                </div>
-              )}
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                {activeFolderId && (
-                  <button
-                    type="button"
-                    onClick={() => setActiveFolderId(activeFolder?.parentFolderId ?? null)}
-                    className="text-left p-4 rounded-lg border border-gray-200 bg-white/90 hover:shadow-md transition-all"
-                  >
-                    <div className="inline-flex items-center gap-2 text-gray-700">
-                      <ChevronLeft className="size-5" />
-                      <span className="font-medium">Back</span>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-2">Go to parent folder</p>
-                  </button>
-                )}
-                {visibleFolders.map((folder) => (
-                  <button
-                    key={folder.id}
-                    type="button"
-                    onClick={() => setActiveFolderId(folder.id)}
-                    className="text-left p-4 rounded-lg border border-gray-200 bg-white/90 hover:shadow-md transition-all"
-                  >
-                    <div className="inline-flex items-center gap-2 text-gray-800">
-                      <FolderIcon className="size-5 text-blue-600" />
-                      <span className="font-medium truncate">{folder.name}</span>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-2">Open folder</p>
-                  </button>
-                ))}
+            {activeFolderId && (
+              <div className="mb-3 sm:mb-4 flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => void handleRenameFolder()}
+                  className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border bg-white hover:bg-gray-50"
+                >
+                  <Pencil className="size-3.5" />
+                  Rename Folder
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleDeleteFolder()}
+                  className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border text-red-700 bg-white hover:bg-red-50"
+                >
+                  <Trash className="size-3.5" />
+                  Delete Folder
+                </button>
               </div>
-              {visibleFolders.length === 0 && (
-                <div className="text-sm text-gray-500 px-1 mt-3">
-                  No subfolders here yet. Create one to organize your documents.
-                </div>
-              )}
-            </section>
+            )}
 
-            <section>
-              <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-4 sm:mb-6 flex items-center gap-2 px-2 sm:px-0">
-                <FileText className="size-5 sm:size-6" aria-hidden="true" />
-                <span>Your Documents</span>
-                <span className="sr-only">
-                  ({visibleDocuments.length} document{visibleDocuments.length !== 1 ? 's' : ''})
-                </span>
-              </h2>
-              <div className="grid gap-3 sm:gap-4" aria-label="Document list">
-                {visibleDocuments.map((doc) => (
-                  <DocumentCard
-                    key={doc.id}
-                    document={doc}
-                    folders={folders}
-                    onSelect={onSelectDocument}
-                    onDelete={handleDelete}
-                    onMoveToFolder={handleMoveDocumentToFolder}
-                  />
-                ))}
-                {visibleDocuments.length === 0 && (
-                  <div className="text-sm text-gray-500 px-2">No documents in this folder yet.</div>
-                )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4" aria-label="Document list">
+              {visibleFolders.map((folder) => (
+                <button
+                  key={folder.id}
+                  type="button"
+                  onClick={() => setActiveFolderId(folder.id)}
+                  className={`text-left p-4 rounded-lg border bg-white/90 hover:shadow-md transition-all min-h-[138px] ${
+                    dropTargetFolderId === folder.id ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-200'
+                  }`}
+                  aria-label={`Open folder ${folder.name}`}
+                  onDragOver={(event) => {
+                    event.preventDefault();
+                    setDropTargetFolderId(folder.id);
+                  }}
+                  onDragLeave={() => setDropTargetFolderId(null)}
+                  onDrop={(event) => {
+                    void handleDropOnFolder(folder.id, event);
+                  }}
+                >
+                  <div className="inline-flex items-center gap-2 text-gray-800">
+                    <FolderIcon className="size-5 text-blue-600" />
+                    <span className="font-medium truncate">{folder.name}</span>
+                  </div>
+                  <p className="mt-2 text-xs text-gray-500">Drop a document here to move it</p>
+                </button>
+              ))}
+
+              {visibleDocuments.map((doc) => (
+                <DocumentCard
+                  key={doc.id}
+                  document={doc}
+                  onSelect={onSelectDocument}
+                  onDelete={handleDelete}
+                  onRequestMove={openMoveDialog}
+                  onDragStartDocument={handleDocumentDragStart}
+                  onDragEndDocument={handleDocumentDragEnd}
+                />
+              ))}
+            </div>
+
+            {visibleFolders.length === 0 && visibleDocuments.length === 0 && (
+              <div className="text-sm text-gray-500 px-2 mt-3">
+                Nothing here yet. Create a document or folder to get started.
               </div>
-            </section>
+            )}
           </div>
         )}
       </div>
+
+      <Dialog
+        open={isMoveDialogOpen}
+        onOpenChange={(open) => {
+          setIsMoveDialogOpen(open);
+          if (!open) {
+            setMovingDocumentId(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Move Document</DialogTitle>
+            <DialogDescription>
+              Choose a destination folder. Use the expand buttons to navigate nested folders.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div
+            className="max-h-80 overflow-auto border rounded-md p-2"
+            role="tree"
+            aria-label="Folder tree"
+          >
+            <div className={`rounded-md px-2 py-1 mb-1 ${moveTargetFolderId === null ? 'bg-blue-50 border border-blue-200' : ''}`}>
+              <button
+                type="button"
+                className="w-full text-left text-sm rounded px-1 py-1 hover:bg-gray-100"
+                onClick={() => setMoveTargetFolderId(null)}
+                role="treeitem"
+                aria-selected={moveTargetFolderId === null}
+              >
+                No folder
+              </button>
+            </div>
+            {renderFolderTree(null)}
+          </div>
+
+          <DialogFooter>
+            <button
+              type="button"
+              className="inline-flex items-center justify-center rounded-md border px-3 py-2 text-sm hover:bg-gray-50"
+              onClick={() => setIsMoveDialogOpen(false)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="inline-flex items-center justify-center rounded-md bg-blue-600 px-3 py-2 text-sm text-white hover:bg-blue-700"
+              onClick={() => {
+                void confirmMoveInDialog();
+              }}
+            >
+              Move
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog
         open={isDeleteDialogOpen}

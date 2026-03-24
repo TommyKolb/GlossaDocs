@@ -1,5 +1,5 @@
 import { FileText, Trash2, Calendar } from 'lucide-react';
-import type { Document } from '../models/document';
+import type { Document, Folder } from '../models/document';
 import { getLanguageInfo } from '../utils/languages';
 import { formatDocumentDate } from '../utils/date';
 import { Button } from './ui/button';
@@ -7,11 +7,13 @@ import { Card } from './ui/card';
 
 interface DocumentCardProps {
   document: Document;
+  folders: Folder[];
   onSelect: (id: string) => void;
   onDelete: (id: string, event: React.MouseEvent) => void;
+  onMoveToFolder: (id: string, folderId: string | null) => Promise<void>;
 }
 
-export function DocumentCard({ document, onSelect, onDelete }: DocumentCardProps) {
+export function DocumentCard({ document, folders, onSelect, onDelete, onMoveToFolder }: DocumentCardProps) {
   const languageInfo = getLanguageInfo(document.language);
 
   return (
@@ -53,6 +55,27 @@ export function DocumentCard({ document, onSelect, onDelete }: DocumentCardProps
               <Calendar className="size-3 sm:size-4" aria-hidden="true" />
               <span>{formatDocumentDate(document.updatedAt)}</span>
             </div>
+            <label className="inline-flex items-center gap-2">
+              <span className="sr-only">Move document to folder</span>
+              <select
+                className="text-xs border rounded px-2 py-1 bg-white"
+                value={document.folderId ?? ''}
+                onClick={(event) => event.stopPropagation()}
+                onChange={(event) => {
+                  event.stopPropagation();
+                  const value = event.target.value;
+                  void onMoveToFolder(document.id, value.length > 0 ? value : null);
+                }}
+                aria-label={`Move ${document.title || 'Untitled Document'} to folder`}
+              >
+                <option value="">Root</option>
+                {folders.map((folder) => (
+                  <option key={folder.id} value={folder.id}>
+                    {folder.name}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
         </div>
         <Button

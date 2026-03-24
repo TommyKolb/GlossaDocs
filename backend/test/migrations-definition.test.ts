@@ -40,4 +40,16 @@ describe("migration file definitions", () => {
     expect(text).toContain("actor_sub");
     expect(text).toContain("idx_api_audit_events_created_at");
   });
+
+  it("004 defines folders and document folder linkage", async () => {
+    const text = await migrationText("004_create_folders_and_document_folder_fk.js");
+    expect(text).toContain('pgm.createTable("folders"');
+    expect(text).toContain("parent_folder_id");
+    expect(text).toContain("idx_folders_owner_parent");
+    expect(text).toContain("idx_folders_owner_updated");
+    expect(text).toContain("pgm.addColumn(\"documents\"");
+    expect(text).toContain("folder_id");
+    expect(text).toContain("fk_documents_folder_id");
+    expect(text).toContain("idx_documents_owner_folder");
+  });
 });

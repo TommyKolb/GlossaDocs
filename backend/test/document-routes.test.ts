@@ -194,4 +194,141 @@ describe("document routes", () => {
     expect(finalRead.status).toBe(200);
     expect(["<p>Update A</p>", "<p>Update B</p>"]).toContain(finalRead.body.content);
   });
+
+  it("returns 401 when listing folders without a token", async () => {
+    const response = await request(app.server).get("/folders");
+    expect(response.status).toBe(401);
+    expect(response.body.code).toBe("AUTH_MISSING_TOKEN");
+  });
+
+  it("creates and lists nested folders for the authenticated owner only", async () => {
+    const rootResponse = await request(app.server)
+      .post("/folders")
+      .set("Authorization", "Bearer token-user-1")
+      .send({ name: "Projects" });
+    expect(rootResponse.status).toBe(201);
+    expect(rootResponse.body.ownerId).toBe("user-1");
+    expect(rootResponse.body.parentFolderId).toBeNull();
+
+    const nestedResponse = await request(app.server)
+      .post("/folders")
+      .set("Authorization", "Bearer token-user-1")
+      .send({ name: "Research", parentFolderId: rootResponse.body.id });
+    expect(nestedResponse.status).toBe(201);
+    expect(nestedResponse.body.parentFolderId).toBe(rootResponse.body.id);
+
+    const listUser1 = await request(app.server)
+      .get("/folders")
+      .set("Authorization", "Bearer token-user-1");
+    const listUser2 = await request(app.server)
+      .get("/folders")
+      .set("Authorization", "Bearer token-user-2");
+
+    expect(listUser1.status).toBe(200);
+    expect(listUser1.body).toHaveLength(2);
+    expect(listUser2.status).toBe(200);
+    expect(listUser2.body).toHaveLength(0);
+  });
+
+  it("moves a document between folders", async () => {
+    const folderA = await request(app.server)
+      .post("/folders")
+      .set("Authorization", "Bearer token-user-1")
+      .send({ name: "Folder A" });
+    const folderB = await request(app.server)
+      .post("/folders")
+      .set("Authorization", "Bearer token-user-1")
+      .send({ name: "Folder B" });
+    expect(folderA.status).toBe(201);
+    expect(folderB.status).toBe(201);
+
+    const createdDoc = await request(app.server)
+      .post("/documents")
+      .set("Authorization", "Bearer token-user-1")
+      .send({
+        title: "Move Me",
+        content: "<p>doc</p>",
+        language: "en",
+        folderId: folderA.body.id
+      });
+    expect(createdDoc.status).toBe(201);
+    expect(createdDoc.body.folderId).toBe(folderA.body.id);
+
+    const updatedDoc = await request(app.server)
+      .put(`/documents/${createdDoc.body.id as string}`)
+      .set("Authorization", "Bearer token-user-1")
+      .send({ folderId: folderB.body.id });
+    expect(updatedDoc.status).toBe(200);
+    expect(updatedDoc.body.folderId).toBe(folderB.body.id);
+  });
+
+  it("deleting a folder reparents child folders and documents to deleted folder parent", async () => {
+    const parent = await request(app.server)
+      .post("/folders")
+      .set("Authorization", "Bearer token-user-1")
+      .send({ name: "Parent" });
+    const child = await request(app.server)
+      .post("/folders")
+      .set("Authorization", "Bearer token-user-1")
+      .send({ name: "Child", parentFolderId: parent.body.id });
+    const grandchild = await request(app.server)
+      .post("/folders")
+      .set("Authorization", "Bearer token-user-1")
+      .send({ name: "Grandchild", parentFolderId: child.body.id });
+    expect(parent.status).toBe(201);
+    expect(child.status).toBe(201);
+    expect(grandchild.status).toBe(201);
+
+    const documentInChild = await request(app.server)
+      .post("/documents")
+      .set("Authorization", "Bearer token-user-1")
+      .send({
+        title: "Child Doc",
+        content: "<p>Doc</p>",
+        language: "en",
+        folderId: child.body.id
+      });
+    expect(documentInChild.status).toBe(201);
+
+    const deleteResponse = await request(app.server)
+      .delete(`/folders/${child.body.id as string}`)
+      .set("Authorization", "Bearer token-user-1");
+    expect(deleteResponse.status).toBe(204);
+
+    const readDocAfterDelete = await request(app.server)
+      .get(`/documents/${documentInChild.body.id as string}`)
+      .set("Authorization", "Bearer token-user-1");
+    expect(readDocAfterDelete.status).toBe(200);
+    expect(readDocAfterDelete.body.folderId).toBe(parent.body.id);
+
+    const foldersAfterDelete = await request(app.server)
+      .get("/folders")
+      .set("Authorization", "Bearer token-user-1");
+    expect(foldersAfterDelete.status).toBe(200);
+    const movedGrandchild = (foldersAfterDelete.body as Array<{ id: string; parentFolderId: string | null }>).find(
+      (folder) => folder.id === grandchild.body.id
+    );
+    expect(movedGrandchild).toBeDefined();
+    expect(movedGrandchild?.parentFolderId).toBe(parent.body.id);
+  });
+
+  it("returns 400 when updating a folder to an invalid descendant parent", async () => {
+    const root = await request(app.server)
+      .post("/folders")
+      .set("Authorization", "Bearer token-user-1")
+      .send({ name: "Root" });
+    const child = await request(app.server)
+      .post("/folders")
+      .set("Authorization", "Bearer token-user-1")
+      .send({ name: "Child", parentFolderId: root.body.id });
+    expect(root.status).toBe(201);
+    expect(child.status).toBe(201);
+
+    const invalidMove = await request(app.server)
+      .put(`/folders/${root.body.id as string}`)
+      .set("Authorization", "Bearer token-user-1")
+      .send({ parentFolderId: child.body.id });
+    expect(invalidMove.status).toBe(400);
+    expect(invalidMove.body.code).toBe("FOLDER_INVALID_PARENT");
+  });
 });

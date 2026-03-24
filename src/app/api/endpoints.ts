@@ -1,9 +1,12 @@
 import { apiRequest } from "./client";
 import type {
   ApiDocument,
+  ApiFolder,
   CreateApiDocumentPayload,
+  CreateApiFolderPayload,
   MeResponse,
   UpdateApiDocumentPayload,
+  UpdateApiFolderPayload,
   UpdateUserSettingsPayload,
   UserSettings
 } from "./contracts";
@@ -55,4 +58,14 @@ export const documentsApi = {
   update: (id: string, payload: UpdateApiDocumentPayload) =>
     apiRequest<ApiDocument>(`/documents/${id}`, { method: "PUT", body: payload }),
   remove: (id: string) => apiRequest<void>(`/documents/${id}`, { method: "DELETE" })
+};
+
+export const foldersApi = {
+  list: () => apiRequest<ApiFolder[]>("/folders"),
+  get: (id: string) => apiRequest<ApiFolder>(`/folders/${id}`),
+  create: (payload: CreateApiFolderPayload) =>
+    apiRequest<ApiFolder>("/folders", { method: "POST", body: payload }),
+  update: (id: string, payload: UpdateApiFolderPayload) =>
+    apiRequest<ApiFolder>(`/folders/${id}`, { method: "PUT", body: payload }),
+  remove: (id: string) => apiRequest<void>(`/folders/${id}`, { method: "DELETE" })
 };

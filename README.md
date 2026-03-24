@@ -1,6 +1,6 @@
 # GlossaDocs
 
-GlossaDocs is a browser-based document editor inspired by Google Docs, aimed at **multilingual writing**: per-document language, on-screen keyboards and key remapping for non-Latin scripts (for example Russian), and a familiar flow—document list, rich-text editor, autosave, import/export.
+GlossaDocs is a browser-based document editor inspired by Google Docs, aimed at **multilingual writing**: per-document language, on-screen keyboards and key remapping for non-Latin scripts (for example Russian), and a familiar flow—document list, nested folders, rich-text editor, autosave, import/export.
 
 **Why it exists:** many tools treat language as an afterthought. GlossaDocs is built so language choice and input methods sit next to editing, not in a separate toolchain.
 

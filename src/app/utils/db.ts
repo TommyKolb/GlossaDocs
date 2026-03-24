@@ -1,10 +1,11 @@
 // IndexedDB utilities for GlossaDocs
-import type { Document } from "../models/document";
+import type { Document, Folder } from "../models/document";
 import { generateDocumentId } from "../models/document";
 
 const DB_NAME = 'GlossaDocs';
-const STORE_NAME = 'documents';
-const DB_VERSION = 1;
+const DOCUMENT_STORE_NAME = 'documents';
+const FOLDER_STORE_NAME = 'folders';
+const DB_VERSION = 2;
 
 let dbInstance: IDBDatabase | null = null;
 
@@ -27,9 +28,34 @@ export async function initDB(): Promise<IDBDatabase> {
 
     request.onupgradeneeded = (event) => {
       const db = (event.target as IDBOpenDBRequest).result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        const objectStore = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+      if (!db.objectStoreNames.contains(DOCUMENT_STORE_NAME)) {
+        const objectStore = db.createObjectStore(DOCUMENT_STORE_NAME, { keyPath: 'id' });
         objectStore.createIndex('updatedAt', 'updatedAt', { unique: false });
+      }
+      if (!db.objectStoreNames.contains(FOLDER_STORE_NAME)) {
+        const folderStore = db.createObjectStore(FOLDER_STORE_NAME, { keyPath: 'id' });
+        folderStore.createIndex('updatedAt', 'updatedAt', { unique: false });
+        folderStore.createIndex('parentFolderId', 'parentFolderId', { unique: false });
+      }
+
+      // Ensure legacy documents gain the folderId field when upgrading from v1.
+      if (event.oldVersion < 2 && db.objectStoreNames.contains(DOCUMENT_STORE_NAME)) {
+        const tx = (event.target as IDBOpenDBRequest).transaction;
+        if (tx) {
+          const docsStore = tx.objectStore(DOCUMENT_STORE_NAME);
+          const cursorRequest = docsStore.openCursor();
+          cursorRequest.onsuccess = () => {
+            const cursor = cursorRequest.result;
+            if (!cursor) {
+              return;
+            }
+            const value = cursor.value as Document & { folderId?: string | null };
+            if (!Object.prototype.hasOwnProperty.call(value, 'folderId')) {
+              cursor.update({ ...value, folderId: null });
+            }
+            cursor.continue();
+          };
+        }
       }
     };
   });
@@ -39,13 +65,14 @@ export async function initDB(): Promise<IDBDatabase> {
  * Helper function to execute an IndexedDB transaction
  */
 async function executeTransaction<T>(
+  storeName: string,
   mode: IDBTransactionMode,
   operation: (store: IDBObjectStore) => IDBRequest<T>
 ): Promise<T> {
   const db = await initDB();
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction([STORE_NAME], mode);
-    const objectStore = transaction.objectStore(STORE_NAME);
+    const transaction = db.transaction([storeName], mode);
+    const objectStore = transaction.objectStore(storeName);
     const request = operation(objectStore);
 
     request.onerror = () => reject(request.error);
@@ -57,7 +84,9 @@ async function executeTransaction<T>(
  * Get all documents sorted by most recently updated
  */
 export async function getAllDocuments(): Promise<Document[]> {
-  const docs = await executeTransaction<Document[]>('readonly', (store) => store.getAll());
+  const docs = await executeTransaction<Document[]>(DOCUMENT_STORE_NAME, 'readonly', (store) =>
+    store.getAll()
+  );
   // Sort by most recently updated
   return docs.sort((a, b) => b.updatedAt - a.updatedAt);
 }
@@ -66,8 +95,10 @@ export async function getAllDocuments(): Promise<Document[]> {
  * Get a single document by ID
  */
 export async function getDocument(id: string): Promise<Document | null> {
-  const result = await executeTransaction<Document | undefined>('readonly', (store) =>
-    store.get(id)
+  const result = await executeTransaction<Document | undefined>(
+    DOCUMENT_STORE_NAME,
+    'readonly',
+    (store) => store.get(id)
   );
   return result || null;
 }
@@ -76,14 +107,96 @@ export async function getDocument(id: string): Promise<Document | null> {
  * Save or update a document
  */
 export async function saveDocument(doc: Document): Promise<void> {
-  await executeTransaction<IDBValidKey>('readwrite', (store) => store.put(doc));
+  await executeTransaction<IDBValidKey>(DOCUMENT_STORE_NAME, 'readwrite', (store) =>
+    store.put(doc)
+  );
 }
 
 /**
  * Delete a document by ID
  */
 export async function deleteDocument(id: string): Promise<void> {
-  await executeTransaction<undefined>('readwrite', (store) => store.delete(id));
+  await executeTransaction<undefined>(DOCUMENT_STORE_NAME, 'readwrite', (store) =>
+    store.delete(id)
+  );
+}
+
+/**
+ * Get all folders sorted by most recently updated.
+ */
+export async function getAllFolders(): Promise<Folder[]> {
+  const folders = await executeTransaction<Folder[]>(FOLDER_STORE_NAME, 'readonly', (store) =>
+    store.getAll()
+  );
+  return folders.sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
+/**
+ * Save or update a folder.
+ */
+export async function saveFolder(folder: Folder): Promise<void> {
+  await executeTransaction<IDBValidKey>(FOLDER_STORE_NAME, 'readwrite', (store) =>
+    store.put(folder)
+  );
+}
+
+/**
+ * Delete folder and reparent local child folders/documents to the folder's parent.
+ */
+export async function deleteFolder(id: string): Promise<void> {
+  const db = await initDB();
+  await new Promise<void>((resolve, reject) => {
+    const transaction = db.transaction([FOLDER_STORE_NAME, DOCUMENT_STORE_NAME], 'readwrite');
+    const folderStore = transaction.objectStore(FOLDER_STORE_NAME);
+    const documentStore = transaction.objectStore(DOCUMENT_STORE_NAME);
+    const getFolderRequest = folderStore.get(id);
+
+    getFolderRequest.onerror = () => reject(getFolderRequest.error);
+    getFolderRequest.onsuccess = () => {
+      const folder = getFolderRequest.result as Folder | undefined;
+      if (!folder) {
+        resolve();
+        return;
+      }
+
+      const parentFolderId = folder.parentFolderId;
+      const foldersRequest = folderStore.getAll();
+      const documentsRequest = documentStore.getAll();
+
+      foldersRequest.onerror = () => reject(foldersRequest.error);
+      documentsRequest.onerror = () => reject(documentsRequest.error);
+
+      foldersRequest.onsuccess = () => {
+        const folders = foldersRequest.result as Folder[];
+        for (const child of folders) {
+          if (child.parentFolderId === id) {
+            folderStore.put({
+              ...child,
+              parentFolderId,
+              updatedAt: Date.now()
+            });
+          }
+        }
+      };
+
+      documentsRequest.onsuccess = () => {
+        const documents = documentsRequest.result as Document[];
+        for (const doc of documents) {
+          if (doc.folderId === id) {
+            documentStore.put({
+              ...doc,
+              folderId: parentFolderId,
+              updatedAt: Date.now()
+            });
+          }
+        }
+        folderStore.delete(id);
+      };
+    };
+
+    transaction.onerror = () => reject(transaction.error);
+    transaction.oncomplete = () => resolve();
+  });
 }
 
 /**
@@ -105,6 +218,7 @@ export function importDocument(file: File): Promise<Document> {
         // Generate new ID to avoid conflicts
         doc.id = generateId();
         doc.updatedAt = Date.now();
+        doc.folderId = null;
         resolve(doc);
       } catch (error) {
         reject(new Error('Invalid document format'));

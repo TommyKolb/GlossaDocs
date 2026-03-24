@@ -69,7 +69,7 @@ flowchart LR
 | Public auth metadata | `GET /auth/public` (optional; OIDC URLs for alternate clients) |
 | Session auth | `POST /auth/login`, `POST /auth/logout`, `GET /auth/session` |
 | Account | `POST /auth/register`, `POST /auth/password-reset` |
-| Authenticated | `GET /me`, `GET/POST/PUT/DELETE /documents`, `GET/PUT /settings` |
+| Authenticated | `GET /me`, `GET/POST/PUT/DELETE /documents`, `GET/POST/PUT/DELETE /folders`, `GET/PUT /settings` |
 
 **Auth model:** `GET /health` and `GET /ready` are unauthenticated. **`POST /auth/login`**, **`POST /auth/register`**, **`POST /auth/password-reset`**, and **`GET /auth/public`** do not require a prior session (logout clears cookie without Bearer). **`GET /auth/session`** requires a valid session cookie. All other routes in the table above use **`requireAuth`**: session cookie **or** `Authorization: Bearer` with a valid access token.
 

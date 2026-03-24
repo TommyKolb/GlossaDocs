@@ -502,11 +502,13 @@ export function Editor({ documentId, onBack }: EditorProps) {
         }
 
         // Create new document
+        const initialFolderId = localStorage.getItem('glossadocs_new_document_folder_id');
         const newDoc: Document = {
           id: generateDocumentId(),
           title: EDITOR_CONFIG.DEFAULT_TITLE,
           content: '',
           language: preferredLanguage,
+          folderId: initialFolderId,
           createdAt: Date.now(),
           updatedAt: Date.now(),
         };

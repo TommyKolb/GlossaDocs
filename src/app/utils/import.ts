@@ -27,6 +27,7 @@ async function importTxtFile(file: File): Promise<Document> {
           title: title || 'Untitled Document',
           content: content,
           language: 'en', // Default to English
+          folderId: null,
           createdAt: Date.now(),
           updatedAt: Date.now(),
         };
@@ -72,6 +73,7 @@ async function importDocxFile(file: File): Promise<Document> {
           title: title || 'Untitled Document',
           content: html,
           language: 'en', // Default to English
+          folderId: null,
           createdAt: Date.now(),
           updatedAt: Date.now(),
         };

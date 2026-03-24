@@ -53,11 +53,23 @@ export function DocumentList({ onSelectDocument }: DocumentListProps) {
   const [movingDocumentId, setMovingDocumentId] = useState<string | null>(null);
   const [moveTargetFolderId, setMoveTargetFolderId] = useState<string | null>(null);
   const [expandedFolderIds, setExpandedFolderIds] = useState<Set<string>>(new Set());
+  const [draggingDocumentId, setDraggingDocumentId] = useState<string | null>(null);
   const [dropTargetFolderId, setDropTargetFolderId] = useState<string | null>(null);
   const uploadInputRef = useRef<HTMLInputElement>(null);
+  const dragPreviewRef = useRef<HTMLDivElement | null>(null);
+  const dragOffsetRef = useRef<{ x: number; y: number }>({ x: 20, y: 20 });
 
   useEffect(() => {
     loadDocuments();
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (dragPreviewRef.current) {
+        dragPreviewRef.current.remove();
+        dragPreviewRef.current = null;
+      }
+    };
   }, []);
 
   async function loadDocuments() {
@@ -197,13 +209,64 @@ export function DocumentList({ onSelectDocument }: DocumentListProps) {
   }
 
   function handleDocumentDragStart(documentId: string, event: React.DragEvent<HTMLDivElement>): void {
+    setDraggingDocumentId(documentId);
     event.dataTransfer.effectAllowed = 'move';
     event.dataTransfer.setData('text/plain', documentId);
     event.dataTransfer.setData('application/x-glossadocs-document-id', documentId);
+
+    // Use a cloned card as a custom floating preview to mimic Drive-style movement.
+    const sourceCard = event.currentTarget;
+    const sourceRect = sourceCard.getBoundingClientRect();
+    dragOffsetRef.current = {
+      x: event.clientX - sourceRect.left,
+      y: event.clientY - sourceRect.top
+    };
+
+    const preview = sourceCard.cloneNode(true) as HTMLDivElement;
+    preview.style.position = 'fixed';
+    preview.style.top = `${Math.max(8, event.clientY - dragOffsetRef.current.y)}px`;
+    preview.style.left = `${Math.max(8, event.clientX - dragOffsetRef.current.x)}px`;
+    preview.style.width = `${sourceCard.offsetWidth}px`;
+    preview.style.opacity = '1';
+    preview.style.transform = 'none';
+    preview.style.boxShadow = '0 10px 30px rgba(0, 0, 0, 0.22)';
+    preview.style.pointerEvents = 'none';
+    preview.style.borderRadius = '12px';
+    preview.style.zIndex = '9999';
+    preview.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(preview);
+    dragPreviewRef.current = preview;
+
+    // Hide the browser ghost image so only our custom preview is visible.
+    const transparentDragImage = new Image();
+    transparentDragImage.src =
+      'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
+    event.dataTransfer.setDragImage(transparentDragImage, 0, 0);
+  }
+
+  function handleDocumentDrag(documentId: string, event: React.DragEvent<HTMLDivElement>): void {
+    if (draggingDocumentId !== documentId) {
+      return;
+    }
+    const preview = dragPreviewRef.current;
+    if (!preview) {
+      return;
+    }
+    if (event.clientX <= 0 && event.clientY <= 0) {
+      return;
+    }
+
+    preview.style.left = `${Math.max(8, event.clientX - dragOffsetRef.current.x)}px`;
+    preview.style.top = `${Math.max(8, event.clientY - dragOffsetRef.current.y)}px`;
   }
 
   function handleDocumentDragEnd(): void {
+    setDraggingDocumentId(null);
     setDropTargetFolderId(null);
+    if (dragPreviewRef.current) {
+      dragPreviewRef.current.remove();
+      dragPreviewRef.current = null;
+    }
   }
 
   async function handleDropOnFolder(folderId: string, event: React.DragEvent<HTMLButtonElement>): Promise<void> {
@@ -441,7 +504,22 @@ export function DocumentList({ onSelectDocument }: DocumentListProps) {
               </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4" aria-label="Document list">
+            <div
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4"
+              aria-label="Document list"
+              onDrop={() => {
+                setDropTargetFolderId(null);
+              }}
+              onDragOver={(event) => {
+                event.preventDefault();
+                event.dataTransfer.dropEffect = 'move';
+                const preview = dragPreviewRef.current;
+                if (preview && event.clientX > 0 && event.clientY > 0) {
+                  preview.style.left = `${Math.max(8, event.clientX - dragOffsetRef.current.x)}px`;
+                  preview.style.top = `${Math.max(8, event.clientY - dragOffsetRef.current.y)}px`;
+                }
+              }}
+            >
               {visibleFolders.map((folder) => (
                 <button
                   key={folder.id}
@@ -453,6 +531,7 @@ export function DocumentList({ onSelectDocument }: DocumentListProps) {
                   aria-label={`Open folder ${folder.name}`}
                   onDragOver={(event) => {
                     event.preventDefault();
+                    event.dataTransfer.dropEffect = 'move';
                     setDropTargetFolderId(folder.id);
                   }}
                   onDragLeave={() => setDropTargetFolderId(null)}
@@ -464,7 +543,9 @@ export function DocumentList({ onSelectDocument }: DocumentListProps) {
                     <FolderIcon className="size-5 text-blue-600" />
                     <span className="font-medium truncate">{folder.name}</span>
                   </div>
-                  <p className="mt-2 text-xs text-gray-500">Drop a document here to move it</p>
+                  {draggingDocumentId && (
+                    <p className="mt-2 text-xs text-gray-500">Drop document here</p>
+                  )}
                 </button>
               ))}
 
@@ -476,7 +557,9 @@ export function DocumentList({ onSelectDocument }: DocumentListProps) {
                   onDelete={handleDelete}
                   onRequestMove={openMoveDialog}
                   onDragStartDocument={handleDocumentDragStart}
+                  onDragDocument={handleDocumentDrag}
                   onDragEndDocument={handleDocumentDragEnd}
+                  isDragging={draggingDocumentId === doc.id}
                 />
               ))}
             </div>

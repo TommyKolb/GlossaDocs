@@ -11,7 +11,9 @@ interface DocumentCardProps {
   onDelete: (id: string, event: React.MouseEvent) => void;
   onRequestMove: (id: string) => void;
   onDragStartDocument: (id: string, event: React.DragEvent<HTMLDivElement>) => void;
+  onDragDocument: (id: string, event: React.DragEvent<HTMLDivElement>) => void;
   onDragEndDocument: () => void;
+  isDragging?: boolean;
 }
 
 export function DocumentCard({
@@ -20,13 +22,17 @@ export function DocumentCard({
   onDelete,
   onRequestMove,
   onDragStartDocument,
-  onDragEndDocument
+  onDragDocument,
+  onDragEndDocument,
+  isDragging = false
 }: DocumentCardProps) {
   const languageInfo = getLanguageInfo(document.language);
 
   return (
     <Card
-      className="p-4 cursor-pointer hover:shadow-md transition-all bg-white/90 backdrop-blur border border-gray-200 hover:border-blue-300 focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2 min-h-[138px]"
+      className={`p-4 cursor-grab active:cursor-grabbing hover:shadow-md transition-all bg-white/90 backdrop-blur border border-gray-200 hover:border-blue-300 focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2 min-h-[138px] ${
+        isDragging ? 'invisible' : ''
+      }`}
       onClick={() => onSelect(document.id)}
       role="button"
       tabIndex={0}
@@ -42,6 +48,7 @@ export function DocumentCard({
       aria-label={`Open document: ${document.title || 'Untitled Document'}. Last modified ${formatDocumentDate(document.updatedAt)}. Language: ${languageInfo?.label || document.language}`}
       draggable
       onDragStart={(event) => onDragStartDocument(document.id, event)}
+      onDrag={(event) => onDragDocument(document.id, event)}
       onDragEnd={onDragEndDocument}
     >
       <div className="h-full flex flex-col justify-between gap-3">

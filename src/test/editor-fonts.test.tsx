@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 
 import { EditorToolbar } from "@/app/components/EditorToolbar";
@@ -16,6 +16,23 @@ const formattingState = {
   justifyLeft: true,
   justifyCenter: false,
   justifyRight: false
+};
+
+const toolbarProps = {
+  language: "en" as const,
+  fontFamily: "Inter",
+  onFontFamilyChange: () => {},
+  onLanguageChange: () => {},
+  onSave: () => {},
+  onDownload: () => {},
+  onBack: () => {},
+  onFormat: () => {},
+  formattingState,
+  isSaving: false,
+  title: "Doc",
+  onTitleChange: () => {},
+  hasUnsavedChanges: false,
+  onInsertImage: () => {}
 };
 
 describe("language font catalog", () => {
@@ -36,60 +53,16 @@ describe("language font catalog", () => {
 
   it("falls back to the target language default when candidate is not allowed there", async () => {
     const { resolveDocumentFontFamily } = await import("@/app/utils/language-fonts");
-    expect(resolveDocumentFontFamily("de", "Inter")).toBe(
-      getDefaultFontFamilyForLanguage("de")
-    );
-    expect(resolveDocumentFontFamily("en", "Noto Sans")).toBe(
-      getDefaultFontFamilyForLanguage("en")
-    );
+    expect(resolveDocumentFontFamily("de", "Inter")).toBe(getDefaultFontFamilyForLanguage("de"));
+    expect(resolveDocumentFontFamily("en", "Noto Sans")).toBe(getDefaultFontFamilyForLanguage("en"));
   });
 });
 
 describe("EditorToolbar font selector", () => {
-  it("renders a font selector for the active language", () => {
-    render(
-      <EditorToolbar
-        language="en"
-        fontFamily="Inter"
-        onFontFamilyChange={() => {}}
-        onLanguageChange={() => {}}
-        onSave={() => {}}
-        onDownload={() => {}}
-        onBack={() => {}}
-        onFormat={() => {}}
-        formattingState={formattingState}
-        isSaving={false}
-        title="Doc"
-        onTitleChange={() => {}}
-        hasUnsavedChanges={false}
-        onInsertImage={() => {}}
-      />
-    );
+  it("renders an accessible font selector with English catalog options", () => {
+    render(<EditorToolbar {...toolbarProps} />);
 
     expect(screen.getByLabelText("Select document font")).toBeInTheDocument();
-  });
-
-  it("exposes english defaults in selector options", async () => {
-    const onFontFamilyChange = vi.fn();
-    render(
-      <EditorToolbar
-        language="en"
-        fontFamily="Inter"
-        onFontFamilyChange={onFontFamilyChange}
-        onLanguageChange={() => {}}
-        onSave={() => {}}
-        onDownload={() => {}}
-        onBack={() => {}}
-        onFormat={() => {}}
-        formattingState={formattingState}
-        isSaving={false}
-        title="Doc"
-        onTitleChange={() => {}}
-        hasUnsavedChanges={false}
-        onInsertImage={() => {}}
-      />
-    );
-
     expect(getFontsForLanguage("en").some((font) => font.family === "Inter")).toBe(true);
   });
 });

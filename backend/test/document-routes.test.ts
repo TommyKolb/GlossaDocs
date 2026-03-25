@@ -374,4 +374,52 @@ describe("document routes", () => {
     expect(response.status).toBe(400);
     expect(response.body.code).toBe("VALIDATION_ERROR");
   });
+
+  it("clears folderId with null on document update", async () => {
+    const folder = await request(app.server)
+      .post("/folders")
+      .set("Authorization", "Bearer token-user-1")
+      .send({ name: "Clear Test Folder" });
+    expect(folder.status).toBe(201);
+
+    const createdDoc = await request(app.server)
+      .post("/documents")
+      .set("Authorization", "Bearer token-user-1")
+      .send({
+        title: "In Folder",
+        content: "<p>x</p>",
+        language: "en",
+        folderId: folder.body.id
+      });
+    expect(createdDoc.status).toBe(201);
+    expect(createdDoc.body.folderId).toBe(folder.body.id);
+
+    const cleared = await request(app.server)
+      .put(`/documents/${createdDoc.body.id as string}`)
+      .set("Authorization", "Bearer token-user-1")
+      .send({ folderId: null });
+    expect(cleared.status).toBe(200);
+    expect(cleared.body.folderId).toBeNull();
+  });
+
+  it("clears fontFamily with null on document update", async () => {
+    const created = await request(app.server)
+      .post("/documents")
+      .set("Authorization", "Bearer token-user-1")
+      .send({
+        title: "Font Clear",
+        content: "<p>y</p>",
+        language: "en",
+        fontFamily: "Inter"
+      });
+    expect(created.status).toBe(201);
+    expect(created.body.fontFamily).toBe("Inter");
+
+    const cleared = await request(app.server)
+      .put(`/documents/${created.body.id as string}`)
+      .set("Authorization", "Bearer token-user-1")
+      .send({ fontFamily: null });
+    expect(cleared.status).toBe(200);
+    expect(cleared.body.fontFamily).toBeNull();
+  });
 });

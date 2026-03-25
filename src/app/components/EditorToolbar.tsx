@@ -36,7 +36,7 @@ import { LANGUAGES, isLanguage, type Language } from '../utils/languages';
 import { type ExportFormat } from '../utils/export';
 import { FONT_SIZE_OPTIONS } from '../utils/constants';
 import { type FormattingState } from '../utils/types';
-import { getFontsForLanguage } from '../utils/language-fonts';
+import { getFontsForLanguage, resolveDocumentFontFamily } from '../utils/language-fonts';
 
 interface EditorToolbarProps {
   language: Language;
@@ -72,9 +72,7 @@ export function EditorToolbar({
   onInsertImage,
 }: EditorToolbarProps) {
   const languageFonts = getFontsForLanguage(language);
-  const effectiveFontFamily = languageFonts.some((font) => font.family === fontFamily)
-    ? fontFamily
-    : languageFonts[0]?.family ?? "";
+  const effectiveFontFamily = resolveDocumentFontFamily(language, fontFamily);
 
   const handleLanguageValueChange = (value: string) => {
     if (isLanguage(value)) {

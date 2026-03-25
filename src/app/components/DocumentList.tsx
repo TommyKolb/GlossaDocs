@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useState, useEffect, useRef } from 'react';
-import { FileText, Folder as FolderIcon, FolderPlus, Pencil, Trash, ChevronDown, ChevronRight, ChevronLeft } from 'lucide-react';
+import { FileText, Folder as FolderIcon, FolderPlus, Pencil, Trash } from 'lucide-react';
 import type { Document, Folder } from '../models/document';
 import {
   getAllDocuments,
@@ -26,14 +26,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from './ui/alert-dialog';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from './ui/dialog';
+import { FolderBreadcrumbs } from './document-list/FolderBreadcrumbs';
+import { FolderMutationDialogs } from './document-list/FolderMutationDialogs';
+import { MoveDocumentDialog } from './document-list/MoveDocumentDialog';
+import { sortedChildFolders } from './document-list/folder-utils';
 import { UI_CONSTANTS } from '../utils/constants';
 import { toast } from 'sonner';
 
@@ -55,6 +51,12 @@ export function DocumentList({ onSelectDocument }: DocumentListProps) {
   const [expandedFolderIds, setExpandedFolderIds] = useState<Set<string>>(new Set());
   const [draggingDocumentId, setDraggingDocumentId] = useState<string | null>(null);
   const [dropTargetFolderId, setDropTargetFolderId] = useState<string | null>(null);
+  const [isCreateFolderDialogOpen, setIsCreateFolderDialogOpen] = useState(false);
+  const [newFolderNameInput, setNewFolderNameInput] = useState('');
+  const [isRenameFolderDialogOpen, setIsRenameFolderDialogOpen] = useState(false);
+  const [renameFolderNameInput, setRenameFolderNameInput] = useState('');
+  const [isFolderDeleteAlertOpen, setIsFolderDeleteAlertOpen] = useState(false);
+  const [isFolderMutating, setIsFolderMutating] = useState(false);
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const dragPreviewRef = useRef<HTMLDivElement | null>(null);
   const dragOffsetRef = useRef<{ x: number; y: number }>({ x: 20, y: 20 });
@@ -197,12 +199,6 @@ export function DocumentList({ onSelectDocument }: DocumentListProps) {
     }
   }
 
-  function childFolders(parentFolderId: string | null): Folder[] {
-    return folders
-      .filter((folder) => folder.parentFolderId === parentFolderId)
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }
-
   function toggleFolderExpanded(folderId: string): void {
     setExpandedFolderIds((current) => {
       const next = new Set(current);
@@ -311,59 +307,6 @@ export function DocumentList({ onSelectDocument }: DocumentListProps) {
     await handleMoveDocumentToFolder(draggedDocumentId, folderId);
   }
 
-  function renderFolderTree(parentFolderId: string | null, depth = 0): React.ReactNode {
-    return childFolders(parentFolderId).map((folder) => {
-      const children = childFolders(folder.id);
-      const hasChildren = children.length > 0;
-      const isExpanded = expandedFolderIds.has(folder.id);
-      const isSelected = moveTargetFolderId === folder.id;
-
-      return (
-        <div key={folder.id}>
-          <div
-            className={`flex items-center gap-1 rounded-md px-2 py-1 ${
-              isSelected ? 'bg-blue-50 border border-blue-200' : 'border border-transparent'
-            }`}
-            style={{ marginLeft: `${depth * 14}px` }}
-          >
-            {hasChildren ? (
-              <button
-                type="button"
-                className="h-6 w-6 inline-flex items-center justify-center rounded hover:bg-gray-100"
-                onClick={() => toggleFolderExpanded(folder.id)}
-                aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${folder.name}`}
-                aria-expanded={isExpanded}
-              >
-                {isExpanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
-              </button>
-            ) : (
-              <span className="h-6 w-6 inline-flex items-center justify-center text-gray-300" aria-hidden="true">
-                <ChevronRight className="size-4" />
-              </span>
-            )}
-            <button
-              type="button"
-              className="flex-1 text-left text-sm rounded px-1 py-1 hover:bg-gray-100"
-              onClick={() => setMoveTargetFolderId(folder.id)}
-              role="treeitem"
-              aria-selected={isSelected}
-            >
-              <span className="inline-flex items-center gap-2">
-                <FolderIcon className="size-4 text-blue-600" />
-                {folder.name}
-              </span>
-            </button>
-          </div>
-          {hasChildren && isExpanded && (
-            <div role="group">
-              {renderFolderTree(folder.id, depth + 1)}
-            </div>
-          )}
-        </div>
-      );
-    });
-  }
-
   function folderById(id: string | null): Folder | null {
     if (!id) {
       return null;
@@ -381,65 +324,88 @@ export function DocumentList({ onSelectDocument }: DocumentListProps) {
     return chain;
   }
 
-  async function handleCreateFolder() {
-    const name = window.prompt('Folder name');
-    if (!name || !name.trim()) {
+  function openCreateFolderDialog(): void {
+    setNewFolderNameInput('');
+    setIsCreateFolderDialogOpen(true);
+  }
+
+  async function confirmCreateFolder(): Promise<void> {
+    const name = newFolderNameInput.trim();
+    if (!name) {
+      toast.error('Please enter a folder name');
       return;
     }
+    setIsFolderMutating(true);
     try {
-      await createFolder(name.trim(), activeFolderId);
+      await createFolder(name, activeFolderId);
       await loadDocuments();
+      setIsCreateFolderDialogOpen(false);
+      setNewFolderNameInput('');
     } catch (error) {
       console.error('Error creating folder:', error);
       toast.error('Failed to create folder');
+    } finally {
+      setIsFolderMutating(false);
     }
   }
 
-  async function handleRenameFolder() {
+  function openRenameFolderDialog(): void {
     if (!activeFolderId) {
       return;
     }
     const current = folderById(activeFolderId);
-    const name = window.prompt('Rename folder', current?.name ?? '');
-    if (!name || !name.trim()) {
+    setRenameFolderNameInput(current?.name ?? '');
+    setIsRenameFolderDialogOpen(true);
+  }
+
+  async function confirmRenameFolder(): Promise<void> {
+    if (!activeFolderId) {
+      return;
+    }
+    const current = folderById(activeFolderId);
+    const name = renameFolderNameInput.trim();
+    if (!name) {
+      toast.error('Please enter a folder name');
       return;
     }
     if (!current) {
       return;
     }
+    setIsFolderMutating(true);
     try {
-      await updateFolder({ ...current, name: name.trim() });
+      await updateFolder({ ...current, name });
       await loadDocuments();
+      setIsRenameFolderDialogOpen(false);
     } catch (error) {
       console.error('Error renaming folder:', error);
       toast.error('Failed to rename folder');
+    } finally {
+      setIsFolderMutating(false);
     }
   }
 
-  async function handleDeleteFolder() {
+  async function confirmDeleteFolder(): Promise<void> {
     if (!activeFolderId) {
       return;
     }
     const current = folderById(activeFolderId);
-    const accepted = window.confirm(
-      `Delete folder "${current?.name ?? 'Folder'}"? Items inside will move to the parent folder.`
-    );
-    if (!accepted) {
-      return;
-    }
+    setIsFolderMutating(true);
     try {
       await deleteFolder(activeFolderId);
       setActiveFolderId(current?.parentFolderId ?? null);
       await loadDocuments();
+      setIsFolderDeleteAlertOpen(false);
     } catch (error) {
       console.error('Error deleting folder:', error);
       toast.error('Failed to delete folder');
+    } finally {
+      setIsFolderMutating(false);
     }
   }
 
   const pendingDeleteDocument = documents.find((doc) => doc.id === pendingDeleteId);
   const activeFolder = folderById(activeFolderId);
-  const visibleFolders = childFolders(activeFolderId);
+  const visibleFolders = sortedChildFolders(folders, activeFolderId);
   const visibleDocuments = documents
     .filter((doc) => doc.folderId === activeFolderId)
     .sort((a, b) => b.updatedAt - a.updatedAt);
@@ -480,58 +446,43 @@ export function DocumentList({ onSelectDocument }: DocumentListProps) {
               </h2>
               <button
                 type="button"
-                onClick={() => void handleCreateFolder()}
+                onClick={() => openCreateFolderDialog()}
                 className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-md border bg-white hover:bg-gray-50"
               >
-                <FolderPlus className="size-4" />
+                <FolderPlus className="size-4" aria-hidden="true" />
                 New Folder
               </button>
             </div>
 
             {(activeFolderId || breadcrumbs.length > 0) && (
-              <div className="mb-3 sm:mb-4 flex items-center gap-2 flex-wrap text-sm text-gray-600">
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border bg-white hover:bg-gray-50"
-                  onClick={() => setActiveFolderId(activeFolder?.parentFolderId ?? null)}
-                >
-                  <ChevronLeft className="size-3.5" />
-                  Back
-                </button>
-                {breadcrumbs.map((folder, index) => (
-                  <span key={folder.id} className="inline-flex items-center gap-2">
-                    {index > 0 && <span>/</span>}
-                    <button
-                      type="button"
-                      className="hover:underline"
-                      onClick={() => setActiveFolderId(folder.id)}
-                    >
-                      {folder.name}
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-
-            {activeFolderId && (
-              <div className="mb-3 sm:mb-4 flex items-center gap-2 flex-wrap">
-                <button
-                  type="button"
-                  onClick={() => void handleRenameFolder()}
-                  className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border bg-white hover:bg-gray-50"
-                >
-                  <Pencil className="size-3.5" />
-                  Rename Folder
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void handleDeleteFolder()}
-                  className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border text-red-700 bg-white hover:bg-red-50"
-                >
-                  <Trash className="size-3.5" />
-                  Delete Folder
-                </button>
-              </div>
+              <FolderBreadcrumbs
+                breadcrumbs={breadcrumbs}
+                activeFolder={activeFolder}
+                onNavigateUp={() => setActiveFolderId(activeFolder?.parentFolderId ?? null)}
+                onSelectFolder={setActiveFolderId}
+                folderActions={
+                  activeFolderId ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => openRenameFolderDialog()}
+                        className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border bg-white hover:bg-gray-50"
+                      >
+                        <Pencil className="size-3.5" aria-hidden="true" />
+                        Rename Folder
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsFolderDeleteAlertOpen(true)}
+                        className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border text-red-700 bg-white hover:bg-red-50"
+                      >
+                        <Trash className="size-3.5" aria-hidden="true" />
+                        Delete Folder
+                      </button>
+                    </>
+                  ) : undefined
+                }
+              />
             )}
 
             <div
@@ -608,7 +559,7 @@ export function DocumentList({ onSelectDocument }: DocumentListProps) {
         )}
       </div>
 
-      <Dialog
+      <MoveDocumentDialog
         open={isMoveDialogOpen}
         onOpenChange={(open) => {
           setIsMoveDialogOpen(open);
@@ -616,54 +567,15 @@ export function DocumentList({ onSelectDocument }: DocumentListProps) {
             setMovingDocumentId(null);
           }
         }}
-      >
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Move Document</DialogTitle>
-            <DialogDescription>
-              Choose a destination folder. Use the expand buttons to navigate nested folders.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div
-            className="max-h-80 overflow-auto border rounded-md p-2"
-            role="tree"
-            aria-label="Folder tree"
-          >
-            <div className={`rounded-md px-2 py-1 mb-1 ${moveTargetFolderId === null ? 'bg-blue-50 border border-blue-200' : ''}`}>
-              <button
-                type="button"
-                className="w-full text-left text-sm rounded px-1 py-1 hover:bg-gray-100"
-                onClick={() => setMoveTargetFolderId(null)}
-                role="treeitem"
-                aria-selected={moveTargetFolderId === null}
-              >
-                No folder
-              </button>
-            </div>
-            {renderFolderTree(null)}
-          </div>
-
-          <DialogFooter>
-            <button
-              type="button"
-              className="inline-flex items-center justify-center rounded-md border px-3 py-2 text-sm hover:bg-gray-50"
-              onClick={() => setIsMoveDialogOpen(false)}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              className="inline-flex items-center justify-center rounded-md bg-blue-600 px-3 py-2 text-sm text-white hover:bg-blue-700"
-              onClick={() => {
-                void confirmMoveInDialog();
-              }}
-            >
-              Move
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        folders={folders}
+        expandedFolderIds={expandedFolderIds}
+        onToggleFolderExpanded={toggleFolderExpanded}
+        moveTargetFolderId={moveTargetFolderId}
+        onSelectMoveTarget={setMoveTargetFolderId}
+        onConfirmMove={() => {
+          void confirmMoveInDialog();
+        }}
+      />
 
       <AlertDialog
         open={isDeleteDialogOpen}
@@ -694,6 +606,24 @@ export function DocumentList({ onSelectDocument }: DocumentListProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <FolderMutationDialogs
+        createOpen={isCreateFolderDialogOpen}
+        onCreateOpenChange={setIsCreateFolderDialogOpen}
+        newFolderName={newFolderNameInput}
+        onNewFolderNameChange={setNewFolderNameInput}
+        onConfirmCreate={confirmCreateFolder}
+        renameOpen={isRenameFolderDialogOpen}
+        onRenameOpenChange={setIsRenameFolderDialogOpen}
+        renameFolderName={renameFolderNameInput}
+        onRenameFolderNameChange={setRenameFolderNameInput}
+        onConfirmRename={confirmRenameFolder}
+        deleteOpen={isFolderDeleteAlertOpen}
+        onDeleteOpenChange={setIsFolderDeleteAlertOpen}
+        folderNameForDelete={activeFolder?.name ?? 'Folder'}
+        onConfirmDelete={confirmDeleteFolder}
+        isMutating={isFolderMutating}
+      />
     </div>
   );
 }

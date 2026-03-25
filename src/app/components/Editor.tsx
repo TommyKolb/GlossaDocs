@@ -10,6 +10,7 @@ import { getLanguageName, type Language } from '../utils/languages';
 import { getDefaultFontFamilyForLanguage, resolveDocumentFontFamily } from '../utils/language-fonts';
 import { EDITOR_CONFIG, UI_CONSTANTS } from '../utils/constants';
 import { findBlockElement, getLineHeight, getNextImageSize } from '../utils/dom';
+import { ensureSelectionInEditor } from '../utils/editor-selection';
 import { getRemappedCharacter } from '../utils/keyboardLayouts';
 import { getEditorShortcutAction } from '../utils/keyboardShortcuts';
 import { useFormattingState } from '../hooks/useFormattingState';
@@ -154,37 +155,7 @@ export function Editor({ documentId, onBack }: EditorProps) {
       restoreSelection();
       editorElement.focus();
 
-      const ensureSelectionInEditor = (): Selection | null => {
-        const selection = window.getSelection();
-        if (!selection) {
-          return null;
-        }
-
-        if (selection.rangeCount === 0) {
-          const range = window.document.createRange();
-          range.selectNodeContents(editorElement);
-          range.collapse(false);
-          selection.addRange(range);
-          return selection;
-        }
-
-        const range = selection.getRangeAt(0);
-        const isRangeInsideEditor =
-          editorElement.contains(range.startContainer) &&
-          editorElement.contains(range.endContainer);
-
-        if (!isRangeInsideEditor) {
-          selection.removeAllRanges();
-          const fallbackRange = window.document.createRange();
-          fallbackRange.selectNodeContents(editorElement);
-          fallbackRange.collapse(false);
-          selection.addRange(fallbackRange);
-        }
-
-        return selection;
-      };
-
-      const selection = ensureSelectionInEditor();
+      const selection = ensureSelectionInEditor(editorElement);
       if (!selection) {
         return;
       }

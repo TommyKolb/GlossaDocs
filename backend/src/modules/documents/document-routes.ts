@@ -9,18 +9,23 @@ import { requireActorSub } from "../identity-access/current-actor.js";
 import type { TokenVerifier } from "../identity-access/token-verifier.js";
 import { DocumentService } from "./document-service.js";
 
+const folderIdFieldSchema = z.string().uuid().nullable().optional();
+
+const fontFamilyFieldSchema = z
+  .union([
+    z.null(),
+    z.string().refine((value) => isSupportedDocumentFontFamily(value), {
+      message: "Unsupported font family"
+    })
+  ])
+  .optional();
+
 const createDocumentSchema = z.object({
   title: z.string().min(1),
   content: z.string(),
   language: z.enum(SUPPORTED_DOCUMENT_LANGUAGES),
-  folderId: z.string().uuid().nullable().optional(),
-  fontFamily: z
-    .string()
-    .refine((value) => isSupportedDocumentFontFamily(value), {
-      message: "Unsupported font family"
-    })
-    .nullable()
-    .optional()
+  folderId: folderIdFieldSchema,
+  fontFamily: fontFamilyFieldSchema
 });
 
 const updateDocumentSchema = z
@@ -28,14 +33,8 @@ const updateDocumentSchema = z
     title: z.string().min(1).optional(),
     content: z.string().optional(),
     language: z.enum(SUPPORTED_DOCUMENT_LANGUAGES).optional(),
-    folderId: z.string().uuid().nullable().optional(),
-    fontFamily: z
-      .string()
-      .refine((value) => isSupportedDocumentFontFamily(value), {
-        message: "Unsupported font family"
-      })
-      .nullable()
-      .optional()
+    folderId: folderIdFieldSchema,
+    fontFamily: fontFamilyFieldSchema
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: "At least one field must be provided for update"

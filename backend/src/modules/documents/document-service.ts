@@ -21,6 +21,28 @@ export class DocumentService {
     this.repository = repository;
   }
 
+  private async assertDocumentFolderOwnedIfNonNull(
+    actorSub: string,
+    folderId: string | null | undefined
+  ): Promise<void> {
+    if (folderId == null) {
+      return;
+    }
+    const exists = await this.repository.ownerHasFolder(actorSub, folderId);
+    if (!exists) {
+      throw new ApiError(404, "FOLDER_NOT_FOUND", "Folder not found");
+    }
+  }
+
+  private assertFontFamilyAllowedIfNonNull(fontFamily: string | null | undefined): void {
+    if (fontFamily == null) {
+      return;
+    }
+    if (!isSupportedDocumentFontFamily(fontFamily)) {
+      throw new ApiError(400, "DOCUMENT_FONT_UNSUPPORTED", "Unsupported font family");
+    }
+  }
+
   public async listByOwner(actorSub: string): Promise<DocumentAggregate[]> {
     return this.repository.findByOwner(actorSub);
   }
@@ -38,16 +60,8 @@ export class DocumentService {
   }
 
   public async createOwned(actorSub: string, payload: CreateDocumentDto): Promise<DocumentAggregate> {
-    if (payload.folderId) {
-      const exists = await this.repository.ownerHasFolder(actorSub, payload.folderId);
-      if (!exists) {
-        throw new ApiError(404, "FOLDER_NOT_FOUND", "Folder not found");
-      }
-    }
-
-    if (payload.fontFamily && !isSupportedDocumentFontFamily(payload.fontFamily)) {
-      throw new ApiError(400, "DOCUMENT_FONT_UNSUPPORTED", "Unsupported font family");
-    }
+    await this.assertDocumentFolderOwnedIfNonNull(actorSub, payload.folderId);
+    this.assertFontFamilyAllowedIfNonNull(payload.fontFamily);
 
     const sanitized: CreateDocumentDto = {
       title: sanitizeDocumentTitle(payload.title),
@@ -74,15 +88,8 @@ export class DocumentService {
       throw new ApiError(400, "DOCUMENT_UPDATE_EMPTY", "Update payload must include at least one field");
     }
 
-    if (patch.folderId) {
-      const exists = await this.repository.ownerHasFolder(actorSub, patch.folderId);
-      if (!exists) {
-        throw new ApiError(404, "FOLDER_NOT_FOUND", "Folder not found");
-      }
-    }
-    if (patch.fontFamily && !isSupportedDocumentFontFamily(patch.fontFamily)) {
-      throw new ApiError(400, "DOCUMENT_FONT_UNSUPPORTED", "Unsupported font family");
-    }
+    await this.assertDocumentFolderOwnedIfNonNull(actorSub, patch.folderId);
+    this.assertFontFamilyAllowedIfNonNull(patch.fontFamily);
 
     const sanitized: UpdateDocumentDto = {
       ...(patch.title !== undefined && { title: sanitizeDocumentTitle(patch.title) }),

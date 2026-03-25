@@ -50,6 +50,7 @@ describe("document repository remote persistence", () => {
       content: "<p>hello</p>",
       language: "en",
       folderId: null,
+      fontFamily: "Inter",
       createdAt: createdAtIso,
       updatedAt: createdAtIso
     });
@@ -60,6 +61,7 @@ describe("document repository remote persistence", () => {
       content: "<p>hello</p>",
       language: "en" as const,
       folderId: null,
+      fontFamily: "Inter",
       createdAt: Date.now(),
       updatedAt: Date.now()
     };
@@ -72,11 +74,12 @@ describe("document repository remote persistence", () => {
       title: "Draft",
       content: "<p>hello</p>",
       language: "en",
-      folderId: null
+      folderId: null,
+      fontFamily: "Inter"
     });
   });
 
-  it("maps folderId from API document payload", async () => {
+  it("maps folderId and fontFamily from API document payload", async () => {
     const { documentsApi } = await import("@/app/api/endpoints");
     vi.mocked(documentsApi.list).mockResolvedValue([
       {
@@ -86,6 +89,7 @@ describe("document repository remote persistence", () => {
         content: "<p>hello</p>",
         language: "en",
         folderId: "11111111-1111-4111-8111-000000000001",
+        fontFamily: "Lora",
         createdAt: "2026-03-10T12:00:00.000Z",
         updatedAt: "2026-03-10T12:00:00.000Z"
       }
@@ -95,6 +99,7 @@ describe("document repository remote persistence", () => {
     const docs = await getAllDocuments();
     expect(docs).toHaveLength(1);
     expect(docs[0]?.folderId).toBe("11111111-1111-4111-8111-000000000001");
+    expect(docs[0]?.fontFamily).toBe("Lora");
   });
 });
 

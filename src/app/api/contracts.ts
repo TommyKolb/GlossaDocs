@@ -14,6 +14,7 @@ export interface ApiDocument {
   content: string;
   language: Language;
   folderId: string | null;
+  fontFamily: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -23,6 +24,7 @@ export interface CreateApiDocumentPayload {
   content: string;
   language: Language;
   folderId?: string | null;
+  fontFamily?: string | null;
 }
 
 export interface UpdateApiDocumentPayload {
@@ -30,6 +32,7 @@ export interface UpdateApiDocumentPayload {
   content?: string;
   language?: Language;
   folderId?: string | null;
+  fontFamily?: string | null;
 }
 
 export interface ApiFolder {

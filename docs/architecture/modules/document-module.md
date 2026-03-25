@@ -13,6 +13,7 @@ Owns **user-scoped rich-text documents and folders**: create, list, read, update
 - Sanitizes **title** (plain text) and **content** (allowlisted HTML) before persistence.
 - Lists documents for an owner ordered by **`updated_at` descending**.
 - Supports optional `folderId` on documents; folder deletion reparents direct child folders/documents to the deleted folder parent.
+- Supports optional per-document `fontFamily` constrained to a shared font catalog.
 - Encrypts title/content in the repository layer when an encryption key is configured.
 
 **What it does not do**
@@ -50,10 +51,10 @@ flowchart TB
 
 | Type | Purpose |
 |------|---------|
-| `DocumentAggregate` | API/repository result: `id`, `ownerId`, `title`, `content`, `language`, optional `folderId`, ISO8601 `createdAt`/`updatedAt`. |
+| `DocumentAggregate` | API/repository result: `id`, `ownerId`, `title`, `content`, `language`, optional `folderId`, optional `fontFamily`, ISO8601 `createdAt`/`updatedAt`. |
 | `FolderAggregate` | API/repository result: `id`, `ownerId`, `name`, optional `parentFolderId`, timestamps. |
-| `CreateDocumentDto` | `title`, `content`, `language`, optional `folderId`. |
-| `UpdateDocumentDto` | Optional `title`, `content`, `language`, `folderId`. |
+| `CreateDocumentDto` | `title`, `content`, `language`, optional `folderId`, optional `fontFamily`. |
+| `UpdateDocumentDto` | Optional `title`, `content`, `language`, `folderId`, `fontFamily`. |
 | `CreateFolderDto` / `UpdateFolderDto` | Folder name and optional parent updates. |
 | `DocumentRepository` | Persistence port for documents and folders (CRUD + hierarchy validation helpers). |
 | `DocumentLanguage` | Union type from `shared/document-languages.ts`. |
@@ -74,6 +75,7 @@ flowchart TB
 | `content` | `text` | Sanitized HTML; may be ciphertext |
 | `language` | `text` | Check: `in ('en','de','ru')` |
 | `folder_id` | `uuid` | Nullable FK to `folders.id` |
+| `font_family` | `text` | Nullable font family from shared catalog |
 | `created_at` | `timestamptz` | |
 | `updated_at` | `timestamptz` | Bumped on update |
 
@@ -110,6 +112,16 @@ flowchart TB
 **Auth:** `requireAuth` + `requireActorSub` on all routes.
 
 **Zod:** `id` param must be UUID string.
+
+## Font catalog extensibility
+
+Font validation in backend is data-driven via `backend/src/shared/document-fonts.ts`.
+Additions should follow this checklist:
+
+1. Add/adjust catalog entry in `backend/src/shared/document-fonts.ts`.
+2. Mirror the frontend catalog entry in `src/app/utils/language-fonts.ts`.
+3. Keep defaults aligned (`defaultFamily` present in each language font list).
+4. Extend tests in `backend/test/document-routes.test.ts`, `backend/test/document-service.test.ts`, and `src/test/editor-fonts.test.tsx`.
 
 ## Declarations (TypeScript)
 

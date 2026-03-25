@@ -7,6 +7,7 @@ import {
   encryptDocumentField
 } from "../../shared/document-encryption.js";
 import type { DocumentLanguage } from "../../shared/document-languages.js";
+import type { DocumentFontFamily } from "../../shared/document-fonts.js";
 import type {
   CreateDocumentDto,
   CreateFolderDto,
@@ -24,6 +25,7 @@ interface DocumentRow extends QueryResultRow {
   content: string;
   language: DocumentLanguage;
   folder_id: string | null;
+  font_family: DocumentFontFamily | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -58,6 +60,7 @@ function toAggregate(
     content,
     language: row.language,
     folderId: row.folder_id,
+    fontFamily: row.font_family,
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString()
   };
@@ -91,7 +94,7 @@ export class PgDocumentRepository implements DocumentRepository {
   public async findByOwner(actorSub: string): Promise<DocumentAggregate[]> {
     const rows = await queryDb<DocumentRow>(
       this.databaseUrl,
-      `select id, owner_id, title, content, language, folder_id, created_at, updated_at
+      `select id, owner_id, title, content, language, folder_id, font_family, created_at, updated_at
        from documents
        where owner_id = $1
        order by updated_at desc`,
@@ -104,7 +107,7 @@ export class PgDocumentRepository implements DocumentRepository {
   public async findOwnedById(actorSub: string, id: string): Promise<DocumentAggregate | null> {
     const rows = await queryDb<DocumentRow>(
       this.databaseUrl,
-      `select id, owner_id, title, content, language, folder_id, created_at, updated_at
+      `select id, owner_id, title, content, language, folder_id, font_family, created_at, updated_at
        from documents
        where owner_id = $1 and id = $2`,
       [actorSub, id]
@@ -125,10 +128,10 @@ export class PgDocumentRepository implements DocumentRepository {
 
     const rows = await queryDb<DocumentRow>(
       this.databaseUrl,
-      `insert into documents (owner_id, title, content, language, folder_id, created_at, updated_at)
-       values ($1, $2, $3, $4, $5, now(), now())
-       returning id, owner_id, title, content, language, folder_id, created_at, updated_at`,
-      [actorSub, title, content, payload.language, payload.folderId ?? null]
+      `insert into documents (owner_id, title, content, language, folder_id, font_family, created_at, updated_at)
+       values ($1, $2, $3, $4, $5, $6, now(), now())
+       returning id, owner_id, title, content, language, folder_id, font_family, created_at, updated_at`,
+      [actorSub, title, content, payload.language, payload.folderId ?? null, payload.fontFamily ?? null]
     );
 
     const inserted = rows[0];
@@ -147,6 +150,8 @@ export class PgDocumentRepository implements DocumentRepository {
     let contentParam: string | null = patch.content ?? null;
     const hasFolderPatch = Object.hasOwn(patch, "folderId");
     const folderIdParam = patch.folderId ?? null;
+    const hasFontFamilyPatch = Object.hasOwn(patch, "fontFamily");
+    const fontFamilyParam = patch.fontFamily ?? null;
     if (this.encryptionKey !== null) {
       if (patch.title !== undefined) {
         titleParam = encryptDocumentField(patch.title, this.encryptionKey);
@@ -164,10 +169,21 @@ export class PgDocumentRepository implements DocumentRepository {
          content = coalesce($4, content),
          language = coalesce($5, language),
          folder_id = case when $6::boolean then $7::uuid else folder_id end,
+         font_family = case when $8::boolean then $9::text else font_family end,
          updated_at = now()
        where owner_id = $1 and id = $2
-       returning id, owner_id, title, content, language, folder_id, created_at, updated_at`,
-      [actorSub, id, titleParam, contentParam, patch.language ?? null, hasFolderPatch, folderIdParam]
+       returning id, owner_id, title, content, language, folder_id, font_family, created_at, updated_at`,
+      [
+        actorSub,
+        id,
+        titleParam,
+        contentParam,
+        patch.language ?? null,
+        hasFolderPatch,
+        folderIdParam,
+        hasFontFamilyPatch,
+        fontFamilyParam
+      ]
     );
 
     return rows[0] ? toAggregate(rows[0], this.encryptionKey) : null;

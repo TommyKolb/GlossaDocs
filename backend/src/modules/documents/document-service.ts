@@ -1,4 +1,5 @@
 import { ApiError } from "../../shared/api-error.js";
+import { isSupportedDocumentFontFamily } from "../../shared/document-fonts.js";
 import {
   sanitizeDocumentContent,
   sanitizeDocumentTitle
@@ -44,11 +45,16 @@ export class DocumentService {
       }
     }
 
+    if (payload.fontFamily && !isSupportedDocumentFontFamily(payload.fontFamily)) {
+      throw new ApiError(400, "DOCUMENT_FONT_UNSUPPORTED", "Unsupported font family");
+    }
+
     const sanitized: CreateDocumentDto = {
       title: sanitizeDocumentTitle(payload.title),
       content: sanitizeDocumentContent(payload.content),
       language: payload.language,
-      folderId: payload.folderId ?? null
+      folderId: payload.folderId ?? null,
+      fontFamily: payload.fontFamily ?? null
     };
     return this.repository.insert(actorSub, sanitized);
   }
@@ -62,7 +68,8 @@ export class DocumentService {
       !patch.title &&
       !patch.content &&
       !patch.language &&
-      patch.folderId === undefined
+      patch.folderId === undefined &&
+      patch.fontFamily === undefined
     ) {
       throw new ApiError(400, "DOCUMENT_UPDATE_EMPTY", "Update payload must include at least one field");
     }
@@ -73,12 +80,16 @@ export class DocumentService {
         throw new ApiError(404, "FOLDER_NOT_FOUND", "Folder not found");
       }
     }
+    if (patch.fontFamily && !isSupportedDocumentFontFamily(patch.fontFamily)) {
+      throw new ApiError(400, "DOCUMENT_FONT_UNSUPPORTED", "Unsupported font family");
+    }
 
     const sanitized: UpdateDocumentDto = {
       ...(patch.title !== undefined && { title: sanitizeDocumentTitle(patch.title) }),
       ...(patch.content !== undefined && { content: sanitizeDocumentContent(patch.content) }),
       ...(patch.language !== undefined && { language: patch.language }),
-      ...(patch.folderId !== undefined && { folderId: patch.folderId })
+      ...(patch.folderId !== undefined && { folderId: patch.folderId }),
+      ...(patch.fontFamily !== undefined && { fontFamily: patch.fontFamily })
     };
     return this.repository.updateOwned(actorSub, id, sanitized);
   }

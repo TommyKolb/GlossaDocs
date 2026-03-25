@@ -331,4 +331,47 @@ describe("document routes", () => {
     expect(invalidMove.status).toBe(400);
     expect(invalidMove.body.code).toBe("FOLDER_INVALID_PARENT");
   });
+
+  it("round-trips fontFamily on create and update", async () => {
+    const created = await request(app.server)
+      .post("/documents")
+      .set("Authorization", "Bearer token-user-1")
+      .send({
+        title: "Font Doc",
+        content: "<p>Font content</p>",
+        language: "en",
+        fontFamily: "Inter"
+      });
+
+    expect(created.status).toBe(201);
+    expect(created.body.fontFamily).toBe("Inter");
+
+    const updated = await request(app.server)
+      .put(`/documents/${created.body.id as string}`)
+      .set("Authorization", "Bearer token-user-1")
+      .send({ fontFamily: "Lora" });
+    expect(updated.status).toBe(200);
+    expect(updated.body.fontFamily).toBe("Lora");
+
+    const readBack = await request(app.server)
+      .get(`/documents/${created.body.id as string}`)
+      .set("Authorization", "Bearer token-user-1");
+    expect(readBack.status).toBe(200);
+    expect(readBack.body.fontFamily).toBe("Lora");
+  });
+
+  it("returns 400 for invalid fontFamily on document create", async () => {
+    const response = await request(app.server)
+      .post("/documents")
+      .set("Authorization", "Bearer token-user-1")
+      .send({
+        title: "Bad Font",
+        content: "<p>Bad</p>",
+        language: "en",
+        fontFamily: "Unsupported Font"
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.code).toBe("VALIDATION_ERROR");
+  });
 });

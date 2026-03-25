@@ -7,6 +7,7 @@ import { generateDocumentId } from '../models/document';
 import { getDocument, saveDocument } from '../data/document-repository';
 import { exportDocument, type ExportFormat } from '../utils/export';
 import { getLanguageName, type Language } from '../utils/languages';
+import { getDefaultFontFamilyForLanguage, resolveDocumentFontFamily } from '../utils/language-fonts';
 import { EDITOR_CONFIG, UI_CONSTANTS } from '../utils/constants';
 import { findBlockElement, getLineHeight, getNextImageSize } from '../utils/dom';
 import { getRemappedCharacter } from '../utils/keyboardLayouts';
@@ -92,8 +93,9 @@ export function Editor({ documentId, onBack }: EditorProps) {
 
   const handleLanguageChange = useCallback((newLanguage: Language) => {
     if (!document) return;
-    
-    setDocument({ ...document, language: newLanguage });
+
+    const nextFontFamily = resolveDocumentFontFamily(newLanguage, document.fontFamily);
+    setDocument({ ...document, language: newLanguage, fontFamily: nextFontFamily });
     setHasUnsavedChanges(true);
     
     // Apply text direction based on language (future-proofing for RTL languages)
@@ -107,6 +109,19 @@ export function Editor({ documentId, onBack }: EditorProps) {
       console.error('Error saving language preference:', error);
     });
   }, [document]);
+
+  const handleFontFamilyChange = useCallback((nextFontFamily: string) => {
+    setDocument((current) => {
+      if (!current) {
+        return current;
+      }
+      return {
+        ...current,
+        fontFamily: resolveDocumentFontFamily(current.language, nextFontFamily)
+      };
+    });
+    setHasUnsavedChanges(true);
+  }, []);
 
   const insertTextAtCursor = useCallback((text: string) => {
     if (!editorRef.current) return;
@@ -509,6 +524,7 @@ export function Editor({ documentId, onBack }: EditorProps) {
           content: '',
           language: preferredLanguage,
           folderId: initialFolderId,
+          fontFamily: getDefaultFontFamilyForLanguage(preferredLanguage),
           createdAt: Date.now(),
           updatedAt: Date.now(),
         };
@@ -526,6 +542,12 @@ export function Editor({ documentId, onBack }: EditorProps) {
   }, [document?.id]); // Only run when document changes
 
   useEffect(() => {
+    if (document && editorRef.current) {
+      editorRef.current.style.fontFamily = document.fontFamily;
+    }
+  }, [document?.fontFamily, document?.id]);
+
+  useEffect(() => {
     documentRef.current = document;
   }, [document]);
 
@@ -541,6 +563,8 @@ export function Editor({ documentId, onBack }: EditorProps) {
     <div className="min-h-screen min-h-[100dvh] flex flex-col bg-white">
       <EditorToolbar
         language={document.language}
+        fontFamily={document.fontFamily}
+        onFontFamilyChange={handleFontFamilyChange}
         onLanguageChange={handleLanguageChange}
         onSave={() => handleSave()}
         onDownload={handleDownload}

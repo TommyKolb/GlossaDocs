@@ -1,6 +1,8 @@
 import type { DocumentLanguage } from "../../shared/document-languages.js";
+import type { DocumentFontFamily } from "../../shared/document-fonts.js";
 
 export type { DocumentLanguage };
+export type { DocumentFontFamily };
 
 export interface DocumentAggregate {
   id: string;
@@ -9,6 +11,7 @@ export interface DocumentAggregate {
   content: string;
   language: DocumentLanguage;
   folderId: string | null;
+  fontFamily: DocumentFontFamily | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -18,6 +21,7 @@ export interface CreateDocumentDto {
   content: string;
   language: DocumentLanguage;
   folderId?: string | null;
+  fontFamily?: DocumentFontFamily | null;
 }
 
 export interface UpdateDocumentDto {
@@ -25,6 +29,7 @@ export interface UpdateDocumentDto {
   content?: string;
   language?: DocumentLanguage;
   folderId?: string | null;
+  fontFamily?: DocumentFontFamily | null;
 }
 
 export interface FolderAggregate {

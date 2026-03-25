@@ -1,6 +1,7 @@
 import { ApiClientError } from "../api/client";
 import { documentsApi, foldersApi } from "../api/endpoints";
 import { generateDocumentId, type Document, type Folder } from "../models/document";
+import { resolveDocumentFontFamily } from "../utils/language-fonts";
 import { isAuthenticatedMode } from "./session-mode";
 import {
   deleteDocument as deleteLocalDocument,
@@ -24,6 +25,7 @@ function toAppDocument(apiDocument: {
   content: string;
   language: Document["language"];
   folderId: string | null;
+  fontFamily: string | null;
   createdAt: string;
   updatedAt: string;
 }): Document {
@@ -33,6 +35,7 @@ function toAppDocument(apiDocument: {
     content: apiDocument.content,
     language: apiDocument.language,
     folderId: apiDocument.folderId,
+    fontFamily: resolveDocumentFontFamily(apiDocument.language, apiDocument.fontFamily),
     createdAt: Date.parse(apiDocument.createdAt),
     updatedAt: Date.parse(apiDocument.updatedAt)
   };
@@ -97,7 +100,8 @@ export async function saveDocument(document: Document): Promise<Document> {
     title: document.title,
     content: document.content,
     language: document.language,
-    folderId: document.folderId
+    folderId: document.folderId,
+    fontFamily: document.fontFamily
   };
 
   const shouldCreate = !isUuid(document.id) || !knownRemoteDocumentIds.has(document.id);

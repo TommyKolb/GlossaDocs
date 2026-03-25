@@ -6,6 +6,7 @@ export interface Document {
   content: string;
   language: Language;
   folderId: string | null;
+  fontFamily: string;
   createdAt: number;
   updatedAt: number;
 }

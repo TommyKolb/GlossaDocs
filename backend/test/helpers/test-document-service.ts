@@ -39,6 +39,7 @@ class InMemoryDocumentRepository implements DocumentRepository {
       content: payload.content,
       language: payload.language,
       folderId: payload.folderId ?? null,
+      fontFamily: payload.fontFamily ?? null,
       createdAt: now,
       updatedAt: now
     };
@@ -62,6 +63,7 @@ class InMemoryDocumentRepository implements DocumentRepository {
       content: patch.content ?? existing.content,
       language: patch.language ?? existing.language,
       folderId: patch.folderId !== undefined ? patch.folderId : existing.folderId,
+      fontFamily: patch.fontFamily !== undefined ? patch.fontFamily : existing.fontFamily,
       updatedAt: new Date().toISOString()
     };
     this.records.set(id, updated);

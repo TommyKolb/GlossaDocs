@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 
 import { ApiError } from "../../shared/api-error.js";
+import { isSupportedDocumentFontFamily } from "../../shared/document-fonts.js";
 import { SUPPORTED_DOCUMENT_LANGUAGES } from "../../shared/document-languages.js";
 import { requireAuth } from "../identity-access/auth.js";
 import { requireActorSub } from "../identity-access/current-actor.js";
@@ -12,7 +13,14 @@ const createDocumentSchema = z.object({
   title: z.string().min(1),
   content: z.string(),
   language: z.enum(SUPPORTED_DOCUMENT_LANGUAGES),
-  folderId: z.string().uuid().nullable().optional()
+  folderId: z.string().uuid().nullable().optional(),
+  fontFamily: z
+    .string()
+    .refine((value) => isSupportedDocumentFontFamily(value), {
+      message: "Unsupported font family"
+    })
+    .nullable()
+    .optional()
 });
 
 const updateDocumentSchema = z
@@ -20,7 +28,14 @@ const updateDocumentSchema = z
     title: z.string().min(1).optional(),
     content: z.string().optional(),
     language: z.enum(SUPPORTED_DOCUMENT_LANGUAGES).optional(),
-    folderId: z.string().uuid().nullable().optional()
+    folderId: z.string().uuid().nullable().optional(),
+    fontFamily: z
+      .string()
+      .refine((value) => isSupportedDocumentFontFamily(value), {
+        message: "Unsupported font family"
+      })
+      .nullable()
+      .optional()
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: "At least one field must be provided for update"

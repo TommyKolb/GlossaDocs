@@ -52,4 +52,10 @@ describe("migration file definitions", () => {
     expect(text).toContain("fk_documents_folder_id");
     expect(text).toContain("idx_documents_owner_folder");
   });
+
+  it("005 adds per-document font family column", async () => {
+    const text = await migrationText("005_add_documents_font_family.js");
+    expect(text).toContain('pgm.addColumn("documents"');
+    expect(text).toContain("font_family");
+  });
 });

@@ -1,6 +1,6 @@
 # GlossaDocs
 
-GlossaDocs is a browser-based document editor inspired by Google Docs, aimed at **multilingual writing**: per-document language, on-screen keyboards and key remapping for non-Latin scripts (for example Russian), and a familiar flow—document list, nested folders, rich-text editor, autosave, import/export.
+GlossaDocs is a browser-based document editor inspired by Google Docs, aimed at **multilingual writing**: per-document language, per-document language-aware font themes, on-screen keyboards and key remapping for non-Latin scripts (for example Russian), and a familiar flow—document list, nested folders, rich-text editor, autosave, import/export.
 
 **Why it exists:** many tools treat language as an afterthought. GlossaDocs is built so language choice and input methods sit next to editing, not in a separate toolchain.
 
@@ -84,3 +84,16 @@ Requires **Node.js 20+** and dependencies: from the repo root run `npm run setup
 
 - [Document encryption at rest](docs/architecture/document-encryption.md) (`DOCUMENT_ENCRYPTION_KEY`)
 - Operational concerns (sessions, Postgres, Keycloak, reset procedures): **[backend/README.md](backend/README.md)**
+
+## Adding a new language font set
+
+To add another language with minimal code changes:
+
+1. Add/update language entry in `src/app/utils/languages.ts`.
+2. Add font catalog entry in `src/app/utils/language-fonts.ts` with:
+   - `defaultFamily`
+   - `fonts[]` (`family`, `googleFontFamily`, `fallbackStack`)
+3. Mirror allowed font family updates in `backend/src/shared/document-fonts.ts`.
+4. Add/update tests:
+   - `src/test/editor-fonts.test.tsx`
+   - `backend/test/document-routes.test.ts` / `backend/test/document-service.test.ts`

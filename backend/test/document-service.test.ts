@@ -79,6 +79,7 @@ class RecordingRepository implements DocumentRepository {
     content: "",
     language: "en",
     folderId: null,
+    fontFamily: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
@@ -99,7 +100,13 @@ class RecordingRepository implements DocumentRepository {
   }
   public async insert(actorSub: string, payload: CreateDocumentDto): Promise<DocumentAggregate> {
     this.lastInsertPayload = { ...payload };
-    return { ...this.doc, ownerId: actorSub, title: payload.title, content: payload.content };
+    return {
+      ...this.doc,
+      ownerId: actorSub,
+      title: payload.title,
+      content: payload.content,
+      fontFamily: payload.fontFamily ?? null
+    };
   }
   public async updateOwned(
     _actorSub: string,
@@ -226,6 +233,23 @@ describe("DocumentService sanitization", () => {
 
     expect(repo.lastUpdatePatch!.content).not.toContain("iframe");
     expect(repo.lastUpdatePatch!.content).toContain("Fine");
+  });
+
+  it("createOwned rejects unknown font families", async () => {
+    const repo = new RecordingRepository();
+    const service = new DocumentService(repo);
+
+    await expect(
+      service.createOwned("actor-1", {
+        title: "Doc",
+        content: "<p>Hi</p>",
+        language: "en",
+        fontFamily: "NotARealFont"
+      })
+    ).rejects.toMatchObject({
+      code: "DOCUMENT_FONT_UNSUPPORTED",
+      statusCode: 400
+    } satisfies Partial<ApiError>);
   });
 });
 

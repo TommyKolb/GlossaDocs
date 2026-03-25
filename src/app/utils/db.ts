@@ -1,11 +1,12 @@
 // IndexedDB utilities for GlossaDocs
 import type { Document, Folder } from "../models/document";
 import { generateDocumentId } from "../models/document";
+import { resolveDocumentFontFamily } from "./language-fonts";
 
 const DB_NAME = 'GlossaDocs';
 const DOCUMENT_STORE_NAME = 'documents';
 const FOLDER_STORE_NAME = 'folders';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 let dbInstance: IDBDatabase | null = null;
 
@@ -38,8 +39,8 @@ export async function initDB(): Promise<IDBDatabase> {
         folderStore.createIndex('parentFolderId', 'parentFolderId', { unique: false });
       }
 
-      // Ensure legacy documents gain the folderId field when upgrading from v1.
-      if (event.oldVersion < 2 && db.objectStoreNames.contains(DOCUMENT_STORE_NAME)) {
+      // Ensure legacy documents gain new persisted fields.
+      if (event.oldVersion < 3 && db.objectStoreNames.contains(DOCUMENT_STORE_NAME)) {
         const tx = (event.target as IDBOpenDBRequest).transaction;
         if (tx) {
           const docsStore = tx.objectStore(DOCUMENT_STORE_NAME);
@@ -49,10 +50,22 @@ export async function initDB(): Promise<IDBDatabase> {
             if (!cursor) {
               return;
             }
-            const value = cursor.value as Document & { folderId?: string | null };
-            if (!Object.prototype.hasOwnProperty.call(value, 'folderId')) {
-              cursor.update({ ...value, folderId: null });
-            }
+            const value = cursor.value as Document & {
+              folderId?: string | null;
+              fontFamily?: string | null;
+              language?: Document["language"];
+            };
+            const language = value.language ?? "en";
+            const nextValue: Document = {
+              ...(value as Document),
+              folderId:
+                Object.prototype.hasOwnProperty.call(value, 'folderId') ? (value.folderId ?? null) : null,
+              fontFamily:
+                Object.prototype.hasOwnProperty.call(value, 'fontFamily')
+                  ? resolveDocumentFontFamily(language, value.fontFamily ?? null)
+                  : resolveDocumentFontFamily(language, null)
+            };
+            cursor.update(nextValue);
             cursor.continue();
           };
         }
@@ -219,6 +232,7 @@ export function importDocument(file: File): Promise<Document> {
         doc.id = generateId();
         doc.updatedAt = Date.now();
         doc.folderId = null;
+        doc.fontFamily = resolveDocumentFontFamily(doc.language, doc.fontFamily);
         resolve(doc);
       } catch (error) {
         reject(new Error('Invalid document format'));

@@ -15,6 +15,18 @@ import {
 
 const knownRemoteDocumentIds = new Set<string>();
 
+/** Resolves HTTP status from API errors (handles duplicate class identity across bundles in tests). */
+function getApiErrorStatus(error: unknown): number | undefined {
+  if (error instanceof ApiClientError) {
+    return error.status;
+  }
+  if (error && typeof error === "object" && "status" in error) {
+    const status = (error as { status: unknown }).status;
+    return typeof status === "number" ? status : undefined;
+  }
+  return undefined;
+}
+
 function isUuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
@@ -83,7 +95,7 @@ export async function getDocument(id: string): Promise<Document | null> {
     knownRemoteDocumentIds.add(apiDocument.id);
     return toAppDocument(apiDocument);
   } catch (error) {
-    if (error instanceof ApiClientError && error.status === 404) {
+    if (getApiErrorStatus(error) === 404) {
       return null;
     }
     throw error;
@@ -116,7 +128,7 @@ export async function saveDocument(document: Document): Promise<Document> {
     knownRemoteDocumentIds.add(updated.id);
     return toAppDocument(updated);
   } catch (error) {
-    if (error instanceof ApiClientError && error.status === 404) {
+    if (getApiErrorStatus(error) === 404) {
       knownRemoteDocumentIds.delete(document.id);
       const created = await documentsApi.create(payload);
       knownRemoteDocumentIds.add(created.id);

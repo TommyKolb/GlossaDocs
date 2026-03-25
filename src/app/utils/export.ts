@@ -239,12 +239,6 @@ export async function exportAsPdf(doc: AppDocument): Promise<void> {
               overflow-wrap: anywhere;
               word-break: break-word;
             }
-            .pdf-title {
-              margin: 0 0 20px 0;
-              font-size: 28px;
-              font-weight: 700;
-              line-height: 1.2;
-            }
             .pdf-content {
               white-space: pre-wrap;
               overflow-wrap: anywhere;
@@ -260,14 +254,10 @@ export async function exportAsPdf(doc: AppDocument): Promise<void> {
     const renderContainer = iframeDoc.createElement('div');
     renderContainer.className = 'pdf-root';
     renderContainer.id = 'pdf-export-root';
-    const titleElement = iframeDoc.createElement('h1');
-    titleElement.className = 'pdf-title';
-    titleElement.textContent = doc.title || 'Untitled Document';
     const contentElement = iframeDoc.createElement('div');
     contentElement.className = 'pdf-content';
     contentElement.innerHTML = sanitizeHtmlForPdf(doc.content || '<div><br></div>');
 
-    renderContainer.appendChild(titleElement);
     renderContainer.appendChild(contentElement);
     iframeDoc.body.appendChild(renderContainer);
 

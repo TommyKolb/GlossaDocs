@@ -21,6 +21,14 @@ Requires **Node.js 20+** and dependencies (`npm run setup:dev` at the repo root,
 
 `npm run test:all` also runs `check:font-catalogs` (frontend/backend font catalogs must stay aligned). `test:frontend` / `test:backend` alone do not.
 
+## Using coverage (signal, not a score)
+
+Run `npm run test:frontend:coverage` and `npm run test:backend:coverage`, then open the HTML reports under `coverage/frontend/lcov-report/index.html` and `coverage/backend/lcov-report/index.html` (or read `coverage-summary.json` for a quick pass/fail view). Use reports to find **hotspots and branches** in risky areas (auth, persistence, API clients), not to chase 100% on thin UI code. Watch for **drops** in critical modules after refactors; raw percentages alone are misleading.
+
+## What we do not fake in unit tests
+
+**PostgreSQL** (`pg-document-repository`, `db.ts`) and **Redis** session stores need real databases or tools like Testcontainers to test truthfully. This repo defers those until a dedicated infra-testing initiative; shallow SQL mocks in Vitest are easy to get wrong and can give false confidence.
+
 ## Continuous integration
 
 On push and pull requests to `main` or `master`:

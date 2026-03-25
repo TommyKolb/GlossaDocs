@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   sanitizeDocumentContent,
   sanitizeDocumentTitle
-} from "../src/shared/document-sanitizer.js";
+} from "../../src/shared/document-sanitizer.js";
 
 describe("sanitizeDocumentTitle", () => {
   it("returns empty string for empty input", () => {

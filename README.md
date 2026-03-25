@@ -75,10 +75,9 @@ The Docker backend is configured so token verification uses the **internal** Key
 
 ## Tests
 
-Requires **Node.js 20+** and dependencies: from the repo root run `npm run setup:dev` once (installs root + `backend/` packages), or run `npm install` and `npm --prefix backend install` yourself.
+**Node.js 20+** and `npm run setup:dev` (or install root + `backend/` packages yourself). Run everything: `npm test`. Tests are split into **unit**, **integration**, and **E2E** (Playwright); CI runs on push/PR via `.github/workflows/run-frontend-tests.yml` and `run-backend-tests.yml`.
 
-- Frontend: `npm run test:frontend` (Vitest, `src/test/`)
-- Backend: `npm run test:backend` (Vitest, `backend/test/`)
+Details—commands, coverage, folders, CI: **[docs/testing.md](docs/testing.md)**.
 
 ## Further reading
 
@@ -95,5 +94,5 @@ To add another language with minimal code changes:
    - `fonts[]` (`family`, `googleFontFamily`, `fallbackStack`)
 3. Mirror allowed font family updates in `backend/src/shared/document-fonts.ts`.
 4. Add/update tests:
-   - `src/test/editor-fonts.test.tsx`
-   - `backend/test/document-routes.test.ts` / `backend/test/document-service.test.ts`
+   - `src/test/integration/editor-fonts.test.tsx`
+   - `backend/test/integration/document-routes.test.ts` / `backend/test/unit/document-service.test.ts`

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { ApiError } from "../src/shared/api-error.js";
-import { DocumentService } from "../src/modules/documents/document-service.js";
-import type { DocumentRepository } from "../src/modules/documents/document-repository.js";
+import { ApiError } from "../../src/shared/api-error.js";
+import { DocumentService } from "../../src/modules/documents/document-service.js";
+import type { DocumentRepository } from "../../src/modules/documents/document-repository.js";
 import type {
   CreateDocumentDto,
   DocumentAggregate,
@@ -10,7 +10,7 @@ import type {
   CreateFolderDto,
   UpdateFolderDto,
   UpdateDocumentDto
-} from "../src/modules/documents/types.js";
+} from "../../src/modules/documents/types.js";
 
 class EmptyRepository implements DocumentRepository {
   public async findByOwner(_actorSub: string): Promise<DocumentAggregate[]> {

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { ApiError } from "../src/shared/api-error.js";
-import { SettingsService } from "../src/modules/input-preferences/settings-service.js";
-import type { SettingsRepository } from "../src/modules/input-preferences/settings-repository.js";
+import { ApiError } from "../../src/shared/api-error.js";
+import { SettingsService } from "../../src/modules/input-preferences/settings-service.js";
+import type { SettingsRepository } from "../../src/modules/input-preferences/settings-repository.js";
 
 class InertSettingsRepository implements SettingsRepository {
   public async findByOwner() {

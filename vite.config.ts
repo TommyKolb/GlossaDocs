@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vitest/config'
 import path from 'path'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
@@ -23,6 +23,21 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
-    include: ['src/test/**/*.test.{ts,tsx}'],
+    include: [
+      'src/test/unit/**/*.test.{ts,tsx}',
+      'src/test/integration/**/*.test.{ts,tsx}',
+    ],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'lcov', 'json-summary'],
+      reportsDirectory: './coverage/frontend',
+      exclude: [
+        '**/*.d.ts',
+        '**/dist/**',
+        'src/test/**',
+        'e2e/**',
+        '**/*.config.*',
+      ],
+    },
   },
 })

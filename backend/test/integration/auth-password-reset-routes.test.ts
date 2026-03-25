@@ -1,10 +1,10 @@
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
-import { buildApp } from "../src/app.js";
-import type { TokenVerifier } from "../src/modules/identity-access/token-verifier.js";
-import { createTestDocumentService } from "./helpers/test-document-service.js";
-import { createTestSettingsService } from "./helpers/test-settings-service.js";
+import { buildApp } from "../../src/app.js";
+import type { TokenVerifier } from "../../src/modules/identity-access/token-verifier.js";
+import { createTestDocumentService } from "../helpers/test-document-service.js";
+import { createTestSettingsService } from "../helpers/test-settings-service.js";
 
 type KeycloakAdminClient = {
   sendPasswordResetEmail: (args: { email: string }) => Promise<void>;

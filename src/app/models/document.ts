@@ -5,6 +5,16 @@ export interface Document {
   title: string;
   content: string;
   language: Language;
+  folderId: string | null;
+  fontFamily: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface Folder {
+  id: string;
+  name: string;
+  parentFolderId: string | null;
   createdAt: number;
   updatedAt: number;
 }

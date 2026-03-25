@@ -1,12 +1,16 @@
 import { ApiClientError } from "../api/client";
-import { documentsApi } from "../api/endpoints";
-import type { Document } from "../models/document";
+import { documentsApi, foldersApi } from "../api/endpoints";
+import { generateDocumentId, type Document, type Folder } from "../models/document";
+import { resolveDocumentFontFamily } from "../utils/language-fonts";
 import { isAuthenticatedMode } from "./session-mode";
 import {
   deleteDocument as deleteLocalDocument,
   getAllDocuments as getAllLocalDocuments,
+  getAllFolders as getAllLocalFolders,
   getDocument as getLocalDocument,
-  saveDocument as saveLocalDocument
+  deleteFolder as deleteLocalFolder,
+  saveDocument as saveLocalDocument,
+  saveFolder as saveLocalFolder
 } from "../utils/db";
 
 const knownRemoteDocumentIds = new Set<string>();
@@ -20,6 +24,8 @@ function toAppDocument(apiDocument: {
   title: string;
   content: string;
   language: Document["language"];
+  folderId: string | null;
+  fontFamily: string | null;
   createdAt: string;
   updatedAt: string;
 }): Document {
@@ -28,8 +34,26 @@ function toAppDocument(apiDocument: {
     title: apiDocument.title,
     content: apiDocument.content,
     language: apiDocument.language,
+    folderId: apiDocument.folderId,
+    fontFamily: resolveDocumentFontFamily(apiDocument.language, apiDocument.fontFamily),
     createdAt: Date.parse(apiDocument.createdAt),
     updatedAt: Date.parse(apiDocument.updatedAt)
+  };
+}
+
+function toAppFolder(apiFolder: {
+  id: string;
+  name: string;
+  parentFolderId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}): Folder {
+  return {
+    id: apiFolder.id,
+    name: apiFolder.name,
+    parentFolderId: apiFolder.parentFolderId,
+    createdAt: Date.parse(apiFolder.createdAt),
+    updatedAt: Date.parse(apiFolder.updatedAt)
   };
 }
 
@@ -75,7 +99,9 @@ export async function saveDocument(document: Document): Promise<Document> {
   const payload = {
     title: document.title,
     content: document.content,
-    language: document.language
+    language: document.language,
+    folderId: document.folderId,
+    fontFamily: document.fontFamily
   };
 
   const shouldCreate = !isUuid(document.id) || !knownRemoteDocumentIds.has(document.id);
@@ -112,4 +138,59 @@ export async function deleteDocument(id: string): Promise<void> {
 
   await documentsApi.remove(id);
   knownRemoteDocumentIds.delete(id);
+}
+
+export async function getAllFolders(): Promise<Folder[]> {
+  if (!isAuthenticatedMode()) {
+    return getAllLocalFolders();
+  }
+
+  const apiFolders = await foldersApi.list();
+  return apiFolders.map(toAppFolder);
+}
+
+export async function createFolder(name: string, parentFolderId: string | null): Promise<Folder> {
+  if (!isAuthenticatedMode()) {
+    const folder: Folder = {
+      id: generateDocumentId(),
+      name,
+      parentFolderId,
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+    await saveLocalFolder(folder);
+    return folder;
+  }
+
+  const created = await foldersApi.create({ name, parentFolderId });
+  return toAppFolder(created);
+}
+
+export async function updateFolder(folder: Folder): Promise<Folder> {
+  if (!isAuthenticatedMode()) {
+    const updated: Folder = {
+      ...folder,
+      updatedAt: Date.now()
+    };
+    await saveLocalFolder(updated);
+    return updated;
+  }
+
+  const updated = await foldersApi.update(folder.id, {
+    name: folder.name,
+    parentFolderId: folder.parentFolderId
+  });
+  return toAppFolder(updated);
+}
+
+export async function deleteFolder(id: string): Promise<void> {
+  if (!isAuthenticatedMode()) {
+    await deleteLocalFolder(id);
+    return;
+  }
+
+  if (!isUuid(id)) {
+    return;
+  }
+  await foldersApi.remove(id);
 }

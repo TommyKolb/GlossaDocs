@@ -6,6 +6,9 @@ import type { DocumentRepository } from "../src/modules/documents/document-repos
 import type {
   CreateDocumentDto,
   DocumentAggregate,
+  FolderAggregate,
+  CreateFolderDto,
+  UpdateFolderDto,
   UpdateDocumentDto
 } from "../src/modules/documents/types.js";
 
@@ -29,12 +32,45 @@ class EmptyRepository implements DocumentRepository {
   public async deleteOwned(_actorSub: string, _id: string): Promise<boolean> {
     return false;
   }
+  public async findFoldersByOwner(_actorSub: string): Promise<FolderAggregate[]> {
+    return [];
+  }
+  public async findOwnedFolderById(_actorSub: string, _id: string): Promise<FolderAggregate | null> {
+    return null;
+  }
+  public async insertFolder(_actorSub: string, _payload: CreateFolderDto): Promise<FolderAggregate> {
+    throw new Error("not implemented");
+  }
+  public async updateOwnedFolder(
+    _actorSub: string,
+    _id: string,
+    _patch: UpdateFolderDto
+  ): Promise<FolderAggregate | null> {
+    return null;
+  }
+  public async deleteOwnedFolderAndReparentChildren(_actorSub: string, _id: string): Promise<boolean> {
+    return false;
+  }
+  public async folderHasDescendant(
+    _actorSub: string,
+    _folderId: string,
+    _possibleDescendantId: string
+  ): Promise<boolean> {
+    return false;
+  }
+  public async ownerHasFolder(_actorSub: string, _folderId: string): Promise<boolean> {
+    return false;
+  }
 }
 
 /** Records the last payload passed to insert/updateOwned so tests can assert sanitization. */
 class RecordingRepository implements DocumentRepository {
   public lastInsertPayload: CreateDocumentDto | null = null;
   public lastUpdatePatch: UpdateDocumentDto | null = null;
+  public lastInsertFolderPayload: CreateFolderDto | null = null;
+  public lastUpdateFolderPatch: UpdateFolderDto | null = null;
+  public folderExists = new Set<string>(["folder-1"]);
+  public parentCheckResult = false;
 
   private readonly doc: DocumentAggregate = {
     id: "00000000-0000-4000-8000-000000000001",
@@ -42,6 +78,16 @@ class RecordingRepository implements DocumentRepository {
     title: "",
     content: "",
     language: "en",
+    folderId: null,
+    fontFamily: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+  private readonly folder: FolderAggregate = {
+    id: "folder-1",
+    ownerId: "actor-1",
+    name: "Folder",
+    parentFolderId: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
@@ -54,7 +100,13 @@ class RecordingRepository implements DocumentRepository {
   }
   public async insert(actorSub: string, payload: CreateDocumentDto): Promise<DocumentAggregate> {
     this.lastInsertPayload = { ...payload };
-    return { ...this.doc, ownerId: actorSub, title: payload.title, content: payload.content };
+    return {
+      ...this.doc,
+      ownerId: actorSub,
+      title: payload.title,
+      content: payload.content,
+      fontFamily: payload.fontFamily ?? null
+    };
   }
   public async updateOwned(
     _actorSub: string,
@@ -66,6 +118,45 @@ class RecordingRepository implements DocumentRepository {
   }
   public async deleteOwned(_actorSub: string, _id: string): Promise<boolean> {
     return false;
+  }
+  public async findFoldersByOwner(_actorSub: string): Promise<FolderAggregate[]> {
+    return [this.folder];
+  }
+  public async findOwnedFolderById(_actorSub: string, id: string): Promise<FolderAggregate | null> {
+    return id === this.folder.id ? this.folder : null;
+  }
+  public async insertFolder(actorSub: string, payload: CreateFolderDto): Promise<FolderAggregate> {
+    this.lastInsertFolderPayload = { ...payload };
+    return { ...this.folder, ownerId: actorSub, name: payload.name, parentFolderId: payload.parentFolderId };
+  }
+  public async updateOwnedFolder(
+    _actorSub: string,
+    id: string,
+    patch: UpdateFolderDto
+  ): Promise<FolderAggregate | null> {
+    if (id !== this.folder.id) {
+      return null;
+    }
+    this.lastUpdateFolderPatch = { ...patch };
+    return {
+      ...this.folder,
+      name: patch.name ?? this.folder.name,
+      parentFolderId:
+        patch.parentFolderId !== undefined ? patch.parentFolderId : this.folder.parentFolderId
+    };
+  }
+  public async deleteOwnedFolderAndReparentChildren(_actorSub: string, _id: string): Promise<boolean> {
+    return true;
+  }
+  public async folderHasDescendant(
+    _actorSub: string,
+    _folderId: string,
+    _possibleDescendantId: string
+  ): Promise<boolean> {
+    return this.parentCheckResult;
+  }
+  public async ownerHasFolder(_actorSub: string, folderId: string): Promise<boolean> {
+    return this.folderExists.has(folderId);
   }
 }
 
@@ -142,5 +233,69 @@ describe("DocumentService sanitization", () => {
 
     expect(repo.lastUpdatePatch!.content).not.toContain("iframe");
     expect(repo.lastUpdatePatch!.content).toContain("Fine");
+  });
+
+  it("createOwned rejects unknown font families", async () => {
+    const repo = new RecordingRepository();
+    const service = new DocumentService(repo);
+
+    await expect(
+      service.createOwned("actor-1", {
+        title: "Doc",
+        content: "<p>Hi</p>",
+        language: "en",
+        fontFamily: "NotARealFont"
+      })
+    ).rejects.toMatchObject({
+      code: "DOCUMENT_FONT_UNSUPPORTED",
+      statusCode: 400
+    } satisfies Partial<ApiError>);
+  });
+});
+
+describe("DocumentService folder invariants", () => {
+  it("createFolder sanitizes folder names", async () => {
+    const repo = new RecordingRepository();
+    const service = new DocumentService(repo);
+
+    await service.createFolder("actor-1", {
+      name: "<b>My Folder</b>",
+      parentFolderId: null
+    });
+
+    expect(repo.lastInsertFolderPayload).not.toBeNull();
+    expect(repo.lastInsertFolderPayload?.name).toBe("My Folder");
+  });
+
+  it("updateFolder throws when setting parent to a descendant", async () => {
+    const repo = new RecordingRepository();
+    repo.parentCheckResult = true;
+    repo.folderExists.add("folder-2");
+    const service = new DocumentService(repo);
+
+    await expect(
+      service.updateFolder("actor-1", "folder-1", { parentFolderId: "folder-2" })
+    ).rejects.toMatchObject({
+      code: "FOLDER_INVALID_PARENT",
+      statusCode: 400
+    } satisfies Partial<ApiError>);
+  });
+
+  it("createOwned throws when folder does not belong to owner", async () => {
+    const repo = new RecordingRepository();
+    repo.folderExists.clear();
+    const service = new DocumentService(repo);
+
+    await expect(
+      service.createOwned("actor-1", {
+        title: "Doc",
+        content: "<p>x</p>",
+        language: "en",
+        folderId: "missing-folder"
+      })
+    ).rejects.toMatchObject({
+      code: "FOLDER_NOT_FOUND",
+      statusCode: 404
+    } satisfies Partial<ApiError>);
   });
 });

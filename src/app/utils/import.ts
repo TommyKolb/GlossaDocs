@@ -2,6 +2,7 @@
 import mammoth from 'mammoth';
 import type { Document } from '../models/document';
 import { generateDocumentId } from '../models/document';
+import { resolveDocumentFontFamily } from './language-fonts';
 
 /**
  * Import a .txt file
@@ -27,6 +28,8 @@ async function importTxtFile(file: File): Promise<Document> {
           title: title || 'Untitled Document',
           content: content,
           language: 'en', // Default to English
+          folderId: null,
+          fontFamily: resolveDocumentFontFamily('en', null),
           createdAt: Date.now(),
           updatedAt: Date.now(),
         };
@@ -72,6 +75,8 @@ async function importDocxFile(file: File): Promise<Document> {
           title: title || 'Untitled Document',
           content: html,
           language: 'en', // Default to English
+          folderId: null,
+          fontFamily: resolveDocumentFontFamily('en', null),
           createdAt: Date.now(),
           updatedAt: Date.now(),
         };

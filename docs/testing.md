@@ -19,7 +19,7 @@ Requires **Node.js 20+** and dependencies (`npm run setup:dev` at the repo root,
 - Backend coverage: `npm run test:backend:coverage` → `coverage/backend/`
 - E2E: `npm run test:e2e` (first time: `npm run test:e2e:install` for Chromium)
 
-`npm run test:all` also runs `check:font-catalogs` (frontend/backend font catalogs must stay aligned). `test:frontend` / `test:backend` alone do not.
+`test:frontend` / `test:backend` alone do not run `check:font-catalogs`; use `npm test` for the full gate.
 
 ## Using coverage (signal, not a score)
 
@@ -31,7 +31,8 @@ Run `npm run test:frontend:coverage` and `npm run test:backend:coverage`, then o
 
 ## Continuous integration
 
-On push and pull requests to `main` or `master`:
+On push and pull requests to **`main`** or **`develop`**:
 
-- [`.github/workflows/run-frontend-tests.yml`](../.github/workflows/run-frontend-tests.yml) — font catalog check, Vitest with coverage, Playwright E2E (path-filtered).
-- [`.github/workflows/run-backend-tests.yml`](../.github/workflows/run-backend-tests.yml) — `typecheck`, Vitest with coverage (when `backend/` changes).
+- [`.github/workflows/check-font-catalogs.yml`](../.github/workflows/check-font-catalogs.yml) — always runs; ensures `language-fonts.ts` and `document-fonts.ts` list the same `family` names (no `npm ci` required).
+- [`.github/workflows/run-frontend-tests.yml`](../.github/workflows/run-frontend-tests.yml) — Vitest with coverage, Playwright E2E (path-filtered).
+- [`.github/workflows/run-backend-tests.yml`](../.github/workflows/run-backend-tests.yml) — `typecheck`, Vitest with coverage (path-filtered when `backend/` changes).

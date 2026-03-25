@@ -16,7 +16,7 @@
     "build": "vite build",
     "dev": "vite --host 0.0.0.0",
     "test": "npm run test:all",
-    "test:all": "npm run test:frontend && npm run test:backend",
+    "test:all": "npm run check:font-catalogs && npm run test:frontend && npm run test:backend",
     "test:frontend": "vitest run",
     "test:frontend:unit": "vitest run src/test/unit",
     "test:frontend:integration": "vitest run src/test/integration",

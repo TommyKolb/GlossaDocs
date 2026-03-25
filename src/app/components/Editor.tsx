@@ -41,6 +41,38 @@ export function Editor({ documentId, onBack }: EditorProps) {
   const { formattingState, updateFormattingState } = useFormattingState();
   const activeLanguage = document?.language ?? EDITOR_CONFIG.DEFAULT_LANGUAGE;
 
+  const saveSelection = useCallback(() => {
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      savedSelectionRef.current = selection.getRangeAt(0);
+    }
+  }, []);
+
+  const restoreSelection = useCallback(() => {
+    if (savedSelectionRef.current) {
+      const selection = window.getSelection();
+      if (selection && editorRef.current) {
+        const range = savedSelectionRef.current;
+        const startContainer = range.startContainer;
+        const endContainer = range.endContainer;
+        const editor = editorRef.current;
+        const isRangeInsideEditor =
+          editor.contains(startContainer) && editor.contains(endContainer);
+
+        if (!isRangeInsideEditor) {
+          return;
+        }
+
+        try {
+          selection.removeAllRanges();
+          selection.addRange(range);
+        } catch {
+          // Ignore invalid/stale ranges and fall back to current selection.
+        }
+      }
+    }
+  }, []);
+
   // Callbacks
   const handleSave = useCallback(async () => {
     if (isSaveRunningRef.current) {
@@ -82,8 +114,9 @@ export function Editor({ documentId, onBack }: EditorProps) {
 
   const handleContentChange = useCallback(() => {
     setHasUnsavedChanges(true);
+    saveSelection();
     updateFormattingState();
-  }, [updateFormattingState]);
+  }, [saveSelection, updateFormattingState]);
 
   const handleTitleChange = useCallback((newTitle: string) => {
     if (!document) return;
@@ -111,17 +144,120 @@ export function Editor({ documentId, onBack }: EditorProps) {
   }, [document]);
 
   const handleFontFamilyChange = useCallback((nextFontFamily: string) => {
-    setDocument((current) => {
-      if (!current) {
-        return current;
-      }
-      return {
-        ...current,
-        fontFamily: resolveDocumentFontFamily(current.language, nextFontFamily)
+    const resolvedFontFamily = resolveDocumentFontFamily(
+      documentRef.current?.language ?? EDITOR_CONFIG.DEFAULT_LANGUAGE,
+      nextFontFamily
+    );
+
+    if (editorRef.current) {
+      const editorElement = editorRef.current;
+      restoreSelection();
+      editorElement.focus();
+
+      const ensureSelectionInEditor = (): Selection | null => {
+        const selection = window.getSelection();
+        if (!selection) {
+          return null;
+        }
+
+        if (selection.rangeCount === 0) {
+          const range = window.document.createRange();
+          range.selectNodeContents(editorElement);
+          range.collapse(false);
+          selection.addRange(range);
+          return selection;
+        }
+
+        const range = selection.getRangeAt(0);
+        const isRangeInsideEditor =
+          editorElement.contains(range.startContainer) &&
+          editorElement.contains(range.endContainer);
+
+        if (!isRangeInsideEditor) {
+          selection.removeAllRanges();
+          const fallbackRange = window.document.createRange();
+          fallbackRange.selectNodeContents(editorElement);
+          fallbackRange.collapse(false);
+          selection.addRange(fallbackRange);
+        }
+
+        return selection;
       };
-    });
+
+      const selection = ensureSelectionInEditor();
+      if (!selection) {
+        return;
+      }
+
+      // Ask the browser to keep formatting as CSS spans when possible.
+      window.document.execCommand('styleWithCSS', false, 'true');
+      const applied = window.document.execCommand('fontName', false, resolvedFontFamily);
+
+      // Fallback for environments where execCommand(fontName) fails.
+      if (!applied) {
+        if (selection.rangeCount > 0 && !selection.isCollapsed) {
+          const range = selection.getRangeAt(0);
+          const wrapper = window.document.createElement('span');
+          wrapper.style.fontFamily = resolvedFontFamily;
+          wrapper.appendChild(range.extractContents());
+          range.insertNode(wrapper);
+          range.setStartAfter(wrapper);
+          range.setEndAfter(wrapper);
+          selection.removeAllRanges();
+          selection.addRange(range);
+          saveSelection();
+        }
+      }
+
+      const hasRangeSelection =
+        selection !== null &&
+        selection.rangeCount > 0 &&
+        !selection.getRangeAt(0).collapsed;
+
+      let selectionCoversEntireDocument = false;
+      if (selection && selection.rangeCount > 0 && editorElement) {
+        const selectedRange = selection.getRangeAt(0).cloneRange();
+        const editorRange = window.document.createRange();
+        editorRange.selectNodeContents(editorElement);
+        selectionCoversEntireDocument =
+          selectedRange.compareBoundaryPoints(Range.START_TO_START, editorRange) === 0 &&
+          selectedRange.compareBoundaryPoints(Range.END_TO_END, editorRange) === 0;
+      }
+
+      if (!applied && (!selection || selection.rangeCount === 0 || selection.isCollapsed)) {
+        if (selection && selection.rangeCount > 0) {
+          const range = selection.getRangeAt(0);
+          const marker = window.document.createElement('span');
+          marker.style.fontFamily = resolvedFontFamily;
+          marker.appendChild(window.document.createTextNode('\u200B'));
+          range.insertNode(marker);
+          range.setStart(marker.firstChild as Text, 1);
+          range.setEnd(marker.firstChild as Text, 1);
+          selection.removeAllRanges();
+          selection.addRange(range);
+          saveSelection();
+        }
+      }
+
+      // Keep toolbar value in sync with the most recently chosen font.
+      // This does not force existing text to re-render in that font.
+      setDocument((current) => {
+        if (!current) {
+          return current;
+        }
+        if (!selectionCoversEntireDocument && current.fontFamily === resolvedFontFamily) {
+          return current;
+        }
+        return {
+          ...current,
+          fontFamily: resolvedFontFamily
+        };
+      });
+    }
+
     setHasUnsavedChanges(true);
-  }, []);
+    updateFormattingState();
+  }, [restoreSelection, saveSelection, updateFormattingState]);
 
   const insertTextAtCursor = useCallback((text: string) => {
     if (!editorRef.current) return;
@@ -149,8 +285,9 @@ export function Editor({ documentId, onBack }: EditorProps) {
     }
 
     setHasUnsavedChanges(true);
+    saveSelection();
     updateFormattingState();
-  }, [updateFormattingState]);
+  }, [saveSelection, updateFormattingState]);
 
   const handleFormat = useCallback((command: string) => {
     if (command.startsWith('fontSize:')) {
@@ -201,23 +338,6 @@ export function Editor({ documentId, onBack }: EditorProps) {
       toast.error('Failed to download document');
     }
   }, [document]);
-
-  const saveSelection = useCallback(() => {
-    const selection = window.getSelection();
-    if (selection && selection.rangeCount > 0) {
-      savedSelectionRef.current = selection.getRangeAt(0);
-    }
-  }, []);
-
-  const restoreSelection = useCallback(() => {
-    if (savedSelectionRef.current) {
-      const selection = window.getSelection();
-      if (selection) {
-        selection.removeAllRanges();
-        selection.addRange(savedSelectionRef.current);
-      }
-    }
-  }, []);
 
   const handleImageSelect = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -487,8 +607,9 @@ export function Editor({ documentId, onBack }: EditorProps) {
   }, [handleGlobalKeyDown]);
 
   const handleSelectionChange = useCallback(() => {
+    saveSelection();
     updateFormattingState();
-  }, [updateFormattingState]);
+  }, [saveSelection, updateFormattingState]);
 
   // Current supported languages are LTR.
   const languageDir: 'ltr' | 'rtl' = 'ltr';
@@ -545,7 +666,7 @@ export function Editor({ documentId, onBack }: EditorProps) {
     if (document && editorRef.current) {
       editorRef.current.style.fontFamily = document.fontFamily;
     }
-  }, [document?.fontFamily, document?.id]);
+  }, [document?.id]);
 
   useEffect(() => {
     documentRef.current = document;

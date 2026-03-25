@@ -72,6 +72,9 @@ export function EditorToolbar({
   onInsertImage,
 }: EditorToolbarProps) {
   const languageFonts = getFontsForLanguage(language);
+  const effectiveFontFamily = languageFonts.some((font) => font.family === fontFamily)
+    ? fontFamily
+    : languageFonts[0]?.family ?? "";
 
   const handleLanguageValueChange = (value: string) => {
     if (isLanguage(value)) {
@@ -242,7 +245,7 @@ export function EditorToolbar({
           {/* Font size selector */}
           <div className="flex items-center gap-2 flex-shrink-0">
             <Type className="size-4 text-gray-500" aria-hidden="true" />
-            <Select value={fontFamily} onValueChange={onFontFamilyChange}>
+            <Select value={effectiveFontFamily} onValueChange={onFontFamilyChange}>
               <SelectTrigger className="w-[150px] sm:w-[180px]" aria-label="Select document font">
                 <SelectValue />
               </SelectTrigger>

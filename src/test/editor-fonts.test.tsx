@@ -33,6 +33,16 @@ describe("language font catalog", () => {
     expect(getDefaultFontFamilyForLanguage("en")).toBeDefined();
     expect(getFontsForLanguage("en").length).toBeGreaterThan(0);
   });
+
+  it("falls back to the target language default when candidate is not allowed there", async () => {
+    const { resolveDocumentFontFamily } = await import("@/app/utils/language-fonts");
+    expect(resolveDocumentFontFamily("de", "Inter")).toBe(
+      getDefaultFontFamilyForLanguage("de")
+    );
+    expect(resolveDocumentFontFamily("en", "Noto Sans")).toBe(
+      getDefaultFontFamilyForLanguage("en")
+    );
+  });
 });
 
 describe("EditorToolbar font selector", () => {

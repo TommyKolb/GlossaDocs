@@ -75,7 +75,7 @@ export function getDefaultFontFamilyForLanguage(language: Language): string {
 }
 
 export function resolveDocumentFontFamily(language: Language, candidate: string | null | undefined): string {
-  if (candidate && SUPPORTED_FONT_FAMILIES.includes(candidate)) {
+  if (candidate && getFontsForLanguage(language).some((font) => font.family === candidate)) {
     return candidate;
   }
   return getDefaultFontFamilyForLanguage(language);

@@ -1,25 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { Document } from "@/app/models/document";
 import { exportAsJson, exportDocument, type ExportFormat } from "@/app/utils/export";
-
-function minimalDoc(overrides: Partial<Document> = {}): Document {
-  return {
-    id: "00000000-0000-4000-8000-000000000001",
-    title: "Test Doc",
-    content: "<p>Hello</p>",
-    language: "en",
-    folderId: null,
-    fontFamily: "serif",
-    createdAt: 1,
-    updatedAt: 2,
-    ...overrides,
-  };
-}
+import { minimalDocumentFixture } from "@/test/fixtures/document";
 
 describe("exportDocument", () => {
   it("throws for unsupported format", async () => {
-    await expect(exportDocument(minimalDoc(), "nope" as ExportFormat)).rejects.toThrow(/unsupported export format/i);
+    await expect(exportDocument(minimalDocumentFixture(), "nope" as ExportFormat)).rejects.toThrow(
+      /unsupported export format/i
+    );
   });
 });
 
@@ -31,7 +19,7 @@ describe("exportAsJson", () => {
     const anchor = { click, href: "", download: "" } as unknown as HTMLAnchorElement;
     vi.spyOn(document, "createElement").mockReturnValue(anchor);
 
-    exportAsJson(minimalDoc({ title: "My Title" }));
+    exportAsJson(minimalDocumentFixture({ title: "My Title" }));
 
     expect(createObjectURL).toHaveBeenCalled();
     expect(anchor.download).toBe("My Title.glossadoc.json");

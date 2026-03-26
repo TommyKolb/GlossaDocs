@@ -57,4 +57,4 @@
 
 ## Coverage
 
-Target file line coverage from unit tests is **100%** for `keycloak-admin-client.ts` in the focused coverage run; every exported function or meaningful entry point above has at least one test row. Internal helpers are exercised through mocked `fetch` sequences (token URL, admin realm URLs, and failure modes).
+Unit tests aim for **high line coverage** on `keycloak-admin-client.ts` in the focused coverage run; every exported function or meaningful entry point above has at least one test row. Internal helpers are exercised through mocked `fetch` sequences (token URL, admin realm URLs, and failure modes). Re-run `npm run test:backend:coverage` after edits and treat coverage drops as a prompt to extend tests.

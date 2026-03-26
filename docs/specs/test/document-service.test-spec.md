@@ -67,4 +67,4 @@
 
 ## Coverage
 
-Target file line coverage from unit tests is **100%** (branch coverage may be slightly below 100% on optional chaining in sanitized spreads). Every exported method has at least one test row above; private helpers are exercised through the rows that mention them.
+Unit tests aim for **high line coverage** on `document-service.ts` (branch coverage may be slightly below full on optional chaining in sanitized spreads). Re-run `npm run test:backend:coverage` after changes and treat large drops as a signal to add or adjust tests. Every exported method has at least one test row above; private helpers are exercised through the rows that mention them.

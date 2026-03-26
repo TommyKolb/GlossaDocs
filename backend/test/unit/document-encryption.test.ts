@@ -5,7 +5,7 @@ import {
   decryptDocumentField,
   encryptDocumentField,
   parseDocumentEncryptionKey
-} from "../src/shared/document-encryption.js";
+} from "../../src/shared/document-encryption.js";
 
 function validKey(): Buffer {
   return randomBytes(32);

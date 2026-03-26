@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
-const migrationsDir = path.resolve(import.meta.dirname, "../migrations");
+const migrationsDir = path.resolve(import.meta.dirname, "../../migrations");
 
 async function migrationText(fileName: string): Promise<string> {
   return readFile(path.join(migrationsDir, fileName), "utf8");

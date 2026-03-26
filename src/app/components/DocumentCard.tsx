@@ -1,3 +1,4 @@
+import type { DragEvent, MouseEvent } from 'react';
 import { FileText, Trash2, Calendar } from 'lucide-react';
 import type { Document } from '../models/document';
 import { getLanguageInfo } from '../utils/languages';
@@ -8,10 +9,10 @@ import { Card } from './ui/card';
 interface DocumentCardProps {
   document: Document;
   onSelect: (id: string) => void;
-  onDelete: (id: string, event: React.MouseEvent) => void;
+  onDelete: (id: string, event: MouseEvent) => void;
   onRequestMove: (id: string) => void;
-  onDragStartDocument: (id: string, event: React.DragEvent<HTMLDivElement>) => void;
-  onDragDocument: (id: string, event: React.DragEvent<HTMLDivElement>) => void;
+  onDragStartDocument: (id: string, event: DragEvent<HTMLDivElement>) => void;
+  onDragDocument: (id: string, event: DragEvent<HTMLDivElement>) => void;
   onDragEndDocument: () => void;
   isDragging?: boolean;
 }
@@ -27,25 +28,13 @@ export function DocumentCard({
   isDragging = false
 }: DocumentCardProps) {
   const languageInfo = getLanguageInfo(document.language);
+  const openDocLabel = `Open document: ${document.title || 'Untitled Document'}. Last modified ${formatDocumentDate(document.updatedAt)}. Language: ${languageInfo?.label || document.language}`;
 
   return (
     <Card
       className={`p-4 cursor-grab active:cursor-grabbing hover:shadow-md transition-all bg-white/90 backdrop-blur border border-gray-200 hover:border-blue-300 focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2 min-h-[138px] ${
         isDragging ? 'invisible' : ''
       }`}
-      onClick={() => onSelect(document.id)}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.target !== e.currentTarget) {
-          return;
-        }
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onSelect(document.id);
-        }
-      }}
-      aria-label={`Open document: ${document.title || 'Untitled Document'}. Last modified ${formatDocumentDate(document.updatedAt)}. Language: ${languageInfo?.label || document.language}`}
       draggable
       onDragStart={(event) => onDragStartDocument(document.id, event)}
       onDrag={(event) => onDragDocument(document.id, event)}
@@ -53,18 +42,23 @@ export function DocumentCard({
     >
       <div className="h-full flex flex-col justify-between gap-3">
         <div className="flex items-start justify-between gap-3">
-          <div className="flex-1 min-w-0">
+          <button
+            type="button"
+            className="flex-1 min-w-0 text-left rounded-md p-1 -m-1 hover:bg-gray-50/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+            onClick={() => onSelect(document.id)}
+            aria-label={openDocLabel}
+          >
             <div className="flex items-center gap-2 mb-1.5">
               <FileText className="size-5 text-gray-400 flex-shrink-0" aria-hidden="true" />
-              <h3 className="text-sm font-medium text-gray-900 truncate">
+              <span className="text-sm font-medium text-gray-900 truncate block">
                 {document.title || 'Untitled Document'}
-              </h3>
+              </span>
             </div>
             <div className="flex items-center gap-2 text-xs text-gray-500">
               <Calendar className="size-3.5" aria-hidden="true" />
               <span>{formatDocumentDate(document.updatedAt)}</span>
             </div>
-          </div>
+          </button>
           <Button
             variant="ghost"
             size="sm"

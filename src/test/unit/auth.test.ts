@@ -109,4 +109,82 @@ describe("auth utilities", () => {
     expect(user.username).toBe("Guest");
     expect(localStorage.getItem("glossadocs_user")).toContain('"isGuest":true');
   });
+
+  describe("getAuthenticatedUserFromBackend", () => {
+    it("returns guest from storage without calling the API", async () => {
+      localStorage.setItem(
+        "glossadocs_user",
+        JSON.stringify({
+          id: "guest_x",
+          username: "Guest",
+          isGuest: true
+        })
+      );
+      const fetchSpy = vi.fn();
+      vi.stubGlobal("fetch", fetchSpy);
+
+      const user = await getAuthenticatedUserFromBackend();
+
+      expect(user?.isGuest).toBe(true);
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
+    it("refreshes stored user from /auth/session on success", async () => {
+      localStorage.setItem(
+        "glossadocs_user",
+        JSON.stringify({
+          id: "old-id",
+          username: "alice",
+          email: "old@example.com",
+          isGuest: false
+        })
+      );
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () =>
+          Promise.resolve({
+            ok: true,
+            status: 200,
+            json: async () => ({
+              user: {
+                sub: "new-sub",
+                username: "alice",
+                email: "new@example.com"
+              }
+            })
+          } as any)
+        )
+      );
+
+      const user = await getAuthenticatedUserFromBackend();
+
+      expect(user).toEqual({
+        id: "new-sub",
+        username: "alice",
+        email: "new@example.com",
+        isGuest: false
+      });
+      const stored = JSON.parse(localStorage.getItem("glossadocs_user")!);
+      expect(stored.id).toBe("new-sub");
+      expect(stored.email).toBe("new@example.com");
+    });
+
+    it("clears storage when fetch fails with a non-API error", async () => {
+      localStorage.setItem(
+        "glossadocs_user",
+        JSON.stringify({
+          id: "user-123",
+          username: "alice",
+          email: "alice@example.com",
+          isGuest: false
+        })
+      );
+      vi.stubGlobal("fetch", vi.fn(() => Promise.reject(new Error("network down"))));
+
+      const user = await getAuthenticatedUserFromBackend();
+
+      expect(user).toBeNull();
+      expect(localStorage.getItem("glossadocs_user")).toBeNull();
+    });
+  });
 });

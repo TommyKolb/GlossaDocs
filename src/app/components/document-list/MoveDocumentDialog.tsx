@@ -118,7 +118,7 @@ export function MoveDocumentDialog({
               No folder
             </button>
           </div>
-          <div role="list">{renderFolderTree(null)}</div>
+          {renderFolderTree(null)}
         </div>
 
         <DialogFooter>

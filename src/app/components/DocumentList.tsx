@@ -30,6 +30,7 @@ import { FolderBreadcrumbs } from './document-list/FolderBreadcrumbs';
 import { FolderMutationDialogs } from './document-list/FolderMutationDialogs';
 import { MoveDocumentDialog } from './document-list/MoveDocumentDialog';
 import { sortedChildFolders } from './document-list/folder-utils';
+import { useDocumentDragPreview } from './document-list/useDocumentDragPreview';
 import { UI_CONSTANTS } from '../utils/constants';
 import { toast } from 'sonner';
 
@@ -58,44 +59,17 @@ export function DocumentList({ onSelectDocument }: DocumentListProps) {
   const [isFolderDeleteAlertOpen, setIsFolderDeleteAlertOpen] = useState(false);
   const [isFolderMutating, setIsFolderMutating] = useState(false);
   const uploadInputRef = useRef<HTMLInputElement>(null);
-  const dragPreviewRef = useRef<HTMLDivElement | null>(null);
-  const dragOffsetRef = useRef<{ x: number; y: number }>({ x: 20, y: 20 });
-  const dragPointerRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
-  const dragAnimationFrameRef = useRef<number | null>(null);
+
+  const {
+    onDragStartDocument,
+    onDragDocument,
+    onDragEndDocument,
+    updatePointerFromDragEvent
+  } = useDocumentDragPreview(setDraggingDocumentId, setDropTargetFolderId);
 
   useEffect(() => {
     loadDocuments();
   }, []);
-
-  useEffect(() => {
-    return () => {
-      if (dragPreviewRef.current) {
-        dragPreviewRef.current.remove();
-        dragPreviewRef.current = null;
-      }
-      if (dragAnimationFrameRef.current !== null) {
-        cancelAnimationFrame(dragAnimationFrameRef.current);
-        dragAnimationFrameRef.current = null;
-      }
-    };
-  }, []);
-
-  function scheduleDragPreviewPositionUpdate(): void {
-    if (dragAnimationFrameRef.current !== null) {
-      return;
-    }
-    dragAnimationFrameRef.current = requestAnimationFrame(() => {
-      dragAnimationFrameRef.current = null;
-      const preview = dragPreviewRef.current;
-      if (!preview) {
-        return;
-      }
-
-      const x = Math.max(8, dragPointerRef.current.x - dragOffsetRef.current.x);
-      const y = Math.max(8, dragPointerRef.current.y - dragOffsetRef.current.y);
-      preview.style.transform = `translate3d(${x}px, ${y}px, 0)`;
-    });
-  }
 
   async function loadDocuments() {
     try {
@@ -225,74 +199,6 @@ export function DocumentList({ onSelectDocument }: DocumentListProps) {
     await handleMoveDocumentToFolder(movingDocumentId, moveTargetFolderId);
     setIsMoveDialogOpen(false);
     setMovingDocumentId(null);
-  }
-
-  function handleDocumentDragStart(documentId: string, event: React.DragEvent<HTMLDivElement>): void {
-    setDraggingDocumentId(documentId);
-    event.dataTransfer.effectAllowed = 'move';
-    event.dataTransfer.setData('text/plain', documentId);
-    event.dataTransfer.setData('application/x-glossadocs-document-id', documentId);
-
-    // Use a cloned card as a custom floating preview to mimic Drive-style movement.
-    const sourceCard = event.currentTarget;
-    const sourceRect = sourceCard.getBoundingClientRect();
-    dragOffsetRef.current = {
-      x: event.clientX - sourceRect.left,
-      y: event.clientY - sourceRect.top
-    };
-
-    const preview = sourceCard.cloneNode(true) as HTMLDivElement;
-    preview.style.position = 'fixed';
-    preview.style.top = '0';
-    preview.style.left = '0';
-    preview.style.width = `${sourceCard.offsetWidth}px`;
-    preview.style.opacity = '1';
-    preview.style.transform = 'translate3d(0, 0, 0)';
-    preview.style.boxShadow = '0 10px 30px rgba(0, 0, 0, 0.22)';
-    preview.style.pointerEvents = 'none';
-    preview.style.borderRadius = '12px';
-    preview.style.zIndex = '9999';
-    preview.style.willChange = 'transform';
-    preview.style.transition = 'none';
-    preview.setAttribute('aria-hidden', 'true');
-    document.body.appendChild(preview);
-    dragPreviewRef.current = preview;
-    dragPointerRef.current = { x: event.clientX, y: event.clientY };
-    scheduleDragPreviewPositionUpdate();
-
-    // Hide the browser ghost image so only our custom preview is visible.
-    const transparentDragImage = new Image();
-    transparentDragImage.src =
-      'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
-    event.dataTransfer.setDragImage(transparentDragImage, 0, 0);
-  }
-
-  function handleDocumentDrag(documentId: string, event: React.DragEvent<HTMLDivElement>): void {
-    if (draggingDocumentId !== documentId) {
-      return;
-    }
-    const preview = dragPreviewRef.current;
-    if (!preview) {
-      return;
-    }
-    if (event.clientX <= 0 && event.clientY <= 0) {
-      return;
-    }
-    dragPointerRef.current = { x: event.clientX, y: event.clientY };
-    scheduleDragPreviewPositionUpdate();
-  }
-
-  function handleDocumentDragEnd(): void {
-    setDraggingDocumentId(null);
-    setDropTargetFolderId(null);
-    if (dragAnimationFrameRef.current !== null) {
-      cancelAnimationFrame(dragAnimationFrameRef.current);
-      dragAnimationFrameRef.current = null;
-    }
-    if (dragPreviewRef.current) {
-      dragPreviewRef.current.remove();
-      dragPreviewRef.current = null;
-    }
   }
 
   async function handleDropOnFolder(folderId: string, event: React.DragEvent<HTMLButtonElement>): Promise<void> {
@@ -494,10 +400,7 @@ export function DocumentList({ onSelectDocument }: DocumentListProps) {
               onDragOver={(event) => {
                 event.preventDefault();
                 event.dataTransfer.dropEffect = 'move';
-                if (event.clientX > 0 && event.clientY > 0) {
-                  dragPointerRef.current = { x: event.clientX, y: event.clientY };
-                  scheduleDragPreviewPositionUpdate();
-                }
+                updatePointerFromDragEvent(event);
               }}
             >
               {visibleFolders.map((folder) => (
@@ -513,10 +416,7 @@ export function DocumentList({ onSelectDocument }: DocumentListProps) {
                     event.preventDefault();
                     event.dataTransfer.dropEffect = 'move';
                     setDropTargetFolderId((current) => (current === folder.id ? current : folder.id));
-                    if (event.clientX > 0 && event.clientY > 0) {
-                      dragPointerRef.current = { x: event.clientX, y: event.clientY };
-                      scheduleDragPreviewPositionUpdate();
-                    }
+                    updatePointerFromDragEvent(event);
                   }}
                   onDragLeave={() => {
                     setDropTargetFolderId((current) => (current === folder.id ? null : current));
@@ -542,9 +442,9 @@ export function DocumentList({ onSelectDocument }: DocumentListProps) {
                   onSelect={onSelectDocument}
                   onDelete={handleDelete}
                   onRequestMove={openMoveDialog}
-                  onDragStartDocument={handleDocumentDragStart}
-                  onDragDocument={handleDocumentDrag}
-                  onDragEndDocument={handleDocumentDragEnd}
+                  onDragStartDocument={onDragStartDocument}
+                  onDragDocument={onDragDocument}
+                  onDragEndDocument={onDragEndDocument}
                   isDragging={draggingDocumentId === doc.id}
                 />
               ))}

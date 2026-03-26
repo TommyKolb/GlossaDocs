@@ -15,7 +15,7 @@ Ship an in-editor on-screen keyboard that inserts text at the caret, aligns with
 ## Current code baseline
 - **Layouts and remapping**: `src/app/utils/keyboardLayouts.ts` — per-`Language` registry in `LANGUAGE_KEYBOARD_LAYOUTS`, `getDefaultKeyboardLayout`, `getKeyboardLayout(language, overrides?)`, `getRemappedCharacter`, merge/diff helpers for user overrides.
 - **Panel UI**: `src/app/components/LanguageKeyboard.tsx` — customize mappings (dialog), toggle, rows of keys with primary output + “type with” hint, space bar.
-- **Customize dialog**: `src/app/components/KeyboardMappingDialog.tsx` — per physical key output / shift layer, **Reset** for current language or all languages, save via settings.
+- **Customize dialog**: `src/app/components/KeyboardMappingDialog.tsx` — fixed alphabet letters; user assigns **physical key** per letter (output → `typedWith`); **Reset** confirms before clearing; save via settings.
 - **Editor wiring**: `src/app/components/Editor.tsx` — `insertTextAtCursor` (uses `document.execCommand('insertText', …)` when available), `LanguageKeyboard` in a side column, `handleKeyDown` remapping when `isKeyboardVisible` using **effective** layout (defaults + overrides), global **Ctrl/Cmd+D** to toggle visibility (see `src/app/utils/keyboardShortcuts.ts`).
 - **Settings**: `keyboardVisible`, `keyboardLayoutOverrides` via `src/app/data/settings-repository.ts` — **authenticated**: `GET/PUT /settings`; **guest**: `localStorage` key `glossadocs_guest_settings`.
 - **Backend**: `keyboard_visible`, `last_used_locale`, `keyboard_layout_overrides` (JSONB) on `user_settings`; `PUT /settings` partial update (`backend/src/modules/input-preferences/settings-routes.ts`, migration `006_add_keyboard_layout_overrides.js`).
@@ -52,7 +52,7 @@ flowchart LR
 - **English / German** layouts: Latin characters (German includes umlauts / ß) for completeness when those languages are selected.
 - Click inserts at the caret; selection is replaced by insertion consistent with `insertText` / fallback range logic.
 - Physical-key remapping runs only when the on-screen keyboard is **visible** (see `Editor.tsx` guard).
-- **Per-key customization** for the active document language (output + optional shift layer), **Reset** for current language or all languages, persisted as **`keyboardLayoutOverrides`**.
+- **Per-letter customization** for the active document language (which physical key types each on-screen letter), **Reset** with confirmation for current language or all languages, persisted as **`keyboardLayoutOverrides`**.
 
 ### Not implemented (this spec vs code)
 - **Long-press** for alternate characters / variant picker.
@@ -70,7 +70,7 @@ Relies on Story 1 for documents. User settings:
 Guest mode uses the same shape in local storage via `settings-repository.ts`.
 
 ## Data model
-- **Settings** (per user, backend): `keyboard_visible` → **`keyboardVisible`**, `keyboard_layout_overrides` (JSONB) → **`keyboardLayoutOverrides`** (object keyed by `en` | `de` | `ru`, then physical key → `{ output, shiftOutput? }`). No document columns.
+- **Settings** (per user, backend): `keyboard_visible` → **`keyboardVisible`**, `keyboard_layout_overrides` (JSONB) → **`keyboardLayoutOverrides`** (per language: **output character → physical key string**). No document columns.
 
 ## UI / behavior contract
 - Keyboard is **in-page** next to the editor (not a separate OS window).

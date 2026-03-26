@@ -1,6 +1,7 @@
 import { settingsApi } from "../api/endpoints";
 import type { UserSettings } from "../api/contracts";
 import type { Language } from "../utils/languages";
+import { normalizeKeyboardLayoutOverrides } from "../utils/keyboardLayouts";
 import { isAuthenticatedMode } from "./session-mode";
 
 const GUEST_SETTINGS_STORAGE_KEY = "glossadocs_guest_settings";
@@ -36,8 +37,9 @@ function readGuestSettings(): UserSettings {
     return {
       lastUsedLocale: parsed.lastUsedLocale ?? DEFAULT_SETTINGS.lastUsedLocale,
       keyboardVisible: parsed.keyboardVisible ?? DEFAULT_SETTINGS.keyboardVisible,
-      keyboardLayoutOverrides:
+      keyboardLayoutOverrides: normalizeKeyboardLayoutOverrides(
         parsed.keyboardLayoutOverrides ?? DEFAULT_SETTINGS.keyboardLayoutOverrides
+      )
     };
   } catch {
     return DEFAULT_SETTINGS;
@@ -53,7 +55,11 @@ export async function getUserSettings(): Promise<UserSettings> {
     return readGuestSettings();
   }
 
-  return settingsApi.get();
+  const settings = await settingsApi.get();
+  return {
+    ...settings,
+    keyboardLayoutOverrides: normalizeKeyboardLayoutOverrides(settings.keyboardLayoutOverrides)
+  };
 }
 
 export async function updateUserSettings(patch: Partial<UserSettings>): Promise<UserSettings> {

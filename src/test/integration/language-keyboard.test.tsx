@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { LanguageKeyboard } from "@/app/components/LanguageKeyboard";
 
 describe("LanguageKeyboard", () => {
-  it("shows overridden output on the j key and opens the customize dialog with the same value", async () => {
+  it("shows which physical key types й when overridden, and the dialog lists the same assignment", async () => {
     const user = userEvent.setup();
     render(
       <LanguageKeyboard
@@ -13,16 +13,16 @@ describe("LanguageKeyboard", () => {
         isVisible={true}
         onToggleVisibility={() => {}}
         onInsertCharacter={() => {}}
-        keyboardLayoutOverrides={{ ru: { j: { output: "х" } } }}
+        keyboardLayoutOverrides={{ ru: { й: "k", к: "j" } }}
         onKeyboardLayoutOverridesChange={() => {}}
       />
     );
 
-    expect(screen.getByRole("button", { name: /Insert х using j/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Insert й using k/i })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /Customize Russian keyboard mappings/i }));
 
     expect(screen.getByRole("dialog")).toBeInTheDocument();
-    expect(screen.getByLabelText("Output for physical key j")).toHaveValue("х");
+    expect(screen.getByLabelText("Physical key for letter й")).toHaveValue("k");
   });
 });

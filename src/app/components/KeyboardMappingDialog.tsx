@@ -1,16 +1,28 @@
 import * as React from 'react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { toast } from 'sonner';
 
 import type { Language } from '../utils/languages';
 import { getLanguageName } from '../utils/languages';
 import {
   diffKeyboardLayoutAgainstLanguageDefaults,
   getDefaultKeyboardLayout,
+  getDuplicatePhysicalKeyError,
   getKeyboardLayout,
   type KeyboardKey,
   type KeyboardLayout,
   type KeyboardLayoutOverrides
 } from '../utils/keyboardLayouts';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from './ui/alert-dialog';
 import { Button } from './ui/button';
 import {
   Dialog,
@@ -21,6 +33,7 @@ import {
   DialogTitle
 } from './ui/dialog';
 import { Input } from './ui/input';
+import { cn } from './ui/utils';
 
 interface KeyboardMappingDialogProps {
   open: boolean;
@@ -30,31 +43,51 @@ interface KeyboardMappingDialogProps {
   onSave: (next: KeyboardLayoutOverrides) => void;
 }
 
-type RowState = { typedWith: string; output: string; shift: string };
+type RowState = { output: string; typedWith: string };
 
-function flatRowsForLanguage(language: Language, overrides: KeyboardLayoutOverrides): RowState[] {
-  const layout = getKeyboardLayout(language, overrides);
-  return layout.flat().map((k) => ({
-    typedWith: k.typedWith,
+function rowsForLanguage(language: Language, overrides: KeyboardLayoutOverrides): RowState[] {
+  return getKeyboardLayout(language, overrides).flat().map((k) => ({
     output: k.output,
-    shift: k.shiftOutput ?? k.output.toUpperCase()
+    typedWith: k.typedWith
   }));
 }
 
-function buildLayoutFromRows(language: Language, rows: RowState[]) {
-  const byKey = new Map(rows.map((r) => [r.typedWith.toLowerCase(), r]));
+/** One physical key label (Latin letter, digit, or symbol). Extra characters are dropped (e.g. paste). */
+function normalizeSinglePhysicalKey(value: string): string {
+  if (value.length <= 1) {
+    return value;
+  }
+  return value.slice(0, 1);
+}
+
+/** Output letters that share the same physical key (case-insensitive) with another letter. */
+function getOutputsWithDuplicatePhysicalKeys(rows: RowState[]): Set<string> {
+  const byTyped = new Map<string, string[]>();
+  for (const r of rows) {
+    const k = r.typedWith.toLowerCase();
+    const list = byTyped.get(k) ?? [];
+    list.push(r.output);
+    byTyped.set(k, list);
+  }
+  const dups = new Set<string>();
+  for (const [, outputs] of byTyped) {
+    if (outputs.length > 1) {
+      outputs.forEach((o) => dups.add(o));
+    }
+  }
+  return dups;
+}
+
+function buildEffectiveLayoutFromRows(language: Language, rows: RowState[]): KeyboardLayout {
+  const byOutput = new Map(rows.map((r) => [r.output, r.typedWith]));
   return getDefaultKeyboardLayout(language).map((row) =>
     row.map((k) => {
-      const r = byKey.get(k.typedWith.toLowerCase());
-      if (!r) {
+      const tw = byOutput.get(k.output);
+      if (tw === undefined) {
         return k;
       }
-      const next: KeyboardKey = { ...k, output: r.output };
-      if (r.shift !== r.output.toUpperCase()) {
-        next.shiftOutput = r.shift;
-      } else {
-        delete next.shiftOutput;
-      }
+      const next: KeyboardKey = { ...k, typedWith: tw };
+      delete next.shiftOutput;
       return next;
     })
   ) as KeyboardLayout;
@@ -67,24 +100,29 @@ export function KeyboardMappingDialog({
   keyboardLayoutOverrides,
   onSave
 }: KeyboardMappingDialogProps) {
-  const [rows, setRows] = useState<RowState[]>(() =>
-    flatRowsForLanguage(language, keyboardLayoutOverrides)
-  );
+  const [rows, setRows] = useState<RowState[]>(() => rowsForLanguage(language, keyboardLayoutOverrides));
+  const [confirmReset, setConfirmReset] = useState<'language' | 'all' | null>(null);
 
   useEffect(() => {
     if (open) {
-      setRows(flatRowsForLanguage(language, keyboardLayoutOverrides));
+      setRows(rowsForLanguage(language, keyboardLayoutOverrides));
     }
   }, [open, language, keyboardLayoutOverrides]);
 
-  const handleRowChange = (typedWith: string, field: 'output' | 'shift', value: string) => {
-    setRows((prev) =>
-      prev.map((r) => (r.typedWith === typedWith ? { ...r, [field]: value } : r))
-    );
+  const duplicateOutputs = useMemo(() => getOutputsWithDuplicatePhysicalKeys(rows), [rows]);
+
+  const handleTypedWithChange = (output: string, value: string) => {
+    const typedWith = normalizeSinglePhysicalKey(value);
+    setRows((prev) => prev.map((r) => (r.output === output ? { ...r, typedWith } : r)));
   };
 
   const handleSave = () => {
-    const effective = buildLayoutFromRows(language, rows);
+    const effective = buildEffectiveLayoutFromRows(language, rows);
+    const dup = getDuplicatePhysicalKeyError(effective);
+    if (dup) {
+      toast.error(dup);
+      return;
+    }
     const langPatch = diffKeyboardLayoutAgainstLanguageDefaults(language, effective);
     const next: KeyboardLayoutOverrides = { ...keyboardLayoutOverrides };
     if (Object.keys(langPatch).length === 0) {
@@ -96,77 +134,122 @@ export function KeyboardMappingDialog({
     onOpenChange(false);
   };
 
-  const resetLanguage = () => {
+  const applyResetLanguage = () => {
     const next: KeyboardLayoutOverrides = { ...keyboardLayoutOverrides };
     delete next[language];
     onSave(next);
     onOpenChange(false);
+    setConfirmReset(null);
   };
 
-  const resetAll = () => {
+  const applyResetAll = () => {
     onSave({});
     onOpenChange(false);
+    setConfirmReset(null);
   };
 
   const languageName = getLanguageName(language);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Customize keyboard — {languageName}</DialogTitle>
-          <DialogDescription>
-            Change what appears when you type each physical key (shown as “type with”). Leave shift blank
-            behavior uses the uppercase of the output character. Reset restores built-in mappings for this
-            app version.
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Customize keyboard — {languageName}</DialogTitle>
+            <DialogDescription>
+              Each letter stays in the same place on the on-screen keyboard. Enter a single physical key (one
+              letter, number, or symbol) per row—pasting multiple characters keeps only the first. Two letters
+              cannot share the same key; conflicting rows are outlined in red. Shift + key still uses the
+              uppercase of that letter (for example, Latin “a” → “A”).
+            </DialogDescription>
+          </DialogHeader>
 
-        <div className="space-y-2 max-h-[50vh] overflow-y-auto pr-1">
-          <div className="grid grid-cols-[4rem_1fr_1fr] gap-2 text-xs font-medium text-gray-600 pb-1 border-b">
-            <span>Key</span>
-            <span>Output</span>
-            <span>Shift</span>
-          </div>
-          {rows.map((row) => (
-            <div
-              key={`${language}-${row.typedWith}`}
-              className="grid grid-cols-[4rem_1fr_1fr] gap-2 items-center"
-            >
-              <span className="text-sm text-gray-700 font-mono">{row.typedWith}</span>
-              <Input
-                aria-label={`Output for physical key ${row.typedWith}`}
-                value={row.output}
-                onChange={(e) => handleRowChange(row.typedWith, 'output', e.target.value)}
-                className="h-9 text-sm"
-              />
-              <Input
-                aria-label={`Shift output for physical key ${row.typedWith}`}
-                value={row.shift}
-                onChange={(e) => handleRowChange(row.typedWith, 'shift', e.target.value)}
-                className="h-9 text-sm"
-              />
+          <div className="space-y-2 max-h-[50vh] overflow-y-auto pr-1">
+            <div className="grid grid-cols-[3rem_1fr] gap-2 text-xs font-medium text-gray-600 pb-1 border-b">
+              <span>Letter</span>
+              <span>Type with (physical key)</span>
             </div>
-          ))}
-        </div>
-
-        <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
-          <div className="flex flex-wrap gap-2 mr-auto">
-            <Button type="button" variant="outline" size="sm" onClick={resetLanguage}>
-              Reset {languageName}
-            </Button>
-            <Button type="button" variant="outline" size="sm" onClick={resetAll}>
-              Reset all languages
-            </Button>
+            {rows.map((row) => (
+              <div
+                key={`${language}-${row.output}`}
+                className="grid grid-cols-[3rem_1fr] gap-2 items-center"
+              >
+                <span className="text-sm font-semibold text-gray-900 text-center" aria-hidden>
+                  {row.output}
+                </span>
+                <Input
+                  aria-label={`Physical key for letter ${row.output}`}
+                  aria-invalid={duplicateOutputs.has(row.output)}
+                  value={row.typedWith}
+                  maxLength={1}
+                  onChange={(e) => handleTypedWithChange(row.output, e.target.value)}
+                  className={cn(
+                    'h-9 text-sm font-mono',
+                    duplicateOutputs.has(row.output) &&
+                      'border-destructive ring-2 ring-destructive/35 focus-visible:border-destructive focus-visible:ring-destructive/50'
+                  )}
+                />
+              </div>
+            ))}
           </div>
-          <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button type="button" onClick={handleSave}>
-            Save mappings
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+
+          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
+            <div className="flex flex-wrap gap-2 mr-auto">
+              <Button type="button" variant="outline" size="sm" onClick={() => setConfirmReset('language')}>
+                Reset {languageName}
+              </Button>
+              <Button type="button" variant="outline" size="sm" onClick={() => setConfirmReset('all')}>
+                Reset all languages
+              </Button>
+            </div>
+            <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="button" onClick={handleSave}>
+              Save mappings
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={confirmReset !== null} onOpenChange={(o) => !o && setConfirmReset(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirmReset === 'all' ? 'Reset all keyboard mappings?' : `Reset ${languageName} keyboard?`}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmReset === 'all' ? (
+                <>
+                  This removes your custom physical-key assignments for <strong>every</strong> language. The
+                  letters on the on-screen keyboard stay the same; only which keys you type with return to the
+                  built-in defaults for this app version. You can customize again at any time.
+                </>
+              ) : (
+                <>
+                  This removes your custom physical-key assignments for <strong>{languageName}</strong> only.
+                  The letters on the on-screen keyboard stay the same; only which keys you type with return to
+                  the built-in defaults for this app version.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (confirmReset === 'all') {
+                  applyResetAll();
+                } else if (confirmReset === 'language') {
+                  applyResetLanguage();
+                }
+              }}
+            >
+              Reset
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

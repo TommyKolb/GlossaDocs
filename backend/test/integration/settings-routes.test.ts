@@ -134,7 +134,7 @@ describe("settings routes", () => {
   });
 
   it("persists keyboardLayoutOverrides and returns them on GET", async () => {
-    const overrides = { ru: { j: { output: "х" } } };
+    const overrides = { ru: { й: "k", к: "j" } };
     const putResponse = await request(app.server)
       .put("/settings")
       .set("Authorization", "Bearer token-user-1")
@@ -162,7 +162,7 @@ describe("settings routes", () => {
   });
 
   it("updates lastUsedLocale without wiping keyboardLayoutOverrides", async () => {
-    const overrides = { en: { q: { output: "X" } } };
+    const overrides = { en: { q: "x", x: "q" } };
     await request(app.server)
       .put("/settings")
       .set("Authorization", "Bearer token-user-2")

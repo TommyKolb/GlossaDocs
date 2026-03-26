@@ -1,4 +1,4 @@
-import { Language } from './languages';
+import { isLanguage, type Language } from './languages';
 
 export interface KeyboardKey {
   output: string;
@@ -8,17 +8,12 @@ export interface KeyboardKey {
 
 export type KeyboardLayout = readonly (readonly KeyboardKey[])[];
 
-/** Per physical key (`typedWith`, case-insensitive): override output and optional shift layer. */
-export type KeyboardKeyOverride = {
-  output: string;
-  shiftOutput?: string;
-};
-
 /**
- * User overrides per language. Inner keys are physical keys (matched case-insensitively to `typedWith`).
- * Keys that do not exist on the built-in layout for that language are ignored when merging.
+ * Per-language overrides: **alphabet letter (output)** → **physical key label** (`typedWith`).
+ * On-screen letters stay as in the built-in layout; only which key you type with changes.
+ * Shift + key uses the same mapping; the shifted character is always `output.toUpperCase()` (existing remap rules).
  */
-export type KeyboardLayoutOverrides = Partial<Record<Language, Record<string, KeyboardKeyOverride>>>;
+export type KeyboardLayoutOverrides = Partial<Record<Language, Record<string, string>>>;
 
 interface KeyRemap {
   output: string;
@@ -59,29 +54,21 @@ export function getDefaultKeyboardLayout(language: Language): KeyboardLayout {
 }
 
 /**
- * Apply per-key overrides immutably. Override map keys are normalized to lowercase for lookup.
- * Override entries for keys not present in `layout` have no effect.
+ * Apply **output → typedWith** overrides: each built-in letter keeps its display `output`;
+ * only `typedWith` changes. Unknown output keys in the override map are ignored.
  */
-export function mergeKeyboardLayoutWithOverrides(
+export function applyOutputToTypedWithOverrides(
   layout: KeyboardLayout,
-  overrides: Record<string, KeyboardKeyOverride>
+  overrides: Record<string, string>
 ): KeyboardLayout {
-  const normalized = new Map(
-    Object.entries(overrides).map(([k, v]) => [k.toLowerCase(), v] as const)
-  );
-
   return layout.map((row) =>
     row.map((layoutKey) => {
-      const o = normalized.get(layoutKey.typedWith.toLowerCase());
-      if (!o) {
+      const typedWith = overrides[layoutKey.output];
+      if (typedWith === undefined) {
         return layoutKey;
       }
-      const next: KeyboardKey = { ...layoutKey, output: o.output };
-      if (o.shiftOutput !== undefined) {
-        next.shiftOutput = o.shiftOutput;
-      } else {
-        delete next.shiftOutput;
-      }
+      const next: KeyboardKey = { ...layoutKey, typedWith };
+      delete next.shiftOutput;
       return next;
     })
   ) as KeyboardLayout;
@@ -93,39 +80,80 @@ export function getKeyboardLayout(language: Language, overrides?: KeyboardLayout
   if (!langOverrides || Object.keys(langOverrides).length === 0) {
     return base;
   }
-  return mergeKeyboardLayoutWithOverrides(base, langOverrides);
+  return applyOutputToTypedWithOverrides(base, langOverrides);
 }
 
 /**
- * Returns per-key overrides for one language: only keys that differ from {@link getDefaultKeyboardLayout}.
+ * Returns **output → typedWith** entries that differ from the built-in layout (for persistence).
  */
 export function diffKeyboardLayoutAgainstLanguageDefaults(
   language: Language,
   effective: KeyboardLayout
-): Record<string, KeyboardKeyOverride> {
-  const defaults = getDefaultKeyboardLayout(language);
-  const defFlat = defaults.flat();
+): Record<string, string> {
+  const defFlat = getDefaultKeyboardLayout(language).flat();
   const effFlat = effective.flat();
-  const out: Record<string, KeyboardKeyOverride> = {};
+  const out: Record<string, string> = {};
 
-  for (const k of effFlat) {
-    const def = defFlat.find((d) => d.typedWith.toLowerCase() === k.typedWith.toLowerCase());
-    if (!def) {
+  for (let i = 0; i < defFlat.length; i++) {
+    const def = defFlat[i];
+    const eff = effFlat[i];
+    if (!def || !eff || def.output !== eff.output) {
       continue;
     }
-    const defaultShift = def.shiftOutput ?? def.output.toUpperCase();
-    const effectiveShift = k.shiftOutput ?? k.output.toUpperCase();
-    if (k.output === def.output && effectiveShift === defaultShift) {
-      continue;
+    if (eff.typedWith !== def.typedWith) {
+      out[def.output] = eff.typedWith;
     }
-    const entry: KeyboardKeyOverride = { output: k.output };
-    if (effectiveShift !== k.output.toUpperCase()) {
-      entry.shiftOutput = effectiveShift;
-    }
-    out[k.typedWith.toLowerCase()] = entry;
   }
 
   return out;
+}
+
+/**
+ * Strips legacy persisted shape (`physicalKey → { output, shiftOutput? }`) and keeps only
+ * **output → typedWith** string maps so older guest/API data does not break parsing.
+ */
+/** If two different letters use the same physical key, returns an error message; otherwise null. */
+export function getDuplicatePhysicalKeyError(layout: KeyboardLayout): string | null {
+  const map = new Map<string, string>();
+  for (const k of layout.flat()) {
+    const t = k.typedWith.toLowerCase();
+    const prev = map.get(t);
+    if (prev !== undefined && prev !== k.output) {
+      return `The same physical key cannot type two different letters (“${prev}” and “${k.output}”).`;
+    }
+    map.set(t, k.output);
+  }
+  return null;
+}
+
+export function normalizeKeyboardLayoutOverrides(raw: unknown): KeyboardLayoutOverrides {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return {};
+  }
+
+  const result: KeyboardLayoutOverrides = {};
+
+  for (const [lang, inner] of Object.entries(raw as Record<string, unknown>)) {
+    if (!isLanguage(lang)) {
+      continue;
+    }
+    if (!inner || typeof inner !== 'object' || Array.isArray(inner)) {
+      continue;
+    }
+
+    const per: Record<string, string> = {};
+    for (const [key, value] of Object.entries(inner as Record<string, unknown>)) {
+      if (typeof value === 'string' && value.length > 0) {
+        per[key] = value;
+      }
+    }
+
+    if (Object.keys(per).length > 0) {
+      result[lang] = per;
+    }
+  }
+
+  return result;
 }
 
 function shouldUseShiftedCharacter(shiftKey: boolean, capsLock: boolean): boolean {
@@ -149,7 +177,6 @@ interface RemapArgs {
   key: string;
   shiftKey: boolean;
   capsLock: boolean;
-  /** When set, merges these per-language overrides with built-in layouts before resolving the key. */
   keyboardLayoutOverrides?: KeyboardLayoutOverrides;
 }
 

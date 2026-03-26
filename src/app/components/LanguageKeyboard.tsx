@@ -1,12 +1,17 @@
-import { Button } from './ui/button';
+import { useState } from 'react';
+
 import { getLanguageName, type Language } from '../utils/languages';
-import { getKeyboardLayout } from '../utils/keyboardLayouts';
+import { getKeyboardLayout, type KeyboardLayoutOverrides } from '../utils/keyboardLayouts';
+import { KeyboardMappingDialog } from './KeyboardMappingDialog';
+import { Button } from './ui/button';
 
 interface LanguageKeyboardProps {
   language: Language;
   isVisible: boolean;
   onToggleVisibility: () => void;
   onInsertCharacter: (character: string) => void;
+  keyboardLayoutOverrides: KeyboardLayoutOverrides;
+  onKeyboardLayoutOverridesChange: (next: KeyboardLayoutOverrides) => void;
   className?: string;
 }
 
@@ -15,9 +20,12 @@ export function LanguageKeyboard({
   isVisible,
   onToggleVisibility,
   onInsertCharacter,
-  className,
+  keyboardLayoutOverrides,
+  onKeyboardLayoutOverridesChange,
+  className
 }: LanguageKeyboardProps) {
-  const layout = getKeyboardLayout(language);
+  const [customizeOpen, setCustomizeOpen] = useState(false);
+  const layout = getKeyboardLayout(language, keyboardLayoutOverrides);
   const languageName = getLanguageName(language);
 
   return (
@@ -26,21 +34,38 @@ export function LanguageKeyboard({
       aria-label={`${languageName} on-screen keyboard`}
     >
       <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-3 sm:p-4">
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-sm font-medium text-gray-700">
-            {languageName} keyboard
-          </p>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={onToggleVisibility}
-            aria-expanded={isVisible}
-            aria-label={`${isVisible ? 'Hide' : 'Show'} on-screen keyboard using Control or Command plus D`}
-          >
-            {isVisible ? 'Hide keyboard (Ctrl/Cmd+D)' : 'Show keyboard (Ctrl/Cmd+D)'}
-          </Button>
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <p className="text-sm font-medium text-gray-700">{languageName} keyboard</p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setCustomizeOpen(true)}
+              aria-label={`Customize ${languageName} keyboard mappings`}
+            >
+              Customize mappings
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onToggleVisibility}
+              aria-expanded={isVisible}
+              aria-label={`${isVisible ? 'Hide' : 'Show'} on-screen keyboard using Control or Command plus D`}
+            >
+              {isVisible ? 'Hide keyboard (Ctrl/Cmd+D)' : 'Show keyboard (Ctrl/Cmd+D)'}
+            </Button>
+          </div>
         </div>
+
+        <KeyboardMappingDialog
+          open={customizeOpen}
+          onOpenChange={setCustomizeOpen}
+          language={language}
+          keyboardLayoutOverrides={keyboardLayoutOverrides}
+          onSave={onKeyboardLayoutOverridesChange}
+        />
 
         <p className="text-xs text-gray-600 mb-3" role="status" aria-live="polite">
           {isVisible
@@ -54,7 +79,7 @@ export function LanguageKeyboard({
               <div key={`${language}-row-${rowIndex}`} className="flex gap-2">
                 {row.map((layoutKey) => (
                   <Button
-                    key={`${language}-${rowIndex}-${layoutKey.output}-${layoutKey.typedWith}`}
+                    key={`${language}-${rowIndex}-${layoutKey.typedWith}`}
                     type="button"
                     variant="secondary"
                     size="sm"

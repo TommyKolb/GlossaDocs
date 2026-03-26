@@ -14,7 +14,11 @@ export class SettingsService {
   }
 
   public async updateByOwner(actorSub: string, patch: UpdateSettingsDto): Promise<UserSettings> {
-    if (patch.lastUsedLocale === undefined && patch.keyboardVisible === undefined) {
+    if (
+      patch.lastUsedLocale === undefined &&
+      patch.keyboardVisible === undefined &&
+      patch.keyboardLayoutOverrides === undefined
+    ) {
       throw new ApiError(400, "SETTINGS_UPDATE_EMPTY", "Update payload must include at least one field");
     }
 

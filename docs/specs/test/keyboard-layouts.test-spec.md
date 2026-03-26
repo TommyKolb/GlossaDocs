@@ -3,7 +3,7 @@
 **Source:** `src/app/utils/keyboardLayouts.ts`  
 **Automated tests:** `src/test/unit/keyboard-layouts.test.ts`
 
-This module defines per-language on-screen keyboard layouts and maps physical key events (`key`, Shift, Caps Lock) to the character that should be inserted for Russian phonetic, German, and English layouts.
+This module defines per-language on-screen keyboard layouts and maps physical key events (`key`, Shift, Caps Lock) to the character that should be inserted for Russian phonetic, German, and English layouts. Built-in layouts live in a single `Language` → layout registry; optional **user overrides** (per physical key) are merged for display and remapping.
 
 ## Functions in this file
 
@@ -11,8 +11,11 @@ This module defines per-language on-screen keyboard layouts and maps physical ke
 
 | Function | Summary |
 | -------- | ------- |
-| `getKeyboardLayout(language)` | Returns the three-row `KeyboardLayout` for `en`, `de`, or `ru`. |
-| `getRemappedCharacter({ language, key, shiftKey, capsLock })` | Returns the character to insert, or `null` if the key is not a single character or has no mapping. |
+| `getDefaultKeyboardLayout(language)` | Returns the built-in three-row `KeyboardLayout` for `en`, `de`, or `ru` (no user overrides). |
+| `getKeyboardLayout(language, overrides?)` | Returns the effective layout: defaults merged with optional `KeyboardLayoutOverrides` for that language. |
+| `mergeKeyboardLayoutWithOverrides(layout, overrides)` | Immutable merge: override map keys match `typedWith` case-insensitively; unknown override keys are ignored. |
+| `diffKeyboardLayoutAgainstLanguageDefaults(language, effective)` | Produces the minimal per-key override map for one language when compared to `getDefaultKeyboardLayout` (for persisting edits). |
+| `getRemappedCharacter({ language, key, shiftKey, capsLock, keyboardLayoutOverrides? })` | Returns the character to insert, or `null` if the key is not a single character or has no mapping. Uses the effective layout (defaults + overrides). |
 
 ### Internal (not exported; used to build layouts and remaps)
 
@@ -39,9 +42,18 @@ This module defines per-language on-screen keyboard layouts and maps physical ke
 | Shift + Caps Lock cancel for base letters. | `getRemappedCharacter`, `shouldUseShiftedCharacter` | `language: "en"`, `key: "q"`, `shiftKey: true`, `capsLock: true`. | `"q"`. |
 | German `[` maps to `ü` on the default layer. | `getRemappedCharacter`, `buildRemapTable` | `language: "de"`, `key: "["`, `shiftKey: false`, `capsLock: false`. | `"ü"`. |
 | Physical key string is matched case-insensitively against remap keys built with lowercase `typedWith`. | `getRemappedCharacter`, `buildRemapTable` | `language: "en"`, `key: "Q"` (uppercase), `shiftKey: false`, `capsLock: false`. | `"q"`. |
+| User overrides change merged layout and remapping consistently. | `getKeyboardLayout`, `getRemappedCharacter` | `language: "ru"`, overrides `{ ru: { j: { output: "х" } } }`. | Layout key `typedWith === "j"` has `output` `"х"`; `getRemappedCharacter` for `j` returns `"х"`. |
+| Shift layer for overridden output defaults to uppercase of new output when `shiftOutput` omitted. | `getRemappedCharacter` | Same overrides, `key: "j"`, `shiftKey: true`. | `"Х"` (Cyrillic uppercase). |
+| Override keys not on the built-in layout are ignored. | `getKeyboardLayout`, `getRemappedCharacter` | `language: "en"`, overrides include `` ` `` → `"~"``. | No effect; `` ` `` still unmapped. |
+| Empty / other-language overrides do not change a language’s layout. | `getKeyboardLayout`, `getDefaultKeyboardLayout` | `getKeyboardLayout("ru", {})` and with only `{ en: … }` overrides. | Same as `getDefaultKeyboardLayout("ru")`. |
+| `mergeKeyboardLayoutWithOverrides` normalizes override keys to lowercase. | `mergeKeyboardLayoutWithOverrides` | Override key `J` for English. | `j` row output updated. |
+| `diffKeyboardLayoutAgainstLanguageDefaults` is empty when layouts match defaults. | `diffKeyboardLayoutAgainstLanguageDefaults` | Effective layout equals `getDefaultKeyboardLayout("en")`. | `{}`. |
+| `diffKeyboardLayoutAgainstLanguageDefaults` records differing keys only. | `diffKeyboardLayoutAgainstLanguageDefaults` | Effective layout from `getKeyboardLayout("ru", { ru: { j: { output: "х" } } })`. | `{ j: { output: "х" } }`. |
 
 ---
 
 ## Coverage note
 
-Every **exported** function has multiple tests. Internal helpers **`key`**, **`shouldUseShiftedCharacter`**, and **`buildRemapTable`** do not have separate imports; they are covered by the **`getKeyboardLayout`** and **`getRemappedCharacter`** tests above (layout structure, shift/caps behavior, German and Russian mappings, and case-insensitive key lookup). No layout entry currently sets an explicit `shiftOutput` on `key()`; the default branch `shiftOutput ?? output.toUpperCase()` in `buildRemapTable` is exercised by English shifted letters.
+Internal helpers **`key`**, **`shouldUseShiftedCharacter`**, and **`buildRemapTable`** do not have separate imports; they are covered by the **`getKeyboardLayout`** and **`getRemappedCharacter`** tests above. The default branch `shiftOutput ?? output.toUpperCase()` in `buildRemapTable` is exercised by English shifted letters and by overridden Russian keys.
+
+**UI integration:** `src/test/integration/language-keyboard.test.tsx` checks that overridden outputs appear on on-screen key buttons and in the customize dialog.

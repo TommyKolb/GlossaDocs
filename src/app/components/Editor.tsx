@@ -11,6 +11,7 @@ import { getDefaultFontFamilyForLanguage, resolveDocumentFontFamily } from '../u
 import { EDITOR_CONFIG, UI_CONSTANTS } from '../utils/constants';
 import { findBlockElement, getLineHeight, getNextImageSize } from '../utils/dom';
 import { ensureSelectionInEditor } from '../utils/editor-selection';
+import type { KeyboardLayoutOverrides } from '../utils/keyboardLayouts';
 import { getRemappedCharacter } from '../utils/keyboardLayouts';
 import { getEditorShortcutAction } from '../utils/keyboardShortcuts';
 import { useFormattingState } from '../hooks/useFormattingState';
@@ -29,6 +30,7 @@ export function Editor({ documentId, onBack }: EditorProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(true);
+  const [keyboardLayoutOverrides, setKeyboardLayoutOverrides] = useState<KeyboardLayoutOverrides>({});
   
   // Refs
   const editorRef = useRef<HTMLDivElement>(null);
@@ -446,6 +448,13 @@ export function Editor({ documentId, onBack }: EditorProps) {
     });
   }, []);
 
+  const persistKeyboardLayoutOverrides = useCallback((next: KeyboardLayoutOverrides) => {
+    setKeyboardLayoutOverrides(next);
+    void updateUserSettings({ keyboardLayoutOverrides: next }).catch((error) => {
+      console.error('Error saving keyboard layout overrides:', error);
+    });
+  }, []);
+
   const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
     const isImageWrapper = (element: Element | null): element is HTMLElement =>
       element instanceof HTMLElement &&
@@ -521,6 +530,7 @@ export function Editor({ documentId, onBack }: EditorProps) {
         key: event.key,
         shiftKey: event.shiftKey,
         capsLock: event.getModifierState('CapsLock'),
+        keyboardLayoutOverrides,
       });
 
       if (remappedCharacter && remappedCharacter !== event.key) {
@@ -550,7 +560,7 @@ export function Editor({ documentId, onBack }: EditorProps) {
         }
       }, 0);
     }
-  }, [activeLanguage, handleFormat, insertTextAtCursor, isKeyboardVisible]);
+  }, [activeLanguage, handleFormat, insertTextAtCursor, isKeyboardVisible, keyboardLayoutOverrides]);
 
   const handleGlobalKeyDown = useCallback((event: KeyboardEvent) => {
     const shortcutAction = getEditorShortcutAction(event);
@@ -592,6 +602,7 @@ export function Editor({ documentId, onBack }: EditorProps) {
       try {
         const settings = await getUserSettings();
         setIsKeyboardVisible(settings.keyboardVisible);
+        setKeyboardLayoutOverrides(settings.keyboardLayoutOverrides ?? {});
         lastUsedLocale = settings.lastUsedLocale;
       } catch (error) {
         console.error('Error loading user settings:', error);
@@ -712,6 +723,8 @@ export function Editor({ documentId, onBack }: EditorProps) {
               isVisible={isKeyboardVisible}
               onToggleVisibility={toggleKeyboardVisibility}
               onInsertCharacter={insertTextAtCursor}
+              keyboardLayoutOverrides={keyboardLayoutOverrides}
+              onKeyboardLayoutOverridesChange={persistKeyboardLayoutOverrides}
             />
           </div>
         </div>

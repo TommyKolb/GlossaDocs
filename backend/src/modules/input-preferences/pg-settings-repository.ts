@@ -2,19 +2,32 @@ import type { QueryResultRow } from "pg";
 
 import { queryDb } from "../../shared/db.js";
 import type { SettingsRepository } from "./settings-repository.js";
+import type { KeyboardLayoutOverrides } from "./keyboard-layout-overrides-schema.js";
 import type { UpdateSettingsDto, UserSettings } from "./types.js";
 
 interface SettingsRow extends QueryResultRow {
   owner_id: string;
   last_used_locale: string;
   keyboard_visible: boolean;
+  keyboard_layout_overrides: unknown;
   updated_at: Date;
+}
+
+function parseKeyboardLayoutOverrides(value: unknown): KeyboardLayoutOverrides {
+  if (value === null || value === undefined) {
+    return {};
+  }
+  if (typeof value === "object" && !Array.isArray(value)) {
+    return value as KeyboardLayoutOverrides;
+  }
+  return {};
 }
 
 function toSettings(row: SettingsRow): UserSettings {
   return {
     lastUsedLocale: row.last_used_locale,
-    keyboardVisible: row.keyboard_visible
+    keyboardVisible: row.keyboard_visible,
+    keyboardLayoutOverrides: parseKeyboardLayoutOverrides(row.keyboard_layout_overrides)
   };
 }
 
@@ -28,7 +41,7 @@ export class PgSettingsRepository implements SettingsRepository {
   public async findByOwner(actorSub: string): Promise<UserSettings> {
     const rows = await queryDb<SettingsRow>(
       this.databaseUrl,
-      `select owner_id, last_used_locale, keyboard_visible, updated_at
+      `select owner_id, last_used_locale, keyboard_visible, keyboard_layout_overrides, updated_at
        from user_settings
        where owner_id = $1`,
       [actorSub]
@@ -37,7 +50,8 @@ export class PgSettingsRepository implements SettingsRepository {
     if (!rows[0]) {
       return {
         lastUsedLocale: "en-US",
-        keyboardVisible: true
+        keyboardVisible: true,
+        keyboardLayoutOverrides: {}
       };
     }
 
@@ -45,29 +59,35 @@ export class PgSettingsRepository implements SettingsRepository {
   }
 
   public async upsert(actorSub: string, patch: UpdateSettingsDto): Promise<UserSettings> {
+    const keyboardJson =
+      patch.keyboardLayoutOverrides !== undefined ? JSON.stringify(patch.keyboardLayoutOverrides) : null;
+
     const rows = await queryDb<SettingsRow>(
       this.databaseUrl,
-      `insert into user_settings (owner_id, last_used_locale, keyboard_visible, updated_at)
+      `insert into user_settings (owner_id, last_used_locale, keyboard_visible, keyboard_layout_overrides, updated_at)
        values (
          $1,
          coalesce($2, 'en-US'),
          coalesce($3, true),
+         coalesce($4::jsonb, '{}'::jsonb),
          now()
        )
        on conflict (owner_id)
        do update set
          last_used_locale = coalesce($2, user_settings.last_used_locale),
          keyboard_visible = coalesce($3, user_settings.keyboard_visible),
+         keyboard_layout_overrides = coalesce($4::jsonb, user_settings.keyboard_layout_overrides),
          updated_at = now()
-       returning owner_id, last_used_locale, keyboard_visible, updated_at`,
-      [actorSub, patch.lastUsedLocale ?? null, patch.keyboardVisible ?? null]
+       returning owner_id, last_used_locale, keyboard_visible, keyboard_layout_overrides, updated_at`,
+      [actorSub, patch.lastUsedLocale ?? null, patch.keyboardVisible ?? null, keyboardJson]
     );
 
     const updated = rows[0];
     if (!updated) {
       return {
         lastUsedLocale: "en-US",
-        keyboardVisible: true
+        keyboardVisible: true,
+        keyboardLayoutOverrides: {}
       };
     }
     return toSettings(updated);

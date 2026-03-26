@@ -7,7 +7,8 @@ const GUEST_SETTINGS_STORAGE_KEY = "glossadocs_guest_settings";
 
 const DEFAULT_SETTINGS: UserSettings = {
   lastUsedLocale: "en-US",
-  keyboardVisible: true
+  keyboardVisible: true,
+  keyboardLayoutOverrides: {}
 };
 
 type LocaleCode = "en-US" | "de-DE" | "ru-RU";
@@ -34,7 +35,9 @@ function readGuestSettings(): UserSettings {
     const parsed = JSON.parse(raw) as Partial<UserSettings>;
     return {
       lastUsedLocale: parsed.lastUsedLocale ?? DEFAULT_SETTINGS.lastUsedLocale,
-      keyboardVisible: parsed.keyboardVisible ?? DEFAULT_SETTINGS.keyboardVisible
+      keyboardVisible: parsed.keyboardVisible ?? DEFAULT_SETTINGS.keyboardVisible,
+      keyboardLayoutOverrides:
+        parsed.keyboardLayoutOverrides ?? DEFAULT_SETTINGS.keyboardLayoutOverrides
     };
   } catch {
     return DEFAULT_SETTINGS;

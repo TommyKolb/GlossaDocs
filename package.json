@@ -16,9 +16,16 @@
     "build": "vite build",
     "dev": "vite --host 0.0.0.0",
     "test": "npm run test:all",
-    "test:all": "npm run test:frontend && npm run test:backend",
+    "test:all": "npm run check:font-catalogs && npm run test:frontend && npm run test:backend",
     "test:frontend": "vitest run",
-    "test:backend": "npm --prefix backend test"
+    "test:frontend:unit": "vitest run src/test/unit",
+    "test:frontend:integration": "vitest run src/test/integration",
+    "test:frontend:coverage": "vitest run --coverage",
+    "test:backend": "npm --prefix backend test",
+    "test:backend:coverage": "npm --prefix backend run test:coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:install": "playwright install --with-deps chromium",
+    "check:font-catalogs": "node scripts/check-font-catalogs.mjs"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",
@@ -86,7 +93,9 @@
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
+    "@playwright/test": "^1.51.0",
     "@vitejs/plugin-react": "4.7.0",
+    "@vitest/coverage-v8": "^4.0.18",
     "concurrently": "^9.2.1",
     "jsdom": "^26.1.0",
     "tailwindcss": "4.1.12",

@@ -1,0 +1,55 @@
+name: Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+      backend: ${{ steps.filter.outputs.backend }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            frontend:
+              - 'src/**'
+              - 'e2e/**'
+              - 'vite.config.ts'
+              - 'playwright.config.ts'
+              - 'package.json'
+              - 'package-lock.json'
+              - '.github/workflows/tests.yml'
+              - '.github/workflows/run-frontend-tests.yml'
+            backend:
+              - 'backend/**'
+              - '.github/workflows/tests.yml'
+              - '.github/workflows/run-backend-tests.yml'
+
+  font-catalogs:
+    uses: ./.github/workflows/check-font-catalogs.yml
+
+  frontend:
+    name: Frontend tests
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    uses: ./.github/workflows/run-frontend-tests.yml
+
+  backend:
+    name: Backend tests
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    uses: ./.github/workflows/run-backend-tests.yml

@@ -7,8 +7,10 @@ import { generateDocumentId } from '../models/document';
 import { getDocument, saveDocument } from '../data/document-repository';
 import { exportDocument, type ExportFormat } from '../utils/export';
 import { getLanguageName, type Language } from '../utils/languages';
+import { getDefaultFontFamilyForLanguage, resolveDocumentFontFamily } from '../utils/language-fonts';
 import { EDITOR_CONFIG, UI_CONSTANTS } from '../utils/constants';
 import { findBlockElement, getLineHeight, getNextImageSize } from '../utils/dom';
+import { ensureSelectionInEditor } from '../utils/editor-selection';
 import { getRemappedCharacter } from '../utils/keyboardLayouts';
 import { getEditorShortcutAction } from '../utils/keyboardShortcuts';
 import { useFormattingState } from '../hooks/useFormattingState';
@@ -39,6 +41,38 @@ export function Editor({ documentId, onBack }: EditorProps) {
   // Custom hooks
   const { formattingState, updateFormattingState } = useFormattingState();
   const activeLanguage = document?.language ?? EDITOR_CONFIG.DEFAULT_LANGUAGE;
+
+  const saveSelection = useCallback(() => {
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      savedSelectionRef.current = selection.getRangeAt(0);
+    }
+  }, []);
+
+  const restoreSelection = useCallback(() => {
+    if (savedSelectionRef.current) {
+      const selection = window.getSelection();
+      if (selection && editorRef.current) {
+        const range = savedSelectionRef.current;
+        const startContainer = range.startContainer;
+        const endContainer = range.endContainer;
+        const editor = editorRef.current;
+        const isRangeInsideEditor =
+          editor.contains(startContainer) && editor.contains(endContainer);
+
+        if (!isRangeInsideEditor) {
+          return;
+        }
+
+        try {
+          selection.removeAllRanges();
+          selection.addRange(range);
+        } catch {
+          // Ignore invalid/stale ranges and fall back to current selection.
+        }
+      }
+    }
+  }, []);
 
   // Callbacks
   const handleSave = useCallback(async () => {
@@ -81,8 +115,9 @@ export function Editor({ documentId, onBack }: EditorProps) {
 
   const handleContentChange = useCallback(() => {
     setHasUnsavedChanges(true);
+    saveSelection();
     updateFormattingState();
-  }, [updateFormattingState]);
+  }, [saveSelection, updateFormattingState]);
 
   const handleTitleChange = useCallback((newTitle: string) => {
     if (!document) return;
@@ -92,8 +127,9 @@ export function Editor({ documentId, onBack }: EditorProps) {
 
   const handleLanguageChange = useCallback((newLanguage: Language) => {
     if (!document) return;
-    
-    setDocument({ ...document, language: newLanguage });
+
+    const nextFontFamily = resolveDocumentFontFamily(newLanguage, document.fontFamily);
+    setDocument({ ...document, language: newLanguage, fontFamily: nextFontFamily });
     setHasUnsavedChanges(true);
     
     // Apply text direction based on language (future-proofing for RTL languages)
@@ -107,6 +143,92 @@ export function Editor({ documentId, onBack }: EditorProps) {
       console.error('Error saving language preference:', error);
     });
   }, [document]);
+
+  const handleFontFamilyChange = useCallback((nextFontFamily: string) => {
+    const resolvedFontFamily = resolveDocumentFontFamily(
+      documentRef.current?.language ?? EDITOR_CONFIG.DEFAULT_LANGUAGE,
+      nextFontFamily
+    );
+
+    if (editorRef.current) {
+      const editorElement = editorRef.current;
+      restoreSelection();
+      editorElement.focus();
+
+      const selection = ensureSelectionInEditor(editorElement);
+      if (!selection) {
+        return;
+      }
+
+      // Ask the browser to keep formatting as CSS spans when possible.
+      window.document.execCommand('styleWithCSS', false, 'true');
+      const applied = window.document.execCommand('fontName', false, resolvedFontFamily);
+
+      // Fallback for environments where execCommand(fontName) fails.
+      if (!applied) {
+        if (selection.rangeCount > 0 && !selection.isCollapsed) {
+          const range = selection.getRangeAt(0);
+          const wrapper = window.document.createElement('span');
+          wrapper.style.fontFamily = resolvedFontFamily;
+          wrapper.appendChild(range.extractContents());
+          range.insertNode(wrapper);
+          range.setStartAfter(wrapper);
+          range.setEndAfter(wrapper);
+          selection.removeAllRanges();
+          selection.addRange(range);
+          saveSelection();
+        }
+      }
+
+      const hasRangeSelection =
+        selection !== null &&
+        selection.rangeCount > 0 &&
+        !selection.getRangeAt(0).collapsed;
+
+      let selectionCoversEntireDocument = false;
+      if (selection && selection.rangeCount > 0 && editorElement) {
+        const selectedRange = selection.getRangeAt(0).cloneRange();
+        const editorRange = window.document.createRange();
+        editorRange.selectNodeContents(editorElement);
+        selectionCoversEntireDocument =
+          selectedRange.compareBoundaryPoints(Range.START_TO_START, editorRange) === 0 &&
+          selectedRange.compareBoundaryPoints(Range.END_TO_END, editorRange) === 0;
+      }
+
+      if (!applied && (!selection || selection.rangeCount === 0 || selection.isCollapsed)) {
+        if (selection && selection.rangeCount > 0) {
+          const range = selection.getRangeAt(0);
+          const marker = window.document.createElement('span');
+          marker.style.fontFamily = resolvedFontFamily;
+          marker.appendChild(window.document.createTextNode('\u200B'));
+          range.insertNode(marker);
+          range.setStart(marker.firstChild as Text, 1);
+          range.setEnd(marker.firstChild as Text, 1);
+          selection.removeAllRanges();
+          selection.addRange(range);
+          saveSelection();
+        }
+      }
+
+      // Keep toolbar value in sync with the most recently chosen font.
+      // This does not force existing text to re-render in that font.
+      setDocument((current) => {
+        if (!current) {
+          return current;
+        }
+        if (!selectionCoversEntireDocument && current.fontFamily === resolvedFontFamily) {
+          return current;
+        }
+        return {
+          ...current,
+          fontFamily: resolvedFontFamily
+        };
+      });
+    }
+
+    setHasUnsavedChanges(true);
+    updateFormattingState();
+  }, [restoreSelection, saveSelection, updateFormattingState]);
 
   const insertTextAtCursor = useCallback((text: string) => {
     if (!editorRef.current) return;
@@ -134,8 +256,9 @@ export function Editor({ documentId, onBack }: EditorProps) {
     }
 
     setHasUnsavedChanges(true);
+    saveSelection();
     updateFormattingState();
-  }, [updateFormattingState]);
+  }, [saveSelection, updateFormattingState]);
 
   const handleFormat = useCallback((command: string) => {
     if (command.startsWith('fontSize:')) {
@@ -186,23 +309,6 @@ export function Editor({ documentId, onBack }: EditorProps) {
       toast.error('Failed to download document');
     }
   }, [document]);
-
-  const saveSelection = useCallback(() => {
-    const selection = window.getSelection();
-    if (selection && selection.rangeCount > 0) {
-      savedSelectionRef.current = selection.getRangeAt(0);
-    }
-  }, []);
-
-  const restoreSelection = useCallback(() => {
-    if (savedSelectionRef.current) {
-      const selection = window.getSelection();
-      if (selection) {
-        selection.removeAllRanges();
-        selection.addRange(savedSelectionRef.current);
-      }
-    }
-  }, []);
 
   const handleImageSelect = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -472,8 +578,9 @@ export function Editor({ documentId, onBack }: EditorProps) {
   }, [handleGlobalKeyDown]);
 
   const handleSelectionChange = useCallback(() => {
+    saveSelection();
     updateFormattingState();
-  }, [updateFormattingState]);
+  }, [saveSelection, updateFormattingState]);
 
   // Current supported languages are LTR.
   const languageDir: 'ltr' | 'rtl' = 'ltr';
@@ -502,11 +609,14 @@ export function Editor({ documentId, onBack }: EditorProps) {
         }
 
         // Create new document
+        const initialFolderId = localStorage.getItem('glossadocs_new_document_folder_id');
         const newDoc: Document = {
           id: generateDocumentId(),
           title: EDITOR_CONFIG.DEFAULT_TITLE,
           content: '',
           language: preferredLanguage,
+          folderId: initialFolderId,
+          fontFamily: getDefaultFontFamilyForLanguage(preferredLanguage),
           createdAt: Date.now(),
           updatedAt: Date.now(),
         };
@@ -524,6 +634,12 @@ export function Editor({ documentId, onBack }: EditorProps) {
   }, [document?.id]); // Only run when document changes
 
   useEffect(() => {
+    if (document && editorRef.current) {
+      editorRef.current.style.fontFamily = document.fontFamily;
+    }
+  }, [document?.id]);
+
+  useEffect(() => {
     documentRef.current = document;
   }, [document]);
 
@@ -539,6 +655,8 @@ export function Editor({ documentId, onBack }: EditorProps) {
     <div className="min-h-screen min-h-[100dvh] flex flex-col bg-white">
       <EditorToolbar
         language={document.language}
+        fontFamily={document.fontFamily}
+        onFontFamilyChange={handleFontFamilyChange}
         onLanguageChange={handleLanguageChange}
         onSave={() => handleSave()}
         onDownload={handleDownload}

@@ -36,9 +36,12 @@ import { LANGUAGES, isLanguage, type Language } from '../utils/languages';
 import { type ExportFormat } from '../utils/export';
 import { FONT_SIZE_OPTIONS } from '../utils/constants';
 import { type FormattingState } from '../utils/types';
+import { getFontsForLanguage, resolveDocumentFontFamily } from '../utils/language-fonts';
 
 interface EditorToolbarProps {
   language: Language;
+  fontFamily: string;
+  onFontFamilyChange: (fontFamily: string) => void;
   onLanguageChange: (language: Language) => void;
   onSave: () => void;
   onDownload: (format: ExportFormat) => void;
@@ -54,6 +57,8 @@ interface EditorToolbarProps {
 
 export function EditorToolbar({
   language,
+  fontFamily,
+  onFontFamilyChange,
   onLanguageChange,
   onSave,
   onDownload,
@@ -66,6 +71,9 @@ export function EditorToolbar({
   hasUnsavedChanges,
   onInsertImage,
 }: EditorToolbarProps) {
+  const languageFonts = getFontsForLanguage(language);
+  const effectiveFontFamily = resolveDocumentFontFamily(language, fontFamily);
+
   const handleLanguageValueChange = (value: string) => {
     if (isLanguage(value)) {
       onLanguageChange(value);
@@ -235,6 +243,18 @@ export function EditorToolbar({
           {/* Font size selector */}
           <div className="flex items-center gap-2 flex-shrink-0">
             <Type className="size-4 text-gray-500" aria-hidden="true" />
+            <Select value={effectiveFontFamily} onValueChange={onFontFamilyChange}>
+              <SelectTrigger className="w-[150px] sm:w-[180px]" aria-label="Select document font">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {languageFonts.map((font) => (
+                  <SelectItem key={font.family} value={font.family}>
+                    {font.family}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Select defaultValue="3" onValueChange={(value) => onFormat(`fontSize:${value}`)}>
               <SelectTrigger className="w-[100px] sm:w-[120px]" aria-label="Select font size">
                 <SelectValue />

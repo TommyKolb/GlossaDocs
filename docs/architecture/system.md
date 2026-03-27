@@ -30,6 +30,7 @@ Key architectural separations:
 
 - **Identity and access:** JWT verification, session-backed login/logout, Keycloak admin flows for register / password reset
 - **Documents:** user-owned document CRUD, sanitization, optional encryption at rest
+- **Documents:** user-owned document CRUD, folders, and per-document language-aware font metadata
 - **Input preferences:** per-user settings (`keyboardVisible`, `lastUsedLocale`)
 - **API edge:** centralized error mapping and health/readiness endpoints (no domain logic)
 - **Operational store:** append-only HTTP audit trail in PostgreSQL (no idempotency store in this codebase)
@@ -69,7 +70,7 @@ flowchart LR
 | Public auth metadata | `GET /auth/public` (optional; OIDC URLs for alternate clients) |
 | Session auth | `POST /auth/login`, `POST /auth/logout`, `GET /auth/session` |
 | Account | `POST /auth/register`, `POST /auth/password-reset` |
-| Authenticated | `GET /me`, `GET/POST/PUT/DELETE /documents`, `GET/PUT /settings` |
+| Authenticated | `GET /me`, `GET/POST/PUT/DELETE /documents`, `GET/POST/PUT/DELETE /folders`, `GET/PUT /settings` |
 
 **Auth model:** `GET /health` and `GET /ready` are unauthenticated. **`POST /auth/login`**, **`POST /auth/register`**, **`POST /auth/password-reset`**, and **`GET /auth/public`** do not require a prior session (logout clears cookie without Bearer). **`GET /auth/session`** requires a valid session cookie. All other routes in the table above use **`requireAuth`**: session cookie **or** `Authorization: Bearer` with a valid access token.
 

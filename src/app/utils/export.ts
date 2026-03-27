@@ -63,6 +63,21 @@ function stripUnsupportedColorsFromStyleText(cssText: string): string {
   return cssText.replace(/oklch\([^)]*\)/gi, '#111111');
 }
 
+/**
+ * Builds the DOM subtree passed to html2pdf (isolated iframe document).
+ * Exported for unit tests. PDF body is editor content only; the document title is used for the filename, not the PDF.
+ */
+export function buildPdfRenderContainer(ownerDoc: Document, doc: AppDocument): HTMLElement {
+  const renderContainer = ownerDoc.createElement("div");
+  renderContainer.className = "pdf-root";
+  renderContainer.id = "pdf-export-root";
+  const contentElement = ownerDoc.createElement("div");
+  contentElement.className = "pdf-content";
+  contentElement.innerHTML = sanitizeHtmlForPdf(doc.content || "<div><br></div>");
+  renderContainer.appendChild(contentElement);
+  return renderContainer;
+}
+
 function sanitizeClonedDocumentForPdf(clonedDoc: Document): void {
   // Remove external stylesheets entirely to avoid unsupported CSS functions.
   clonedDoc.querySelectorAll('link[rel="stylesheet"]').forEach((link) => link.remove());
@@ -239,12 +254,6 @@ export async function exportAsPdf(doc: AppDocument): Promise<void> {
               overflow-wrap: anywhere;
               word-break: break-word;
             }
-            .pdf-title {
-              margin: 0 0 20px 0;
-              font-size: 28px;
-              font-weight: 700;
-              line-height: 1.2;
-            }
             .pdf-content {
               white-space: pre-wrap;
               overflow-wrap: anywhere;
@@ -257,18 +266,7 @@ export async function exportAsPdf(doc: AppDocument): Promise<void> {
     `);
     iframeDoc.close();
 
-    const renderContainer = iframeDoc.createElement('div');
-    renderContainer.className = 'pdf-root';
-    renderContainer.id = 'pdf-export-root';
-    const titleElement = iframeDoc.createElement('h1');
-    titleElement.className = 'pdf-title';
-    titleElement.textContent = doc.title || 'Untitled Document';
-    const contentElement = iframeDoc.createElement('div');
-    contentElement.className = 'pdf-content';
-    contentElement.innerHTML = sanitizeHtmlForPdf(doc.content || '<div><br></div>');
-
-    renderContainer.appendChild(titleElement);
-    renderContainer.appendChild(contentElement);
+    const renderContainer = buildPdfRenderContainer(iframeDoc, doc);
     iframeDoc.body.appendChild(renderContainer);
 
     const html2pdfModule = await import('html2pdf.js/dist/html2pdf.bundle.min.js');

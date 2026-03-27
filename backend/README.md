@@ -47,6 +47,8 @@ All **application** relational state is in the database named in **`DATABASE_URL
 | `001_create_documents.js` | Table **`documents`** + indexes | Document module: CRUD by `owner_id`. |
 | `002_create_user_settings.js` | Table **`user_settings`** | Input preferences: get/put settings per `owner_id`. |
 | `003_create_api_audit_events.js` | Table **`api_audit_events`** + index on `created_at` | Operational store: append-only audit rows on mutating HTTP methods. |
+| `004_create_folders_and_document_folder_fk.js` | Table **`folders`**, `documents.folder_id`, folder indexes/FKs | Document organization: nested folders and folder-assigned documents by `owner_id`. |
+| `005_add_documents_font_family.js` | `documents.font_family` | Per-document language-aware font theme persistence. |
 
 **Redis** is not a “database” in the DDL sense: keys are **`{AUTH_REDIS_KEY_PREFIX}{sessionId}`** holding JSON with access token metadata when using `RedisAuthSessionStore`.
 
@@ -159,3 +161,4 @@ npm run typecheck
 - [System architecture](../docs/architecture/system.md)
 - [Module index](../docs/architecture/backend-architecture.md)
 - [Document encryption](../docs/architecture/document-encryption.md)
+- Language font catalog used for validation: `src/shared/document-fonts.ts`

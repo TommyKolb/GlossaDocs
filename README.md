@@ -1,6 +1,6 @@
 # GlossaDocs
 
-GlossaDocs is a browser-based document editor inspired by Google Docs, aimed at **multilingual writing**: per-document language, on-screen keyboards and key remapping for non-Latin scripts (for example Russian), and a familiar flow—document list, rich-text editor, autosave, import/export.
+GlossaDocs is a browser-based document editor inspired by Google Docs, aimed at **multilingual writing**: per-document language, per-document language-aware font themes, on-screen keyboards and key remapping for non-Latin scripts (for example Russian), and a familiar flow—document list, nested folders, rich-text editor, autosave, import/export.
 
 **Why it exists:** many tools treat language as an afterthought. GlossaDocs is built so language choice and input methods sit next to editing, not in a separate toolchain.
 
@@ -75,12 +75,24 @@ The Docker backend is configured so token verification uses the **internal** Key
 
 ## Tests
 
-Requires **Node.js 20+** and dependencies: from the repo root run `npm run setup:dev` once (installs root + `backend/` packages), or run `npm install` and `npm --prefix backend install` yourself.
+**Node.js 20+** and `npm run setup:dev` (or install root + `backend/` packages yourself). Run everything: `npm test`. Tests are split into **unit**, **integration**, and **E2E** (Playwright). CI on push/PR to `main`/`develop` runs the **Tests** workflow (`.github/workflows/tests.yml`)—font catalogs plus path-filtered frontend and backend jobs. Details: [docs/testing.md](docs/testing.md).
 
-- Frontend: `npm run test:frontend` (Vitest, `src/test/`)
-- Backend: `npm run test:backend` (Vitest, `backend/test/`)
+Details—commands, coverage, folders, CI: **[docs/testing.md](docs/testing.md)**.
 
 ## Further reading
 
 - [Document encryption at rest](docs/architecture/document-encryption.md) (`DOCUMENT_ENCRYPTION_KEY`)
 - Operational concerns (sessions, Postgres, Keycloak, reset procedures): **[backend/README.md](backend/README.md)**
+
+## Adding a new language font set
+
+To add another language with minimal code changes:
+
+1. Add/update language entry in `src/app/utils/languages.ts`.
+2. Add font catalog entry in `src/app/utils/language-fonts.ts` with:
+   - `defaultFamily`
+   - `fonts[]` (`family`, `googleFontFamily`, `fallbackStack`)
+3. Mirror allowed font family updates in `backend/src/shared/document-fonts.ts`.
+4. Add/update tests:
+   - `src/test/integration/editor-fonts.test.tsx`
+   - `backend/test/integration/document-routes.test.ts` / `backend/test/unit/document-service.test.ts`

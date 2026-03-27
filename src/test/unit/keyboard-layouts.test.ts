@@ -5,8 +5,11 @@ import {
   getDefaultKeyboardLayout,
   getDuplicatePhysicalKeyError,
   getKeyboardLayout,
+  getOutputsWithDuplicatePhysicalKeys,
   getRemappedCharacter,
   normalizeKeyboardLayoutOverrides,
+  normalizeSinglePhysicalKey,
+  type KeyboardLayout,
   type KeyboardLayoutOverrides
 } from "@/app/utils/keyboardLayouts";
 
@@ -193,7 +196,7 @@ describe("getDuplicatePhysicalKeyError", () => {
       row.map((k) =>
         k.output === "q" || k.output === "a" ? { ...k, typedWith: "z" } : k
       )
-    );
+    ) as KeyboardLayout;
     expect(getDuplicatePhysicalKeyError(broken)).toContain("same physical key");
   });
 });
@@ -211,6 +214,14 @@ describe("diffKeyboardLayoutAgainstLanguageDefaults", () => {
       к: "j"
     });
   });
+
+  it("skips indices where effective output does not match default at the same position", () => {
+    const base = getDefaultKeyboardLayout("en");
+    const corrupt = base.map((row, ri) =>
+      row.map((k, ki) => (ri === 0 && ki === 0 ? { ...k, output: "Z" } : k))
+    ) as KeyboardLayout;
+    expect(diffKeyboardLayoutAgainstLanguageDefaults("en", corrupt)).toEqual({});
+  });
 });
 
 describe("normalizeKeyboardLayoutOverrides", () => {
@@ -221,5 +232,53 @@ describe("normalizeKeyboardLayoutOverrides", () => {
         en: { q: "x" }
       })
     ).toEqual({ en: { q: "x" } });
+  });
+
+  it("returns empty for null, undefined, arrays, or non-object roots", () => {
+    expect(normalizeKeyboardLayoutOverrides(null)).toEqual({});
+    expect(normalizeKeyboardLayoutOverrides(undefined)).toEqual({});
+    expect(normalizeKeyboardLayoutOverrides([])).toEqual({});
+    expect(normalizeKeyboardLayoutOverrides("x")).toEqual({});
+  });
+
+  it("skips unknown language keys and invalid inner shapes", () => {
+    expect(normalizeKeyboardLayoutOverrides({ fr: { a: "b" } })).toEqual({});
+    expect(normalizeKeyboardLayoutOverrides({ en: "bad" } as unknown)).toEqual({});
+    expect(normalizeKeyboardLayoutOverrides({ en: [] } as unknown)).toEqual({});
+  });
+
+  it("drops empty string values so language entry is omitted when nothing valid remains", () => {
+    expect(normalizeKeyboardLayoutOverrides({ en: { q: "" } })).toEqual({});
+  });
+});
+
+describe("normalizeSinglePhysicalKey", () => {
+  it("returns empty and single-character strings unchanged", () => {
+    expect(normalizeSinglePhysicalKey("")).toBe("");
+    expect(normalizeSinglePhysicalKey("j")).toBe("j");
+  });
+
+  it("truncates pasted multi-character input to the first character", () => {
+    expect(normalizeSinglePhysicalKey("ml")).toBe("m");
+  });
+});
+
+describe("getOutputsWithDuplicatePhysicalKeys", () => {
+  it("returns an empty set when every typedWith is unique", () => {
+    expect(
+      getOutputsWithDuplicatePhysicalKeys([
+        { output: "a", typedWith: "a" },
+        { output: "b", typedWith: "b" }
+      ]).size
+    ).toBe(0);
+  });
+
+  it("includes every output letter that shares a physical key with another (case-insensitive)", () => {
+    const dups = getOutputsWithDuplicatePhysicalKeys([
+      { output: "q", typedWith: "j" },
+      { output: "a", typedWith: "J" }
+    ]);
+    expect(dups.has("q")).toBe(true);
+    expect(dups.has("a")).toBe(true);
   });
 });

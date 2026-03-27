@@ -108,10 +108,6 @@ export function diffKeyboardLayoutAgainstLanguageDefaults(
   return out;
 }
 
-/**
- * Strips legacy persisted shape (`physicalKey → { output, shiftOutput? }`) and keeps only
- * **output → typedWith** string maps so older guest/API data does not break parsing.
- */
 /** If two different letters use the same physical key, returns an error message; otherwise null. */
 export function getDuplicatePhysicalKeyError(layout: KeyboardLayout): string | null {
   const map = new Map<string, string>();
@@ -126,6 +122,37 @@ export function getDuplicatePhysicalKeyError(layout: KeyboardLayout): string | n
   return null;
 }
 
+/** One physical key label. Extra characters are dropped when pasting. */
+export function normalizeSinglePhysicalKey(value: string): string {
+  if (value.length <= 1) {
+    return value;
+  }
+  return value.slice(0, 1);
+}
+
+export type PhysicalKeyRow = { output: string; typedWith: string };
+
+/** Output letters that share the same physical key (case-insensitive) with another letter. */
+export function getOutputsWithDuplicatePhysicalKeys(rows: PhysicalKeyRow[]): Set<string> {
+  const byTyped = new Map<string, string[]>();
+  for (const r of rows) {
+    const k = r.typedWith.toLowerCase();
+    const list = byTyped.get(k) ?? [];
+    list.push(r.output);
+    byTyped.set(k, list);
+  }
+  const dups = new Set<string>();
+  for (const [, outputs] of byTyped) {
+    if (outputs.length > 1) {
+      outputs.forEach((o) => dups.add(o));
+    }
+  }
+  return dups;
+}
+
+/**
+ * Strips legacy object-shaped values; keeps only **output → typedWith** string maps per language.
+ */
 export function normalizeKeyboardLayoutOverrides(raw: unknown): KeyboardLayoutOverrides {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
     return {};

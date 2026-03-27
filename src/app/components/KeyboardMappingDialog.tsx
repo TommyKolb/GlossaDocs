@@ -9,6 +9,8 @@ import {
   getDefaultKeyboardLayout,
   getDuplicatePhysicalKeyError,
   getKeyboardLayout,
+  getOutputsWithDuplicatePhysicalKeys,
+  normalizeSinglePhysicalKey,
   type KeyboardKey,
   type KeyboardLayout,
   type KeyboardLayoutOverrides
@@ -50,32 +52,6 @@ function rowsForLanguage(language: Language, overrides: KeyboardLayoutOverrides)
     output: k.output,
     typedWith: k.typedWith
   }));
-}
-
-/** One physical key label (Latin letter, digit, or symbol). Extra characters are dropped (e.g. paste). */
-function normalizeSinglePhysicalKey(value: string): string {
-  if (value.length <= 1) {
-    return value;
-  }
-  return value.slice(0, 1);
-}
-
-/** Output letters that share the same physical key (case-insensitive) with another letter. */
-function getOutputsWithDuplicatePhysicalKeys(rows: RowState[]): Set<string> {
-  const byTyped = new Map<string, string[]>();
-  for (const r of rows) {
-    const k = r.typedWith.toLowerCase();
-    const list = byTyped.get(k) ?? [];
-    list.push(r.output);
-    byTyped.set(k, list);
-  }
-  const dups = new Set<string>();
-  for (const [, outputs] of byTyped) {
-    if (outputs.length > 1) {
-      outputs.forEach((o) => dups.add(o));
-    }
-  }
-  return dups;
 }
 
 function buildEffectiveLayoutFromRows(language: Language, rows: RowState[]): KeyboardLayout {

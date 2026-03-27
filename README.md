@@ -75,7 +75,7 @@ The Docker backend is configured so token verification uses the **internal** Key
 
 ## Tests
 
-**Node.js 20+** and `npm run setup:dev` (or install root + `backend/` packages yourself). Run everything: `npm test`. Tests are split into **unit**, **integration**, and **E2E** (Playwright). CI on push/PR to `main`/`develop` includes a **font catalog** check plus frontend and backend workflows under `.github/workflows/`. Details: [docs/testing.md](docs/testing.md).
+**Node.js 20+** and `npm run setup:dev` (or install root + `backend/` packages yourself). Run everything: `npm test`. Tests are split into **unit**, **integration**, and **E2E** (Playwright). CI on push/PR to `main`/`develop` runs the **Tests** workflow (`.github/workflows/tests.yml`)—font catalogs plus path-filtered frontend and backend jobs. Details: [docs/testing.md](docs/testing.md).
 
 Details—commands, coverage, folders, CI: **[docs/testing.md](docs/testing.md)**.
 

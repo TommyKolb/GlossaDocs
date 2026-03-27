@@ -30,24 +30,27 @@ export function DocumentCard({
   const languageInfo = getLanguageInfo(document.language);
   const openDocLabel = `Open document: ${document.title || 'Untitled Document'}. Last modified ${formatDocumentDate(document.updatedAt)}. Language: ${languageInfo?.label || document.language}`;
 
+  function handleCardClick(event: MouseEvent<HTMLDivElement>) {
+    if ((event.target as HTMLElement).closest('button')) return;
+    onSelect(document.id);
+  }
+
   return (
     <Card
+      role="group"
+      aria-label={openDocLabel}
       className={`p-4 cursor-grab active:cursor-grabbing hover:shadow-md transition-all bg-white/90 backdrop-blur border border-gray-200 hover:border-blue-300 focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2 min-h-[138px] ${
         isDragging ? 'invisible' : ''
       }`}
       draggable
+      onClick={handleCardClick}
       onDragStart={(event) => onDragStartDocument(document.id, event)}
       onDrag={(event) => onDragDocument(document.id, event)}
       onDragEnd={onDragEndDocument}
     >
       <div className="h-full flex flex-col justify-between gap-3">
         <div className="flex items-start justify-between gap-3">
-          <button
-            type="button"
-            className="flex-1 min-w-0 text-left rounded-md p-1 -m-1 hover:bg-gray-50/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-            onClick={() => onSelect(document.id)}
-            aria-label={openDocLabel}
-          >
+          <div className="flex-1 min-w-0 text-left rounded-md p-1 -m-1">
             <div className="flex items-center gap-2 mb-1.5">
               <FileText className="size-5 text-gray-400 flex-shrink-0" aria-hidden="true" />
               <span className="text-sm font-medium text-gray-900 truncate block">
@@ -58,7 +61,7 @@ export function DocumentCard({
               <Calendar className="size-3.5" aria-hidden="true" />
               <span>{formatDocumentDate(document.updatedAt)}</span>
             </div>
-          </button>
+          </div>
           <Button
             variant="ghost"
             size="sm"

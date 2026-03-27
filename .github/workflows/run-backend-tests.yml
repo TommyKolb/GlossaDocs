@@ -1,16 +1,8 @@
 name: Backend tests
 
 on:
-  push:
-    branches: [main, develop]
-    paths:
-      - "backend/**"
-      - ".github/workflows/run-backend-tests.yml"
-  pull_request:
-    branches: [main, develop]
-    paths:
-      - "backend/**"
-      - ".github/workflows/run-backend-tests.yml"
+  workflow_call:
+  workflow_dispatch:
 
 jobs:
   test:

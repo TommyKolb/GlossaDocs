@@ -45,6 +45,7 @@ export function DocumentCard({
         isDragging ? 'invisible' : ''
       }`}
       draggable
+      onClick={handleCardClick}
       onDragStart={(event) => onDragStartDocument(document.id, event)}
       onDrag={(event) => onDragDocument(document.id, event)}
       onDragEnd={onDragEndDocument}

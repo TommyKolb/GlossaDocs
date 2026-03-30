@@ -31,8 +31,14 @@ Run `npm run test:frontend:coverage` and `npm run test:backend:coverage`, then o
 
 ## Continuous integration
 
-On push and pull requests to **`main`** or **`develop`**:
+On push and pull requests to **`main`** or **`develop`**, the **[Tests](../.github/workflows/tests.yml)** workflow is the single entry point. It runs a **`changes`** job ([`dorny/paths-filter`](https://github.com/dorny/paths-filter)), then calls reusable workflows:
 
-- [`.github/workflows/check-font-catalogs.yml`](../.github/workflows/check-font-catalogs.yml) — always runs; ensures `language-fonts.ts` and `document-fonts.ts` list the same `family` names (no `npm ci` required).
-- [`.github/workflows/run-frontend-tests.yml`](../.github/workflows/run-frontend-tests.yml) — Vitest with coverage, Playwright E2E (path-filtered).
-- [`.github/workflows/run-backend-tests.yml`](../.github/workflows/run-backend-tests.yml) — `typecheck`, Vitest with coverage (path-filtered when `backend/` changes).
+| Called workflow | Role |
+|-----------------|------|
+| [check-font-catalogs.yml](../.github/workflows/check-font-catalogs.yml) | Always; ensures `language-fonts.ts` and `document-fonts.ts` list the same `family` names (no `npm ci` required). |
+| [run-frontend-tests.yml](../.github/workflows/run-frontend-tests.yml) | Vitest with coverage and Playwright E2E — only when frontend-related paths change (`src/`, `e2e/`, root `package.json`, Vite/Playwright config, `tests.yml`, or `run-frontend-tests.yml`). |
+| [run-backend-tests.yml](../.github/workflows/run-backend-tests.yml) | `typecheck` and Vitest with coverage — only when `backend/` or orchestration files under the backend filter change. |
+
+Those YAML files use **`workflow_call`** so the **Tests** run can invoke them; they also expose **`workflow_dispatch`** so you can run each workflow alone from the Actions tab when debugging.
+
+PRs that only touch unrelated paths skip frontend/backend calls while still running the font catalog check.

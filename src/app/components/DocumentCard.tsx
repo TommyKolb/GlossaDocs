@@ -49,7 +49,6 @@ export function DocumentCard({
       onDragStart={(event) => onDragStartDocument(document.id, event)}
       onDrag={(event) => onDragDocument(document.id, event)}
       onDragEnd={onDragEndDocument}
-      onClick={handleCardClick}
     >
       <div className="h-full flex flex-col justify-between gap-3">
         <div className="flex items-start justify-between gap-3">

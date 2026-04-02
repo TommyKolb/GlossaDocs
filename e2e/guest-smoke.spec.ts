@@ -28,13 +28,19 @@ test.describe("guest mode", () => {
 
     await expect(page.getByRole("button", { name: /insert q using 9/i })).toBeVisible();
 
+    // Persist the new document to IndexedDB before reload (autosave is 10s; reload sooner leaves the list empty).
+    await page.keyboard.press("Control+s");
+    await expect(page.getByLabel(/All changes are saved/i)).toBeVisible({ timeout: 15_000 });
+
     await page.reload();
     await expect(page.getByRole("heading", { name: /welcome to glossadocs/i })).toBeVisible({
       timeout: 20_000,
     });
 
     // Reload clears React state; guest settings persist in localStorage but the UI returns to the document list.
-    await page.getByRole("group", { name: /open document:/i }).first().click();
+    const firstDocCard = page.getByRole("group", { name: /open document:/i }).first();
+    await expect(firstDocCard).toBeVisible({ timeout: 30_000 });
+    await firstDocCard.click();
     await expect(page.getByRole("textbox", { name: /document editor for/i })).toBeVisible();
 
     await expect(page.getByRole("button", { name: /insert q using 9/i })).toBeVisible();

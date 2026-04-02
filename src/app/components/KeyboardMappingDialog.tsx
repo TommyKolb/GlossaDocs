@@ -86,6 +86,10 @@ export function KeyboardMappingDialog({
   }, [open, language, keyboardLayoutOverrides]);
 
   const duplicateOutputs = useMemo(() => getOutputsWithDuplicatePhysicalKeys(rows), [rows]);
+  const emptyOutputs = useMemo(
+    () => new Set(rows.filter((row) => row.typedWith.length === 0).map((row) => row.output)),
+    [rows]
+  );
 
   const handleTypedWithChange = (output: string, value: string) => {
     const typedWith = normalizeSinglePhysicalKey(value);
@@ -93,6 +97,10 @@ export function KeyboardMappingDialog({
   };
 
   const handleSave = () => {
+    if (emptyOutputs.size > 0) {
+      toast.error('Each letter must be assigned to a physical key. Empty mappings are not allowed.');
+      return;
+    }
     const effective = buildEffectiveLayoutFromRows(language, rows);
     const dup = getDuplicatePhysicalKeyError(effective);
     if (dup) {
@@ -134,9 +142,9 @@ export function KeyboardMappingDialog({
             <DialogTitle>Customize keyboard — {languageName}</DialogTitle>
             <DialogDescription>
               Each letter stays in the same place on the on-screen keyboard. Enter a single physical key (one
-              letter, number, or symbol) per row—pasting multiple characters keeps only the first. Two letters
-              cannot share the same key; conflicting rows are outlined in red. Shift + key still uses the
-              uppercase of that letter (for example, Latin “a” → “A”).
+              letter, number, or symbol) per row—pasting multiple characters keeps only the first. Fields
+              cannot be empty. Two letters cannot share the same key; conflicting rows are outlined in red.
+              Shift + key still uses the uppercase of that letter (for example, Latin “a” → “A”).
             </DialogDescription>
           </DialogHeader>
 
@@ -155,13 +163,13 @@ export function KeyboardMappingDialog({
                 </span>
                 <Input
                   aria-label={`Physical key for letter ${row.output}`}
-                  aria-invalid={duplicateOutputs.has(row.output)}
+                  aria-invalid={duplicateOutputs.has(row.output) || emptyOutputs.has(row.output)}
                   value={row.typedWith}
                   maxLength={1}
                   onChange={(e) => handleTypedWithChange(row.output, e.target.value)}
                   className={cn(
                     'h-9 text-sm font-mono',
-                    duplicateOutputs.has(row.output) &&
+                    (duplicateOutputs.has(row.output) || emptyOutputs.has(row.output)) &&
                       'border-destructive ring-2 ring-destructive/35 focus-visible:border-destructive focus-visible:ring-destructive/50'
                   )}
                 />

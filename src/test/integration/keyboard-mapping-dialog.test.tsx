@@ -84,6 +84,29 @@ describe("KeyboardMappingDialog", () => {
     expect(onSave).not.toHaveBeenCalled();
   });
 
+  it("toasts and does not save when any mapping is empty on Save", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    const { toast } = await import("sonner");
+    render(
+      <KeyboardMappingDialog
+        open={true}
+        onOpenChange={() => {}}
+        language="en"
+        keyboardLayoutOverrides={{}}
+        onSave={onSave}
+      />
+    );
+    const dialog = getDialog();
+    const qInput = within(dialog).getByLabelText("Physical key for letter q");
+    await user.clear(qInput);
+    await user.click(within(dialog).getByRole("button", { name: /Save mappings/i }));
+    expect(vi.mocked(toast.error)).toHaveBeenCalledWith(
+      expect.stringContaining("must be assigned")
+    );
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
   it("calls onSave with the diff and closes when mappings are valid", async () => {
     const user = userEvent.setup();
     const onSave = vi.fn();

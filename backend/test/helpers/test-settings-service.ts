@@ -12,7 +12,8 @@ class InMemorySettingsRepository implements SettingsRepository {
     return (
       this.records.get(actorSub) ?? {
         lastUsedLocale: "en-US",
-        keyboardVisible: true
+        keyboardVisible: true,
+        keyboardLayoutOverrides: {}
       }
     );
   }
@@ -21,7 +22,8 @@ class InMemorySettingsRepository implements SettingsRepository {
     const current = await this.findByOwner(actorSub);
     const next: UserSettings = {
       lastUsedLocale: patch.lastUsedLocale ?? current.lastUsedLocale,
-      keyboardVisible: patch.keyboardVisible ?? current.keyboardVisible
+      keyboardVisible: patch.keyboardVisible ?? current.keyboardVisible,
+      keyboardLayoutOverrides: patch.keyboardLayoutOverrides ?? current.keyboardLayoutOverrides
     };
     this.records.set(actorSub, next);
     return next;

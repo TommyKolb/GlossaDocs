@@ -11,11 +11,13 @@ import { getDefaultFontFamilyForLanguage, resolveDocumentFontFamily } from '../u
 import { EDITOR_CONFIG, UI_CONSTANTS } from '../utils/constants';
 import { findBlockElement, getLineHeight, getNextImageSize } from '../utils/dom';
 import { ensureSelectionInEditor } from '../utils/editor-selection';
+import type { KeyboardLayoutOverrides } from '../utils/keyboardLayouts';
 import { getRemappedCharacter } from '../utils/keyboardLayouts';
 import { getEditorShortcutAction } from '../utils/keyboardShortcuts';
 import { useFormattingState } from '../hooks/useFormattingState';
 import { useAutoSave } from '../hooks/useAutoSave';
 import { getUserSettings, languageToLocale, localeToLanguage, updateUserSettings } from '../data/settings-repository';
+import { DOCUMENT_PAYLOAD_TOO_LARGE_MESSAGE, isPayloadTooLargeError } from '../api/client';
 import { toast } from 'sonner';
 
 interface EditorProps {
@@ -29,6 +31,8 @@ export function Editor({ documentId, onBack }: EditorProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(true);
+  const [keyboardLayoutOverrides, setKeyboardLayoutOverrides] = useState<KeyboardLayoutOverrides>({});
+  const keyboardLayoutSaveRequestRef = useRef(0);
   
   // Refs
   const editorRef = useRef<HTMLDivElement>(null);
@@ -106,7 +110,11 @@ export function Editor({ documentId, onBack }: EditorProps) {
       } while (saveRequestedWhileRunningRef.current);
     } catch (error) {
       console.error('Error saving document:', error);
-      toast.error('Failed to save document');
+      if (isPayloadTooLargeError(error)) {
+        toast.error(DOCUMENT_PAYLOAD_TOO_LARGE_MESSAGE);
+      } else {
+        toast.error('Failed to save document');
+      }
     } finally {
       isSaveRunningRef.current = false;
       setIsSaving(false);
@@ -446,6 +454,21 @@ export function Editor({ documentId, onBack }: EditorProps) {
     });
   }, []);
 
+  const persistKeyboardLayoutOverrides = useCallback((next: KeyboardLayoutOverrides) => {
+    setKeyboardLayoutOverrides((previous) => {
+      const rollback = previous;
+      const requestId = ++keyboardLayoutSaveRequestRef.current;
+      void updateUserSettings({ keyboardLayoutOverrides: next }).catch((error) => {
+        console.error('Error saving keyboard layout overrides:', error);
+        if (keyboardLayoutSaveRequestRef.current === requestId) {
+          setKeyboardLayoutOverrides(rollback);
+          toast.error('Failed to save keyboard mappings. Your previous mappings were restored.');
+        }
+      });
+      return next;
+    });
+  }, []);
+
   const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
     const isImageWrapper = (element: Element | null): element is HTMLElement =>
       element instanceof HTMLElement &&
@@ -519,8 +542,10 @@ export function Editor({ documentId, onBack }: EditorProps) {
       const remappedCharacter = getRemappedCharacter({
         language: activeLanguage,
         key: event.key,
+        code: event.code,
         shiftKey: event.shiftKey,
         capsLock: event.getModifierState('CapsLock'),
+        keyboardLayoutOverrides,
       });
 
       if (remappedCharacter && remappedCharacter !== event.key) {
@@ -550,7 +575,7 @@ export function Editor({ documentId, onBack }: EditorProps) {
         }
       }, 0);
     }
-  }, [activeLanguage, handleFormat, insertTextAtCursor, isKeyboardVisible]);
+  }, [activeLanguage, handleFormat, insertTextAtCursor, isKeyboardVisible, keyboardLayoutOverrides]);
 
   const handleGlobalKeyDown = useCallback((event: KeyboardEvent) => {
     const shortcutAction = getEditorShortcutAction(event);
@@ -592,6 +617,7 @@ export function Editor({ documentId, onBack }: EditorProps) {
       try {
         const settings = await getUserSettings();
         setIsKeyboardVisible(settings.keyboardVisible);
+        setKeyboardLayoutOverrides(settings.keyboardLayoutOverrides ?? {});
         lastUsedLocale = settings.lastUsedLocale;
       } catch (error) {
         console.error('Error loading user settings:', error);
@@ -712,6 +738,8 @@ export function Editor({ documentId, onBack }: EditorProps) {
               isVisible={isKeyboardVisible}
               onToggleVisibility={toggleKeyboardVisibility}
               onInsertCharacter={insertTextAtCursor}
+              keyboardLayoutOverrides={keyboardLayoutOverrides}
+              onKeyboardLayoutOverridesChange={persistKeyboardLayoutOverrides}
             />
           </div>
         </div>

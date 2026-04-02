@@ -15,14 +15,27 @@ export default function App() {
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null | undefined>(undefined);
   const [authView, setAuthView] = useState<'login' | 'signup' | 'forgot'>('login');
 
-  // Check for existing user session on mount
+  // Check for existing user session on mount (never leave loading if hydrate throws or hangs)
   useEffect(() => {
+    let cancelled = false;
+
     async function hydrateUser() {
-      const currentUser = await getAuthenticatedUserFromBackend();
-      setUser(currentUser);
+      try {
+        const currentUser = await getAuthenticatedUserFromBackend();
+        if (!cancelled) {
+          setUser(currentUser);
+        }
+      } catch {
+        if (!cancelled) {
+          setUser(null);
+        }
+      }
     }
 
     void hydrateUser();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleLoginSuccess = (loggedInUser: User) => {

@@ -75,7 +75,8 @@ describe("settings routes", () => {
     expect(response.status).toBe(200);
     expect(response.body).toEqual({
       lastUsedLocale: "en-US",
-      keyboardVisible: true
+      keyboardVisible: true,
+      keyboardLayoutOverrides: {}
     });
   });
 
@@ -88,7 +89,8 @@ describe("settings routes", () => {
     expect(updateResponse.status).toBe(200);
     expect(updateResponse.body).toEqual({
       lastUsedLocale: "ru-RU",
-      keyboardVisible: false
+      keyboardVisible: false,
+      keyboardLayoutOverrides: {}
     });
 
     const readResponse = await request(app.server)
@@ -98,7 +100,8 @@ describe("settings routes", () => {
     expect(readResponse.status).toBe(200);
     expect(readResponse.body).toEqual({
       lastUsedLocale: "ru-RU",
-      keyboardVisible: false
+      keyboardVisible: false,
+      keyboardLayoutOverrides: {}
     });
   });
 
@@ -115,7 +118,8 @@ describe("settings routes", () => {
     expect(otherUserResponse.status).toBe(200);
     expect(otherUserResponse.body).toEqual({
       lastUsedLocale: "en-US",
-      keyboardVisible: true
+      keyboardVisible: true,
+      keyboardLayoutOverrides: {}
     });
   });
 
@@ -127,5 +131,65 @@ describe("settings routes", () => {
 
     expect(response.status).toBe(400);
     expect(response.body.code).toBe("VALIDATION_ERROR");
+  });
+
+  it("persists keyboardLayoutOverrides and returns them on GET", async () => {
+    const overrides = { ru: { й: "k", к: "j" } };
+    const putResponse = await request(app.server)
+      .put("/settings")
+      .set("Authorization", "Bearer token-user-1")
+      .send({ keyboardLayoutOverrides: overrides });
+
+    expect(putResponse.status).toBe(200);
+    expect(putResponse.body.keyboardLayoutOverrides).toEqual(overrides);
+
+    const getResponse = await request(app.server)
+      .get("/settings")
+      .set("Authorization", "Bearer token-user-1");
+
+    expect(getResponse.status).toBe(200);
+    expect(getResponse.body.keyboardLayoutOverrides).toEqual(overrides);
+  });
+
+  it("rejects keyboardLayoutOverrides with an unknown top-level language key", async () => {
+    const response = await request(app.server)
+      .put("/settings")
+      .set("Authorization", "Bearer token-user-1")
+      .send({ keyboardLayoutOverrides: { fr: {} } });
+
+    expect(response.status).toBe(400);
+    expect(response.body.code).toBe("VALIDATION_ERROR");
+  });
+
+  it("updates lastUsedLocale without wiping keyboardLayoutOverrides", async () => {
+    const overrides = { en: { q: "x", x: "q" } };
+    await request(app.server)
+      .put("/settings")
+      .set("Authorization", "Bearer token-user-2")
+      .send({ keyboardLayoutOverrides: overrides });
+
+    const patchLocale = await request(app.server)
+      .put("/settings")
+      .set("Authorization", "Bearer token-user-2")
+      .send({ lastUsedLocale: "de-DE" });
+
+    expect(patchLocale.status).toBe(200);
+    expect(patchLocale.body.lastUsedLocale).toBe("de-DE");
+    expect(patchLocale.body.keyboardLayoutOverrides).toEqual(overrides);
+  });
+
+  it("allows clearing keyboardLayoutOverrides explicitly with an empty object", async () => {
+    await request(app.server)
+      .put("/settings")
+      .set("Authorization", "Bearer token-user-2")
+      .send({ keyboardLayoutOverrides: { en: { q: "x" } } });
+
+    const clearResponse = await request(app.server)
+      .put("/settings")
+      .set("Authorization", "Bearer token-user-2")
+      .send({ keyboardLayoutOverrides: {} });
+
+    expect(clearResponse.status).toBe(200);
+    expect(clearResponse.body.keyboardLayoutOverrides).toEqual({});
   });
 });

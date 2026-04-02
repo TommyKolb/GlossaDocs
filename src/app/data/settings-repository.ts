@@ -1,13 +1,15 @@
 import { settingsApi } from "../api/endpoints";
-import type { UserSettings } from "../api/contracts";
+import type { UpdateUserSettingsPayload, UserSettings } from "../api/contracts";
 import type { Language } from "../utils/languages";
+import { normalizeKeyboardLayoutOverrides } from "../utils/keyboardLayouts";
 import { isAuthenticatedMode } from "./session-mode";
 
 const GUEST_SETTINGS_STORAGE_KEY = "glossadocs_guest_settings";
 
 const DEFAULT_SETTINGS: UserSettings = {
   lastUsedLocale: "en-US",
-  keyboardVisible: true
+  keyboardVisible: true,
+  keyboardLayoutOverrides: {}
 };
 
 type LocaleCode = "en-US" | "de-DE" | "ru-RU";
@@ -34,7 +36,10 @@ function readGuestSettings(): UserSettings {
     const parsed = JSON.parse(raw) as Partial<UserSettings>;
     return {
       lastUsedLocale: parsed.lastUsedLocale ?? DEFAULT_SETTINGS.lastUsedLocale,
-      keyboardVisible: parsed.keyboardVisible ?? DEFAULT_SETTINGS.keyboardVisible
+      keyboardVisible: parsed.keyboardVisible ?? DEFAULT_SETTINGS.keyboardVisible,
+      keyboardLayoutOverrides: normalizeKeyboardLayoutOverrides(
+        parsed.keyboardLayoutOverrides ?? DEFAULT_SETTINGS.keyboardLayoutOverrides
+      )
     };
   } catch {
     return DEFAULT_SETTINGS;
@@ -50,10 +55,14 @@ export async function getUserSettings(): Promise<UserSettings> {
     return readGuestSettings();
   }
 
-  return settingsApi.get();
+  const settings = await settingsApi.get();
+  return {
+    ...settings,
+    keyboardLayoutOverrides: normalizeKeyboardLayoutOverrides(settings.keyboardLayoutOverrides)
+  };
 }
 
-export async function updateUserSettings(patch: Partial<UserSettings>): Promise<UserSettings> {
+export async function updateUserSettings(patch: UpdateUserSettingsPayload): Promise<UserSettings> {
   if (!isAuthenticatedMode()) {
     const next = { ...readGuestSettings(), ...patch };
     writeGuestSettings(next);

@@ -49,6 +49,7 @@ All **application** relational state is in the database named in **`DATABASE_URL
 | `003_create_api_audit_events.js` | Table **`api_audit_events`** + index on `created_at` | Operational store: append-only audit rows on mutating HTTP methods. |
 | `004_create_folders_and_document_folder_fk.js` | Table **`folders`**, `documents.folder_id`, folder indexes/FKs | Document organization: nested folders and folder-assigned documents by `owner_id`. |
 | `005_add_documents_font_family.js` | `documents.font_family` | Per-document language-aware font theme persistence. |
+| `006_add_keyboard_layout_overrides.js` | `user_settings.keyboard_layout_overrides` (JSONB) | Per-user on-screen keyboard / key-remap overrides by language. |
 
 **Redis** is not a “database” in the DDL sense: keys are **`{AUTH_REDIS_KEY_PREFIX}{sessionId}`** holding JSON with access token metadata when using `RedisAuthSessionStore`.
 
@@ -67,6 +68,8 @@ All **application** relational state is in the database named in **`DATABASE_URL
    ```
 
 3. **Configuration:** copy `backend/.env.example` to `backend/.env` and set at least `DATABASE_URL`, OIDC/Keycloak variables, and session options as required by your environment. For local Keycloak matching the example files, use the issuer and token URLs that match how browsers and containers reach Keycloak (`localhost` vs Docker service names—see comments in `.env.example`).
+
+   **Large document saves (inline images):** the API sets Fastify’s JSON **`bodyLimit`** from **`API_BODY_LIMIT_BYTES`** (default **15 MiB**). The previous Fastify default (**1 MiB**) is too small for documents that embed images as `data:` URLs; saves could fail with **413** `PAYLOAD_TOO_LARGE` (or, before a dedicated handler, as a generic **500**). Increase `API_BODY_LIMIT_BYTES` in `.env` or Docker Compose if needed.
 
 ---
 

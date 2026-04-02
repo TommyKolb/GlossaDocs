@@ -58,4 +58,11 @@ describe("migration file definitions", () => {
     expect(text).toContain('pgm.addColumn("documents"');
     expect(text).toContain("font_family");
   });
+
+  it("006 adds keyboard_layout_overrides jsonb to user_settings", async () => {
+    const text = await migrationText("006_add_keyboard_layout_overrides.js");
+    expect(text).toContain('pgm.addColumn("user_settings"');
+    expect(text).toContain("keyboard_layout_overrides");
+    expect(text).toContain("jsonb");
+  });
 });

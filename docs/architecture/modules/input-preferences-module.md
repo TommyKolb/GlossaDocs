@@ -2,17 +2,18 @@
 
 **Code path:** `backend/src/modules/input-preferences/`
 
-Persists **per-user UI preferences** used by the editor: **`lastUsedLocale`** (string, e.g. `en-US`) and **`keyboardVisible`** (boolean). One logical row per **Keycloak subject** (`owner_id`).
+Persists **per-user UI preferences** used by the editor: **`lastUsedLocale`** (string, e.g. `en-US`), **`keyboardVisible`** (boolean), and **`keyboardLayoutOverrides`** (JSON object: per supported document language, **on-screen letter output → physical key label** for remapping). One logical row per **Keycloak subject** (`owner_id`).
 
 ## Features
 
 **What it does**
 - **`GET /settings`:** returns merged settings for the authenticated user (defaults if no row).
-- **`PUT /settings`:** partial update — at least one of `lastUsedLocale` or `keyboardVisible`.
+- **`PUT /settings`:** partial update — at least one of `lastUsedLocale`, `keyboardVisible`, or `keyboardLayoutOverrides`.
 - Upserts into PostgreSQL on update (`ON CONFLICT (owner_id) DO UPDATE`).
+- Validates `keyboardLayoutOverrides` with Zod (`keyboard-layout-overrides-schema.ts`); reads from Postgres are normalized through the same schema where possible (see `parseKeyboardLayoutOverrides` in `pg-settings-repository.ts`).
 
 **What it does not do**
-- Define keyboard layouts or IME behavior (frontend concern).
+- Define default keyboard layouts or key rows (those live in the frontend `keyboardLayouts.ts` registry).
 - Validate locale strings against a fixed enumeration (stored as free-form `text` with Zod `min(2)` on update).
 - Store document content or auth tokens.
 
@@ -37,15 +38,17 @@ flowchart TB
 
 - **Separate module from documents** so editor preferences can evolve (new columns) without touching document migrations’ semantics.
 - **`SettingsRepository` port** matches the document module pattern: test doubles without PostgreSQL.
-- **Defaults in `findByOwner`** when no row exists avoids forcing a write on first `GET` and matches frontend expectations (`en-US`, keyboard visible).
+- **Defaults in `findByOwner`** when no row exists avoids forcing a write on first `GET` and matches frontend expectations (`en-US`, keyboard visible, empty overrides).
 
 ## Data abstractions
 
 | Type | Fields |
 |------|--------|
-| `UserSettings` | `lastUsedLocale: string`, `keyboardVisible: boolean` |
-| `UpdateSettingsDto` | optional `lastUsedLocale`, `keyboardVisible` |
+| `UserSettings` | `lastUsedLocale: string`, `keyboardVisible: boolean`, `keyboardLayoutOverrides: KeyboardLayoutOverrides` |
+| `UpdateSettingsDto` | optional `lastUsedLocale`, `keyboardVisible`, `keyboardLayoutOverrides` |
 | `SettingsRepository` | `findByOwner(actorSub)`, `upsert(actorSub, patch)` |
+
+`KeyboardLayoutOverrides` is defined in `keyboard-layout-overrides-schema.ts` (strict top-level keys: `en`, `de`, `ru`; each value is a map of output character → physical key string).
 
 ## Stable storage mechanism
 
@@ -58,16 +61,17 @@ flowchart TB
 | `owner_id` | `text` | PK; Keycloak `sub` |
 | `last_used_locale` | `text` | Not null, default `en-US` |
 | `keyboard_visible` | `boolean` | Not null, default `true` |
+| `keyboard_layout_overrides` | `jsonb` | Not null, default `{}`; per-language output → physical key maps |
 | `updated_at` | `timestamptz` | Not null |
 
-No separate module-owned migrations file reference beyond `backend/migrations/002_create_user_settings.js`.
+**Migrations:** table created in `backend/migrations/002_create_user_settings.js`; `keyboard_layout_overrides` added in **`backend/migrations/006_add_keyboard_layout_overrides.js`**.
 
 ## External HTTP API
 
 | Method | Path | Body | Response |
 |--------|------|------|----------|
 | `GET` | `/settings` | — | `UserSettings` |
-| `PUT` | `/settings` | `UpdateSettingsDto` (Zod; ≥1 field) | `UserSettings` |
+| `PUT` | `/settings` | `UpdateSettingsDto` (Zod; ≥1 field among locale, visibility, overrides) | `UserSettings` |
 
 **Auth:** session or Bearer via `requireAuth` (same as documents).
 
@@ -76,6 +80,10 @@ No separate module-owned migrations file reference beyond `backend/migrations/00
 ### `types.ts` — exported
 
 - `UserSettings`, `UpdateSettingsDto`
+
+### `keyboard-layout-overrides-schema.ts` — exported
+
+- `keyboardLayoutOverridesSchema`, `KeyboardLayoutOverrides`
 
 ### `settings-repository.ts` — exported
 
@@ -94,6 +102,7 @@ No separate module-owned migrations file reference beyond `backend/migrations/00
 | Symbol | Visibility |
 |--------|------------|
 | `PgSettingsRepository` | **Exported** |
+| `parseKeyboardLayoutOverrides` | **Exported** (for tests) |
 | `databaseUrl` | **private** field |
 | `findByOwner`, `upsert` | **public** methods |
 | `SettingsRow`, `toSettings` | **Not exported** (file-private) |

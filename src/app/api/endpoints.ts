@@ -37,7 +37,8 @@ export const authApi = {
   login: (payload: { username: string; password: string }) =>
     apiRequest<AuthSessionResponse>("/auth/login", { method: "POST", body: payload }),
   logout: () => apiRequest<void>("/auth/logout", { method: "POST" }),
-  session: () => apiRequest<AuthSessionResponse>("/auth/session"),
+  session: (options?: { signal?: AbortSignal }) =>
+    apiRequest<AuthSessionResponse>("/auth/session", { signal: options?.signal }),
   register: (payload: { email: string; password: string }) =>
     apiRequest<AuthRegisterResponse>("/auth/register", { method: "POST", body: payload }),
   requestPasswordReset: (payload: { email: string }) =>

@@ -177,4 +177,19 @@ describe("settings routes", () => {
     expect(patchLocale.body.lastUsedLocale).toBe("de-DE");
     expect(patchLocale.body.keyboardLayoutOverrides).toEqual(overrides);
   });
+
+  it("allows clearing keyboardLayoutOverrides explicitly with an empty object", async () => {
+    await request(app.server)
+      .put("/settings")
+      .set("Authorization", "Bearer token-user-2")
+      .send({ keyboardLayoutOverrides: { en: { q: "x" } } });
+
+    const clearResponse = await request(app.server)
+      .put("/settings")
+      .set("Authorization", "Bearer token-user-2")
+      .send({ keyboardLayoutOverrides: {} });
+
+    expect(clearResponse.status).toBe(200);
+    expect(clearResponse.body.keyboardLayoutOverrides).toEqual({});
+  });
 });

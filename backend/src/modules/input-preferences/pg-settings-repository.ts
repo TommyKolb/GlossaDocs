@@ -13,14 +13,40 @@ interface SettingsRow extends QueryResultRow {
   updated_at: Date;
 }
 
-function parseKeyboardLayoutOverrides(value: unknown): KeyboardLayoutOverrides {
-  if (value === null || value === undefined) {
+function parseLanguageOverrides(value: unknown): Record<string, string> | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+
+  const normalized: Record<string, string> = {};
+  for (const [output, typedWith] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof output !== "string" || output.length === 0 || output.length > 8) {
+      continue;
+    }
+    if (typeof typedWith !== "string" || typedWith.length === 0 || typedWith.length > 16) {
+      continue;
+    }
+    normalized[output] = typedWith;
+  }
+
+  return Object.keys(normalized).length > 0 ? normalized : undefined;
+}
+
+export function parseKeyboardLayoutOverrides(value: unknown): KeyboardLayoutOverrides {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
     return {};
   }
-  if (typeof value === "object" && !Array.isArray(value)) {
-    return value as KeyboardLayoutOverrides;
+
+  const raw = value as Record<string, unknown>;
+  const normalized: KeyboardLayoutOverrides = {};
+  for (const language of ["en", "de", "ru"] as const) {
+    const perLanguage = parseLanguageOverrides(raw[language]);
+    if (perLanguage) {
+      normalized[language] = perLanguage;
+    }
   }
-  return {};
+
+  return normalized;
 }
 
 function toSettings(row: SettingsRow): UserSettings {

@@ -121,6 +121,30 @@ describe("getRemappedCharacter", () => {
     ).toBe("ü");
   });
 
+  it("falls back to event.code for physical-key remap when event.key is on another layout", () => {
+    expect(
+      getRemappedCharacter({
+        language: "ru",
+        key: "й",
+        code: "KeyJ",
+        shiftKey: false,
+        capsLock: false
+      })
+    ).toBe("й");
+  });
+
+  it("uses code-based punctuation mapping for remap lookup", () => {
+    expect(
+      getRemappedCharacter({
+        language: "de",
+        key: "ü",
+        code: "BracketLeft",
+        shiftKey: false,
+        capsLock: false
+      })
+    ).toBe("ü");
+  });
+
   it("resolves physical keys case-insensitively (exercises remap table keyed by typedWith.toLowerCase)", () => {
     expect(
       getRemappedCharacter({

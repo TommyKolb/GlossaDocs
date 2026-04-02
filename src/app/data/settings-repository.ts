@@ -1,5 +1,5 @@
 import { settingsApi } from "../api/endpoints";
-import type { UserSettings } from "../api/contracts";
+import type { UpdateUserSettingsPayload, UserSettings } from "../api/contracts";
 import type { Language } from "../utils/languages";
 import { normalizeKeyboardLayoutOverrides } from "../utils/keyboardLayouts";
 import { isAuthenticatedMode } from "./session-mode";
@@ -62,7 +62,7 @@ export async function getUserSettings(): Promise<UserSettings> {
   };
 }
 
-export async function updateUserSettings(patch: Partial<UserSettings>): Promise<UserSettings> {
+export async function updateUserSettings(patch: UpdateUserSettingsPayload): Promise<UserSettings> {
   if (!isAuthenticatedMode()) {
     const next = { ...readGuestSettings(), ...patch };
     writeGuestSettings(next);

@@ -1,6 +1,6 @@
 import userEvent from "@testing-library/user-event";
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("sonner", () => ({
   toast: {
@@ -11,8 +11,28 @@ vi.mock("sonner", () => ({
 import { KeyboardMappingDialog } from "@/app/components/KeyboardMappingDialog";
 
 describe("KeyboardMappingDialog", () => {
+  let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+  const originalConsoleError = console.error;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    // Radix dialog focus/presence can emit noisy act() warnings in jsdom.
+    // Filter only those known warnings so genuine errors still surface.
+    consoleErrorSpy = vi.spyOn(console, "error").mockImplementation((...args: unknown[]) => {
+      const message = args[0];
+      if (
+        typeof message === "string" &&
+        message.includes("not wrapped in act(...)") &&
+        args.some((value) => typeof value === "string" && value.includes("@radix-ui/react-"))
+      ) {
+        return;
+      }
+      originalConsoleError(...args);
+    });
+  });
+
+  afterEach(() => {
+    consoleErrorSpy.mockRestore();
   });
 
   function getDialog() {
@@ -146,5 +166,87 @@ describe("KeyboardMappingDialog", () => {
     const confirm = screen.getByRole("alertdialog");
     await user.click(within(confirm).getByRole("button", { name: /^Reset$/i }));
     expect(onSave).toHaveBeenCalledWith({});
+  });
+
+  it("resets all languages after confirming the alert", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    const onOpenChange = vi.fn();
+    render(
+      <KeyboardMappingDialog
+        open={true}
+        onOpenChange={onOpenChange}
+        language="en"
+        keyboardLayoutOverrides={{ en: { q: "x" }, ru: { й: "k" } }}
+        onSave={onSave}
+      />
+    );
+
+    const mainDialog = getDialog();
+    await user.click(within(mainDialog).getByRole("button", { name: /Reset all languages/i }));
+    const confirm = screen.getByRole("alertdialog");
+    await user.click(within(confirm).getByRole("button", { name: /^Reset$/i }));
+
+    expect(onSave).toHaveBeenCalledWith({});
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("does not save when reset confirmation is canceled", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    render(
+      <KeyboardMappingDialog
+        open={true}
+        onOpenChange={() => {}}
+        language="en"
+        keyboardLayoutOverrides={{ en: { q: "x" } }}
+        onSave={onSave}
+      />
+    );
+
+    const mainDialog = getDialog();
+    await user.click(within(mainDialog).getByRole("button", { name: /Reset English/i }));
+    const confirm = screen.getByRole("alertdialog");
+    await user.click(within(confirm).getByRole("button", { name: /^Cancel$/i }));
+
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it("reloads rows from persisted overrides when reopened", async () => {
+    const onSave = vi.fn();
+    const { rerender } = render(
+      <KeyboardMappingDialog
+        open={true}
+        onOpenChange={() => {}}
+        language="en"
+        keyboardLayoutOverrides={{ en: { q: "9" } }}
+        onSave={onSave}
+      />
+    );
+
+    const qInput = within(getDialog()).getByLabelText("Physical key for letter q");
+    fireEvent.change(qInput, { target: { value: "m" } });
+    expect(qInput).toHaveValue("m");
+
+    rerender(
+      <KeyboardMappingDialog
+        open={false}
+        onOpenChange={() => {}}
+        language="en"
+        keyboardLayoutOverrides={{ en: { q: "9" } }}
+        onSave={onSave}
+      />
+    );
+    rerender(
+      <KeyboardMappingDialog
+        open={true}
+        onOpenChange={() => {}}
+        language="en"
+        keyboardLayoutOverrides={{ en: { q: "9" } }}
+        onSave={onSave}
+      />
+    );
+
+    expect(within(getDialog()).getByLabelText("Physical key for letter q")).toHaveValue("9");
   });
 });

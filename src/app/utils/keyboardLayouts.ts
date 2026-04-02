@@ -202,25 +202,56 @@ function buildRemapTable(layout: KeyboardLayout): Readonly<Record<string, KeyRem
 interface RemapArgs {
   language: Language;
   key: string;
+  code?: string;
   shiftKey: boolean;
   capsLock: boolean;
   keyboardLayoutOverrides?: KeyboardLayoutOverrides;
 }
 
+const CODE_TO_PHYSICAL_KEY: Readonly<Record<string, string>> = {
+  Backquote: "`",
+  Minus: "-",
+  Equal: "=",
+  BracketLeft: "[",
+  BracketRight: "]",
+  Backslash: "\\",
+  Semicolon: ";",
+  Quote: "'",
+  Comma: ",",
+  Period: ".",
+  Slash: "/"
+};
+
+function codeToPhysicalKey(code?: string): string | null {
+  if (!code) {
+    return null;
+  }
+  if (code.startsWith("Key") && code.length === 4) {
+    return code.slice(3).toLowerCase();
+  }
+  if (code.startsWith("Digit") && code.length === 6) {
+    return code.slice(5);
+  }
+  return CODE_TO_PHYSICAL_KEY[code] ?? null;
+}
+
 export function getRemappedCharacter({
   language,
   key,
+  code,
   shiftKey,
   capsLock,
   keyboardLayoutOverrides
 }: RemapArgs): string | null {
-  if (key.length !== 1) {
+  if (key.length !== 1 && !codeToPhysicalKey(code)) {
     return null;
   }
 
   const layout = getKeyboardLayout(language, keyboardLayoutOverrides);
   const table = buildRemapTable(layout);
-  const remap = table[key.toLowerCase()];
+  const keyCandidate = key.length === 1 ? key.toLowerCase() : null;
+  const codeCandidate = codeToPhysicalKey(code)?.toLowerCase() ?? null;
+  const remap = (keyCandidate ? table[keyCandidate] : undefined) ?? (codeCandidate ? table[codeCandidate] : undefined);
   if (!remap) {
     return null;
   }

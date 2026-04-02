@@ -5,7 +5,7 @@ import { getKeyboardLayout, type KeyboardLayoutOverrides } from '../utils/keyboa
 import { KeyboardMappingDialog } from './KeyboardMappingDialog';
 import { Button } from './ui/button';
 
-interface LanguageKeyboardProps {
+export interface LanguageKeyboardProps {
   language: Language;
   isVisible: boolean;
   onToggleVisibility: () => void;

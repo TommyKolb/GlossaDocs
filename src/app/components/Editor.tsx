@@ -31,6 +31,7 @@ export function Editor({ documentId, onBack }: EditorProps) {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(true);
   const [keyboardLayoutOverrides, setKeyboardLayoutOverrides] = useState<KeyboardLayoutOverrides>({});
+  const keyboardLayoutSaveRequestRef = useRef(0);
   
   // Refs
   const editorRef = useRef<HTMLDivElement>(null);
@@ -449,9 +450,17 @@ export function Editor({ documentId, onBack }: EditorProps) {
   }, []);
 
   const persistKeyboardLayoutOverrides = useCallback((next: KeyboardLayoutOverrides) => {
-    setKeyboardLayoutOverrides(next);
-    void updateUserSettings({ keyboardLayoutOverrides: next }).catch((error) => {
-      console.error('Error saving keyboard layout overrides:', error);
+    setKeyboardLayoutOverrides((previous) => {
+      const rollback = previous;
+      const requestId = ++keyboardLayoutSaveRequestRef.current;
+      void updateUserSettings({ keyboardLayoutOverrides: next }).catch((error) => {
+        console.error('Error saving keyboard layout overrides:', error);
+        if (keyboardLayoutSaveRequestRef.current === requestId) {
+          setKeyboardLayoutOverrides(rollback);
+          toast.error('Failed to save keyboard mappings. Your previous mappings were restored.');
+        }
+      });
+      return next;
     });
   }, []);
 
@@ -528,6 +537,7 @@ export function Editor({ documentId, onBack }: EditorProps) {
       const remappedCharacter = getRemappedCharacter({
         language: activeLanguage,
         key: event.key,
+        code: event.code,
         shiftKey: event.shiftKey,
         capsLock: event.getModifierState('CapsLock'),
         keyboardLayoutOverrides,

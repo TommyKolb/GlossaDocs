@@ -31,9 +31,7 @@ export function DocumentCard({
   const openDocLabel = `Open document: ${document.title || 'Untitled Document'}. Last modified ${formatDocumentDate(document.updatedAt)}. Language: ${languageInfo?.label || document.language}`;
 
   function handleCardClick(event: MouseEvent<HTMLDivElement>) {
-    if ((event.target as HTMLElement).closest('button')) {
-      return;
-    }
+    if ((event.target as HTMLElement).closest('button')) return;
     onSelect(document.id);
   }
 

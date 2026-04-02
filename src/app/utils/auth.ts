@@ -92,6 +92,18 @@ export function getCurrentUser(): User | null {
   }
 }
 
+/** Max time to wait for `/auth/session` during startup so the UI never hangs on "Loading…" if the API is down. */
+const SESSION_BOOTSTRAP_TIMEOUT_MS = 12_000;
+
+function createSessionBootstrapSignal(): AbortSignal {
+  if (typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function") {
+    return AbortSignal.timeout(SESSION_BOOTSTRAP_TIMEOUT_MS);
+  }
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(), SESSION_BOOTSTRAP_TIMEOUT_MS);
+  return controller.signal;
+}
+
 export async function getAuthenticatedUserFromBackend(): Promise<User | null> {
   const currentUser = getCurrentUser();
   if (!currentUser || currentUser.isGuest) {
@@ -99,7 +111,7 @@ export async function getAuthenticatedUserFromBackend(): Promise<User | null> {
   }
 
   try {
-    const data = await authApi.session();
+    const data = await authApi.session({ signal: createSessionBootstrapSignal() });
     if (!data.user) {
       localStorage.removeItem(USER_STORAGE_KEY);
       return null;

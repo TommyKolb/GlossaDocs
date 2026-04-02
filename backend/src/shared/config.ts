@@ -58,7 +58,12 @@ const configSchema = z.object({
   /** Prefix for Redis-backed session keys. */
   AUTH_REDIS_KEY_PREFIX: z.string().default("glossadocs:session:"),
   /** Base64-encoded 32-byte key for document title/content encryption at rest. Optional. */
-  DOCUMENT_ENCRYPTION_KEY: z.string().optional()
+  DOCUMENT_ENCRYPTION_KEY: z.string().optional(),
+  /**
+   * Max JSON request body size in bytes (Fastify `bodyLimit`).
+   * Inline images are stored as data URLs in document HTML; the default 1 MiB limit is too small.
+   */
+  API_BODY_LIMIT_BYTES: z.coerce.number().int().positive().default(15 * 1024 * 1024)
 });
 
 export type AppConfig = z.infer<typeof configSchema>;

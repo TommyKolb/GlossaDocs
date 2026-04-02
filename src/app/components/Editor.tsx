@@ -17,6 +17,7 @@ import { getEditorShortcutAction } from '../utils/keyboardShortcuts';
 import { useFormattingState } from '../hooks/useFormattingState';
 import { useAutoSave } from '../hooks/useAutoSave';
 import { getUserSettings, languageToLocale, localeToLanguage, updateUserSettings } from '../data/settings-repository';
+import { DOCUMENT_PAYLOAD_TOO_LARGE_MESSAGE, isPayloadTooLargeError } from '../api/client';
 import { toast } from 'sonner';
 
 interface EditorProps {
@@ -109,7 +110,11 @@ export function Editor({ documentId, onBack }: EditorProps) {
       } while (saveRequestedWhileRunningRef.current);
     } catch (error) {
       console.error('Error saving document:', error);
-      toast.error('Failed to save document');
+      if (isPayloadTooLargeError(error)) {
+        toast.error(DOCUMENT_PAYLOAD_TOO_LARGE_MESSAGE);
+      } else {
+        toast.error('Failed to save document');
+      }
     } finally {
       isSaveRunningRef.current = false;
       setIsSaving(false);

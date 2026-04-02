@@ -1,8 +1,13 @@
 import type { QueryResultRow } from "pg";
 
 import { queryDb } from "../../shared/db.js";
+import {
+  keyboardLayoutOutputKeySchema,
+  keyboardLayoutOverridesSchema,
+  keyboardLayoutTypedWithSchema,
+  type KeyboardLayoutOverrides
+} from "./keyboard-layout-overrides-schema.js";
 import type { SettingsRepository } from "./settings-repository.js";
-import type { KeyboardLayoutOverrides } from "./keyboard-layout-overrides-schema.js";
 import type { UpdateSettingsDto, UserSettings } from "./types.js";
 
 interface SettingsRow extends QueryResultRow {
@@ -13,6 +18,7 @@ interface SettingsRow extends QueryResultRow {
   updated_at: Date;
 }
 
+/** Normalize JSON from Postgres; invalid entries are dropped per key (same rules as Zod). */
 function parseLanguageOverrides(value: unknown): Record<string, string> | undefined {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return undefined;
@@ -20,13 +26,11 @@ function parseLanguageOverrides(value: unknown): Record<string, string> | undefi
 
   const normalized: Record<string, string> = {};
   for (const [output, typedWith] of Object.entries(value as Record<string, unknown>)) {
-    if (typeof output !== "string" || output.length === 0 || output.length > 8) {
-      continue;
+    const out = keyboardLayoutOutputKeySchema.safeParse(output);
+    const tw = keyboardLayoutTypedWithSchema.safeParse(typedWith);
+    if (out.success && tw.success) {
+      normalized[out.data] = tw.data;
     }
-    if (typeof typedWith !== "string" || typedWith.length === 0 || typedWith.length > 16) {
-      continue;
-    }
-    normalized[output] = typedWith;
   }
 
   return Object.keys(normalized).length > 0 ? normalized : undefined;
@@ -38,15 +42,16 @@ export function parseKeyboardLayoutOverrides(value: unknown): KeyboardLayoutOver
   }
 
   const raw = value as Record<string, unknown>;
-  const normalized: KeyboardLayoutOverrides = {};
+  const candidate: Record<string, unknown> = {};
   for (const language of ["en", "de", "ru"] as const) {
     const perLanguage = parseLanguageOverrides(raw[language]);
     if (perLanguage) {
-      normalized[language] = perLanguage;
+      candidate[language] = perLanguage;
     }
   }
 
-  return normalized;
+  const parsed = keyboardLayoutOverridesSchema.safeParse(candidate);
+  return parsed.success ? parsed.data : {};
 }
 
 function toSettings(row: SettingsRow): UserSettings {

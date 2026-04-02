@@ -69,6 +69,8 @@ All **application** relational state is in the database named in **`DATABASE_URL
 
 3. **Configuration:** copy `backend/.env.example` to `backend/.env` and set at least `DATABASE_URL`, OIDC/Keycloak variables, and session options as required by your environment. For local Keycloak matching the example files, use the issuer and token URLs that match how browsers and containers reach Keycloak (`localhost` vs Docker service names—see comments in `.env.example`).
 
+   **Large document saves (inline images):** the API sets Fastify’s JSON **`bodyLimit`** from **`API_BODY_LIMIT_BYTES`** (default **15 MiB**). The previous Fastify default (**1 MiB**) is too small for documents that embed images as `data:` URLs; saves could fail with **413** `PAYLOAD_TOO_LARGE` (or, before a dedicated handler, as a generic **500**). Increase `API_BODY_LIMIT_BYTES` in `.env` or Docker Compose if needed.
+
 ---
 
 ## Start and stop

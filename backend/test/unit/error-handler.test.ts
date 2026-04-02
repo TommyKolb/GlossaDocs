@@ -11,7 +11,7 @@ describe("registerErrorHandler", () => {
   let app: FastifyInstance;
 
   beforeAll(async () => {
-    app = Fastify({ logger: false });
+    app = Fastify({ logger: false, bodyLimit: 100 });
     registerErrorHandler(app);
 
     app.get("/api-error", async () => {
@@ -25,6 +25,8 @@ describe("registerErrorHandler", () => {
     app.get("/internal", async () => {
       throw new Error("boom");
     });
+
+    app.post("/echo-body", async (request) => request.body);
 
     await app.ready();
   });
@@ -54,5 +56,19 @@ describe("registerErrorHandler", () => {
     expect(res.status).toBe(500);
     expect(res.body.code).toBe("INTERNAL_ERROR");
     expect(res.body.message).toBe("Unexpected server error");
+  });
+
+  it("maps request body too large to 413 with PAYLOAD_TOO_LARGE", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/echo-body",
+      headers: { "content-type": "application/json" },
+      payload: JSON.stringify({ x: "y".repeat(500) })
+    });
+    expect(res.statusCode).toBe(413);
+    const body = res.json() as { code: string; message: string; requestId: string };
+    expect(body.code).toBe("PAYLOAD_TOO_LARGE");
+    expect(body.message).toContain("size limit");
+    expect(typeof body.requestId).toBe("string");
   });
 });

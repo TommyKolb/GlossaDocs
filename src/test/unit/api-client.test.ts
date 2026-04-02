@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ApiClientError, apiRequest, getApiBaseUrl } from "@/app/api/client";
+import {
+  ApiClientError,
+  apiRequest,
+  getApiBaseUrl,
+  isPayloadTooLargeError
+} from "@/app/api/client";
 
 /** Minimal fetch `Response` shape used by `apiRequest` (only `ok`, `status`, `json`). */
 function jsonResponse(body: unknown, init: { ok: boolean; status: number }): Response {
@@ -100,5 +105,19 @@ describe("apiRequest", () => {
       message: "Request failed",
       status: 500,
     });
+  });
+});
+
+describe("isPayloadTooLargeError", () => {
+  it("is true for ApiClientError with status 413", () => {
+    expect(isPayloadTooLargeError(new ApiClientError("too big", 413, "PAYLOAD_TOO_LARGE"))).toBe(true);
+  });
+
+  it("is false for other statuses", () => {
+    expect(isPayloadTooLargeError(new ApiClientError("oops", 500, "INTERNAL_ERROR"))).toBe(false);
+  });
+
+  it("is true for duck-typed errors with status 413", () => {
+    expect(isPayloadTooLargeError({ status: 413, message: "nope" })).toBe(true);
   });
 });

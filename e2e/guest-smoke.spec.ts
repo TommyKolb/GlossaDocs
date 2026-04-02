@@ -29,18 +29,14 @@ test.describe("guest mode", () => {
     await expect(page.getByRole("button", { name: /insert q using 9/i })).toBeVisible();
 
     await page.reload();
-    const remappedQ = page.getByRole("button", { name: /insert q using 9/i });
-    try {
-      await expect(remappedQ).toBeVisible({ timeout: 5_000 });
-    } catch {
-      const existingDocument = page.getByRole("group", { name: /open document:/i }).first();
-      if ((await existingDocument.count()) > 0) {
-        await existingDocument.click();
-      } else {
-        await page.getByRole("button", { name: /create a new document/i }).click();
-      }
-    }
+    await expect(page.getByRole("heading", { name: /welcome to glossadocs/i })).toBeVisible({
+      timeout: 20_000,
+    });
 
-    await expect(remappedQ).toBeVisible();
+    // Reload clears React state; guest settings persist in localStorage but the UI returns to the document list.
+    await page.getByRole("group", { name: /open document:/i }).first().click();
+    await expect(page.getByRole("textbox", { name: /document editor for/i })).toBeVisible();
+
+    await expect(page.getByRole("button", { name: /insert q using 9/i })).toBeVisible();
   });
 });

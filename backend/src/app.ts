@@ -134,9 +134,13 @@ function resolveAuthSessionStore(config: BuildAppConfig, injected?: AuthSessionS
   return new InMemoryAuthSessionStore();
 }
 
+const DEFAULT_BODY_LIMIT_BYTES = 15 * 1024 * 1024;
+
 export function buildApp(config: BuildAppConfig, options: BuildAppOptions = {}): FastifyInstance {
+  const bodyLimit = config.API_BODY_LIMIT_BYTES ?? DEFAULT_BODY_LIMIT_BYTES;
   const app = Fastify({
-    logger: config.NODE_ENV !== "test"
+    logger: config.NODE_ENV !== "test",
+    bodyLimit
   });
 
   app.decorateRequest("requestContext", null);

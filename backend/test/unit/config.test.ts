@@ -11,6 +11,7 @@ describe("getConfig", () => {
     expect(cfg.AUTH_SESSION_SECURE_COOKIE).toBe(false);
     expect(cfg.AUTH_SESSION_STORE).toBe("memory");
     expect(cfg.AUTH_SESSION_COOKIE_NAME).toBe("glossadocs_session");
+    expect(cfg.API_BODY_LIMIT_BYTES).toBe(15 * 1024 * 1024);
   });
 
   it("coerces API_PORT and AUTH_SESSION_TTL_SECONDS from strings", () => {

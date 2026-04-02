@@ -5,13 +5,13 @@ import { toast } from 'sonner';
 import type { Language } from '../utils/languages';
 import { getLanguageName } from '../utils/languages';
 import {
+  applyOutputToTypedWithOverrides,
   diffKeyboardLayoutAgainstLanguageDefaults,
   getDefaultKeyboardLayout,
   getDuplicatePhysicalKeyError,
   getKeyboardLayout,
   getOutputsWithDuplicatePhysicalKeys,
   normalizeSinglePhysicalKey,
-  type KeyboardKey,
   type KeyboardLayout,
   type KeyboardLayoutOverrides
 } from '../utils/keyboardLayouts';
@@ -55,18 +55,8 @@ function rowsForLanguage(language: Language, overrides: KeyboardLayoutOverrides)
 }
 
 function buildEffectiveLayoutFromRows(language: Language, rows: RowState[]): KeyboardLayout {
-  const byOutput = new Map(rows.map((r) => [r.output, r.typedWith]));
-  return getDefaultKeyboardLayout(language).map((row) =>
-    row.map((k) => {
-      const tw = byOutput.get(k.output);
-      if (tw === undefined) {
-        return k;
-      }
-      const next: KeyboardKey = { ...k, typedWith: tw };
-      delete next.shiftOutput;
-      return next;
-    })
-  ) as KeyboardLayout;
+  const overrides = Object.fromEntries(rows.map((r) => [r.output, r.typedWith]));
+  return applyOutputToTypedWithOverrides(getDefaultKeyboardLayout(language), overrides);
 }
 
 export function KeyboardMappingDialog({

@@ -14,6 +14,7 @@ export class SettingsService {
   }
 
   public async updateByOwner(actorSub: string, patch: UpdateSettingsDto): Promise<UserSettings> {
+    // HTTP routes validate non-empty bodies with Zod; this guard also protects direct callers of SettingsService.
     if (
       patch.lastUsedLocale === undefined &&
       patch.keyboardVisible === undefined &&

@@ -79,9 +79,9 @@ export class DocumentService {
     patch: UpdateDocumentDto
   ): Promise<DocumentAggregate | null> {
     if (
-      !patch.title &&
-      !patch.content &&
-      !patch.language &&
+      patch.title === undefined &&
+      patch.content === undefined &&
+      patch.language === undefined &&
       patch.folderId === undefined &&
       patch.fontFamily === undefined
     ) {

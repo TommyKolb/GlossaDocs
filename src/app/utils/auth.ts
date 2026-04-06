@@ -121,15 +121,19 @@ export async function getAuthenticatedUserFromBackend(): Promise<User | null> {
     return backendUser;
   } catch (error) {
     if (error instanceof ApiClientError) {
-      localStorage.removeItem(USER_STORAGE_KEY);
-      return null;
+      if (error.status === 401) {
+        localStorage.removeItem(USER_STORAGE_KEY);
+        return null;
+      }
+      if (isDevBuild) {
+        console.error("Session bootstrap failed with API error; keeping current user:", error);
+      }
+      return currentUser;
     }
     if (isDevBuild) {
       console.error("Failed to bootstrap user from /auth/session:", error);
     }
-    // Prevent entering a broken authenticated state where all writes fail.
-    localStorage.removeItem(USER_STORAGE_KEY);
-    return null;
+    return currentUser;
   }
 }
 

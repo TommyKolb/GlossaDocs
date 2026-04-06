@@ -138,6 +138,28 @@ export async function saveDocument(document: Document): Promise<Document> {
   }
 }
 
+export async function moveDocumentToFolder(documentId: string, folderId: string | null): Promise<void> {
+  if (!isAuthenticatedMode()) {
+    const existing = await getLocalDocument(documentId);
+    if (!existing) {
+      return;
+    }
+    await saveLocalDocument({
+      ...existing,
+      folderId,
+      updatedAt: Date.now()
+    });
+    return;
+  }
+
+  if (!isUuid(documentId)) {
+    return;
+  }
+
+  await documentsApi.update(documentId, { folderId });
+  knownRemoteDocumentIds.add(documentId);
+}
+
 export async function deleteDocument(id: string): Promise<void> {
   if (!isAuthenticatedMode()) {
     await deleteLocalDocument(id);

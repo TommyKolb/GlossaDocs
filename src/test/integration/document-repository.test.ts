@@ -313,6 +313,28 @@ describe("document repository authenticated get/save/delete", () => {
       })
     ).rejects.toThrow("network");
   });
+
+  it("moveDocumentToFolder sends a folder-only update payload", async () => {
+    const { documentsApi } = await import("@/app/api/endpoints");
+    vi.mocked(documentsApi.update).mockResolvedValue({
+      ...remoteDoc,
+      title: "Should stay unchanged on server",
+      content: "<p>fresh content</p>",
+      folderId: "11111111-1111-4111-8111-000000000001"
+    });
+
+    const { moveDocumentToFolder } = await import("@/app/data/document-repository");
+
+    await moveDocumentToFolder(
+      "7f7c2b2b-f95d-4b38-9155-d2bd5ce3e4d9",
+      "11111111-1111-4111-8111-000000000001"
+    );
+
+    expect(documentsApi.update).toHaveBeenCalledWith("7f7c2b2b-f95d-4b38-9155-d2bd5ce3e4d9", {
+      folderId: "11111111-1111-4111-8111-000000000001"
+    });
+    expect(documentsApi.create).not.toHaveBeenCalled();
+  });
 });
 
 describe("document repository guest mode documents", () => {
@@ -354,6 +376,32 @@ describe("document repository guest mode documents", () => {
     expect(one).toEqual(localDoc);
     expect(dbUtils.saveDocument).toHaveBeenCalledWith(localDoc);
     expect(dbUtils.deleteDocument).toHaveBeenCalledWith("guest-doc-1");
+  });
+
+  it("moveDocumentToFolder updates only local folder assignment in guest mode", async () => {
+    const dbUtils = await import("@/app/utils/db");
+    const { moveDocumentToFolder } = await import("@/app/data/document-repository");
+    const localDoc = {
+      id: "guest-doc-2",
+      title: "Local",
+      content: "<p>x</p>",
+      language: "en" as const,
+      folderId: null,
+      fontFamily: "Inter",
+      createdAt: 1,
+      updatedAt: 2
+    };
+    vi.mocked(dbUtils.getDocument).mockResolvedValue(localDoc);
+    vi.mocked(dbUtils.saveDocument).mockResolvedValue(undefined);
+
+    await moveDocumentToFolder("guest-doc-2", "folder-1");
+
+    expect(dbUtils.saveDocument).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "guest-doc-2",
+        folderId: "folder-1"
+      })
+    );
   });
 });
 

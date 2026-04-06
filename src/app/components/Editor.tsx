@@ -28,6 +28,7 @@ interface EditorProps {
 export function Editor({ documentId, onBack }: EditorProps) {
   // State hooks
   const [document, setDocument] = useState<Document | null>(null);
+  const [loadErrorMessage, setLoadErrorMessage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(true);
@@ -41,6 +42,8 @@ export function Editor({ documentId, onBack }: EditorProps) {
   const documentRef = useRef<Document | null>(null);
   const isSaveRunningRef = useRef(false);
   const saveRequestedWhileRunningRef = useRef(false);
+  const isMountedRef = useRef(true);
+  const latestLoadRequestRef = useRef(0);
   
   // Custom hooks
   const { formattingState, updateFormattingState } = useFormattingState();
@@ -340,6 +343,10 @@ export function Editor({ documentId, onBack }: EditorProps) {
       // Read the file as base64
       const reader = new FileReader();
       reader.onload = (e) => {
+        if (!isMountedRef.current) {
+          return;
+        }
+
         const base64Data = e.target?.result as string;
         const imageName = file.name.replace(/\.[^/.]+$/, '').trim();
         
@@ -424,6 +431,9 @@ export function Editor({ documentId, onBack }: EditorProps) {
       };
       
       reader.onerror = () => {
+        if (!isMountedRef.current) {
+          return;
+        }
         toast.error('Failed to read image file');
       };
       
@@ -612,21 +622,56 @@ export function Editor({ documentId, onBack }: EditorProps) {
 
   // Load document on mount
   useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const requestId = ++latestLoadRequestRef.current;
+    let cancelled = false;
+    setLoadErrorMessage(null);
+    setDocument(null);
+
+    const applyIfCurrent = (apply: () => void) => {
+      if (cancelled || latestLoadRequestRef.current !== requestId || !isMountedRef.current) {
+        return;
+      }
+      apply();
+    };
+
     async function loadDocument() {
+
       let lastUsedLocale: string | null = null;
       try {
         const settings = await getUserSettings();
-        setIsKeyboardVisible(settings.keyboardVisible);
-        setKeyboardLayoutOverrides(settings.keyboardLayoutOverrides ?? {});
+        applyIfCurrent(() => {
+          setIsKeyboardVisible(settings.keyboardVisible);
+          setKeyboardLayoutOverrides(settings.keyboardLayoutOverrides ?? {});
+        });
         lastUsedLocale = settings.lastUsedLocale;
       } catch (error) {
         console.error('Error loading user settings:', error);
       }
 
       if (documentId) {
-        const doc = await getDocument(documentId);
-        if (doc) {
-          setDocument(doc);
+        try {
+          const doc = await getDocument(documentId);
+          if (!doc) {
+            applyIfCurrent(() => {
+              setLoadErrorMessage('This document no longer exists or you no longer have access to it.');
+            });
+            return;
+          }
+          applyIfCurrent(() => {
+            setDocument(doc);
+          });
+        } catch (error) {
+          console.error('Error loading document:', error);
+          applyIfCurrent(() => {
+            setLoadErrorMessage('Failed to load this document. Please try again.');
+          });
         }
       } else {
         let preferredLanguage: Language = EDITOR_CONFIG.DEFAULT_LANGUAGE;
@@ -646,10 +691,17 @@ export function Editor({ documentId, onBack }: EditorProps) {
           createdAt: Date.now(),
           updatedAt: Date.now(),
         };
-        setDocument(newDoc);
+        applyIfCurrent(() => {
+          setDocument(newDoc);
+        });
       }
+
     }
-    loadDocument();
+    void loadDocument();
+
+    return () => {
+      cancelled = true;
+    };
   }, [documentId]);
 
   // Set editor content when document is loaded and ref is available
@@ -670,6 +722,20 @@ export function Editor({ documentId, onBack }: EditorProps) {
   }, [document]);
 
   if (!document) {
+    if (loadErrorMessage) {
+      return (
+        <div className="flex flex-col items-center justify-center h-screen gap-4 px-4 text-center">
+          <div className="text-gray-700">{loadErrorMessage}</div>
+          <button
+            type="button"
+            onClick={onBack}
+            className="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            Back to documents
+          </button>
+        </div>
+      );
+    }
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-gray-500">Loading...</div>

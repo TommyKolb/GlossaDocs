@@ -320,4 +320,13 @@ describe("DocumentService updateOwned folder and font", () => {
     });
     expect(repo.lastUpdatePatch?.language).toBe("ru");
   });
+
+  it("accepts empty content as an explicit update value", async () => {
+    const repo = new RecordingRepository();
+    const service = new DocumentService(repo);
+    await service.updateOwned("actor-1", "00000000-0000-4000-8000-000000000001", {
+      content: ""
+    });
+    expect(repo.lastUpdatePatch?.content).toBe("");
+  });
 });

@@ -28,6 +28,7 @@ const WELCOME_MESSAGES = [
 ];
 
 export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: LoginProps) {
+  const showDevAuthNote = import.meta.env.DEV;
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -279,10 +280,11 @@ export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: Log
           <p className="mt-4 text-xs text-center text-gray-500" role="note">
             Guest mode saves documents locally on your device
           </p>
-          <p className="mt-1 text-xs text-center text-gray-500" role="note">
-            Dev (Docker): email <span className="font-medium">devuser@example.com</span>, password{" "}
-            <span className="font-medium">devpass</span>.
-          </p>
+          {showDevAuthNote ? (
+            <p className="mt-1 text-xs text-center text-gray-500" role="note">
+              In local Docker dev, create an account from this screen or continue as guest.
+            </p>
+          ) : null}
         </div>
 
         {/* Footer note */}

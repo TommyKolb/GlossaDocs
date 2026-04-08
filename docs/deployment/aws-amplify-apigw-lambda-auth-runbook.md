@@ -16,7 +16,7 @@ Use one switch to control behavior:
 - `APP_ENV=dev`:
   - default `AUTH_PROVIDER=keycloak`
   - local-friendly cookie/session defaults
-  - allows Docker-based `devuser@example.com` / `devpass`
+  - supports account creation in local Docker dev (or guest mode in frontend)
 - `APP_ENV=prod`:
   - default `AUTH_PROVIDER=cognito`
   - strict config validation (secure cookies, explicit CORS origins, Redis sessions)

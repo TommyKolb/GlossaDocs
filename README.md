@@ -55,12 +55,10 @@ Deeper detail: [docs/architecture/backend-architecture.md](docs/architecture/bac
 
 **Linux:** install the Docker Engine and [Compose plugin](https://docs.docker.com/compose/install/linux/); your user may need to be in the `docker` group.
 
-### Docker dev login (pre-seeded user)
+### Docker dev login
 
-Use these to sign in in **authenticated** mode without registering:
-
-- **Email:** `devuser@example.com`
-- **Password:** `devpass`
+For authenticated mode in local Docker dev, create an account from the app's **Create account** flow.
+You can also use **Continue as Guest** if you do not want an account.
 
 The Docker backend is configured so token verification uses the **internal** Keycloak URL (`http://keycloak:8080/...`) while browsers use `localhost`. You can also use **Create account** on the login screen; outbound mail is optional in dev, and password-reset messages appear in Mailpit.
 

@@ -99,14 +99,14 @@ describe("POST /auth/register", () => {
     expect(response.body.code).toBe("VALIDATION_ERROR");
   });
 
-  it("returns 500 when keycloak admin configuration is incomplete", async () => {
+  it("returns 500 when auth admin configuration is incomplete", async () => {
     const response = await request(appWithoutAdmin.server).post("/auth/register").send({
       email: "new.user@example.com",
       password: "correct horse battery staple"
     });
 
     expect(response.status).toBe(500);
-    expect(response.body.code).toBe("CONFIG_KEYCLOAK_ADMIN_INCOMPLETE");
+    expect(response.body.code).toBe("CONFIG_AUTH_ADMIN_INCOMPLETE");
   });
 
   it("returns 502 when keycloak is unavailable", async () => {

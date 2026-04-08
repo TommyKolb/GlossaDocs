@@ -163,6 +163,6 @@ describe("auth session routes", () => {
     });
 
     expect(response.status).toBe(500);
-    expect(response.body.code).toBe("CONFIG_KEYCLOAK_OIDC_INCOMPLETE");
+    expect(response.body.code).toBe("CONFIG_AUTH_LOGIN_INCOMPLETE");
   });
 });

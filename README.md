@@ -4,13 +4,13 @@ GlossaDocs is a browser-based document editor inspired by Google Docs, aimed at 
 
 **Why it exists:** many tools treat language as an afterthought. GlossaDocs is built so language choice and input methods sit next to editing, not in a separate toolchain.
 
-**Privacy:** your email is used for sign-in and account recovery only. We do not sell it or use it for marketing. Passwords are handled by **Keycloak**, not stored in GlossaDocs application code.
+**Privacy:** your email is used for sign-in and account recovery only. We do not sell it or use it for marketing. Passwords are handled by the configured identity provider (local dev: Keycloak, production target: Cognito), not stored in GlossaDocs application code.
 
 ## Architecture (high level)
 
 - **Frontend:** React (Vite), rich text via `contentEditable`, local **guest** mode (IndexedDB) or **authenticated** mode talking to the API.
 - **Backend:** single **Fastify** service (modular monolith)—JWT verification, cookie-backed sessions, REST for documents and user settings, HTML sanitization, optional encryption at rest in PostgreSQL.
-- **Identity:** **Keycloak** (OIDC). The app does not store passwords; login, signup, and password reset go through Keycloak (and the Admin API where needed).
+- **Identity:** OIDC-based provider integration. Local development defaults to **Keycloak** and production mode targets **AWS Cognito**.
 
 Deeper detail: [docs/architecture/backend-architecture.md](docs/architecture/backend-architecture.md) and [docs/architecture/system.md](docs/architecture/system.md). Backend operations (dependencies, data stores, runbooks): [backend/README.md](backend/README.md).
 
@@ -64,6 +64,16 @@ Use these to sign in in **authenticated** mode without registering:
 
 The Docker backend is configured so token verification uses the **internal** Keycloak URL (`http://keycloak:8080/...`) while browsers use `localhost`. You can also use **Create account** on the login screen; outbound mail is optional in dev, and password-reset messages appear in Mailpit.
 
+### Auth mode switch (`APP_ENV`)
+
+Backend auth behavior now uses one environment selector:
+
+- `APP_ENV=dev`: local-friendly defaults (Keycloak provider, Docker seed user support)
+- `APP_ENV=prod`: strict startup checks and Cognito provider defaults
+
+See [backend/.env.example](backend/.env.example) and the AWS auth runbook:
+[docs/deployment/aws-amplify-apigw-lambda-auth-runbook.md](docs/deployment/aws-amplify-apigw-lambda-auth-runbook.md).
+
 ## Other ways to run
 
 | Goal | Command / steps |
@@ -83,6 +93,7 @@ Details—commands, coverage, folders, CI: **[docs/testing.md](docs/testing.md)*
 
 - [Document encryption at rest](docs/architecture/document-encryption.md) (`DOCUMENT_ENCRYPTION_KEY`)
 - Operational concerns (sessions, Postgres, Keycloak, reset procedures): **[backend/README.md](backend/README.md)**
+- AWS auth/deploy foundation runbook: [docs/deployment/aws-amplify-apigw-lambda-auth-runbook.md](docs/deployment/aws-amplify-apigw-lambda-auth-runbook.md)
 
 ## Adding a new language
 

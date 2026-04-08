@@ -4,8 +4,7 @@ import { z } from "zod";
 import { ApiError } from "../../shared/api-error.js";
 import type { AppConfig } from "../../shared/config.js";
 import type { AuthSessionStore } from "./auth-session-store.js";
-import type { KeycloakOidcClient } from "./keycloak-oidc-client.js";
-import { KeycloakOidcClientError } from "./keycloak-oidc-client.js";
+import type { AuthPasswordLoginClient } from "./auth-provider-clients.js";
 import type { TokenVerifier } from "./token-verifier.js";
 
 const loginSchema = z.object({
@@ -20,7 +19,7 @@ interface AuthSessionRoutesOptions {
   >;
   tokenVerifier: TokenVerifier;
   authSessionStore: AuthSessionStore;
-  keycloakOidcClient: KeycloakOidcClient | null;
+  passwordLoginClient: AuthPasswordLoginClient | null;
 }
 
 function getCookieOptions(
@@ -42,15 +41,15 @@ function getCookieOptions(
 
 export const authSessionRoutes: FastifyPluginAsync<AuthSessionRoutesOptions> = async (app, options) => {
   app.post("/auth/login", async (request, reply) => {
-    if (!options.keycloakOidcClient) {
-      throw new ApiError(500, "CONFIG_KEYCLOAK_OIDC_INCOMPLETE", "Keycloak login is not configured");
+    if (!options.passwordLoginClient) {
+      throw new ApiError(500, "CONFIG_AUTH_LOGIN_INCOMPLETE", "Auth login provider is not configured");
     }
 
     const { username, password } = loginSchema.parse(request.body);
     const { cookieName, maxAgeSeconds, secure } = getCookieOptions(options.config);
 
     try {
-      const login = await options.keycloakOidcClient.loginWithPassword({ username, password });
+      const login = await options.passwordLoginClient.loginWithPassword({ username, password });
       const principal = await options.tokenVerifier.verify(login.accessToken);
       const sessionTtlSeconds = Math.max(1, Math.min(maxAgeSeconds, login.expiresInSeconds));
       const session = await options.authSessionStore.create({
@@ -74,9 +73,13 @@ export const authSessionRoutes: FastifyPluginAsync<AuthSessionRoutesOptions> = a
         }
       });
     } catch (error) {
+      const errorCode =
+        typeof error === "object" && error !== null && "code" in error
+          ? String((error as { code?: string }).code)
+          : null;
       if (
-        error instanceof KeycloakOidcClientError &&
-        error.code === "KEYCLOAK_OIDC_INVALID_CREDENTIALS"
+        errorCode === "KEYCLOAK_OIDC_INVALID_CREDENTIALS" ||
+        errorCode === "COGNITO_OIDC_INVALID_CREDENTIALS"
       ) {
         throw new ApiError(401, "AUTH_INVALID_CREDENTIALS", "Invalid username or password");
       }

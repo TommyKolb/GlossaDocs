@@ -45,7 +45,8 @@ describe("health endpoints", () => {
     const response = await request(app.server).get("/ready");
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({ status: "ready" });
+    expect(response.body.status).toBe("ready");
+    expect(Array.isArray(response.body.checks)).toBe(true);
   });
 
   it("returns 404 for unknown routes", async () => {

@@ -16,8 +16,17 @@ const booleanFromEnv = z.preprocess((value) => {
   return value;
 }, z.boolean());
 
+const appEnvFromEnv = z.preprocess((value) => {
+  if (typeof value === "string") {
+    return value.trim().toLowerCase();
+  }
+  return value;
+}, z.enum(["dev", "prod"]));
+
 const configSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+  APP_ENV: appEnvFromEnv.optional(),
+  AUTH_PROVIDER: z.enum(["keycloak", "cognito"]).optional(),
   API_PORT: z.coerce.number().int().positive().default(4000),
   CORS_ALLOWED_ORIGINS: z.string().default("*"),
   DATABASE_URL: z.string().optional(),
@@ -57,6 +66,16 @@ const configSchema = z.object({
   REDIS_URL: z.string().optional(),
   /** Prefix for Redis-backed session keys. */
   AUTH_REDIS_KEY_PREFIX: z.string().default("glossadocs:session:"),
+  /** AWS region for Cognito resources. */
+  COGNITO_REGION: z.string().optional(),
+  /** Cognito User Pool id used for auth and admin APIs. */
+  COGNITO_USER_POOL_ID: z.string().optional(),
+  /** Cognito app client id used for auth flows and JWT audience checks. */
+  COGNITO_CLIENT_ID: z.string().optional(),
+  /** Optional Cognito app client secret for confidential app clients. */
+  COGNITO_CLIENT_SECRET: z.string().optional(),
+  /** Optional Cognito Hosted UI domain (for /auth/public URLs). */
+  COGNITO_PUBLIC_DOMAIN: z.string().optional(),
   /** Base64-encoded 32-byte key for document title/content encryption at rest. Optional. */
   DOCUMENT_ENCRYPTION_KEY: z.string().optional(),
   /**
@@ -66,7 +85,23 @@ const configSchema = z.object({
   API_BODY_LIMIT_BYTES: z.coerce.number().int().positive().default(15 * 1024 * 1024)
 });
 
-export type AppConfig = z.infer<typeof configSchema>;
+type RawAppConfig = z.infer<typeof configSchema>;
+
+export interface AppConfig extends Omit<RawAppConfig, "APP_ENV" | "AUTH_PROVIDER"> {
+  APP_ENV: "dev" | "prod";
+  AUTH_PROVIDER: "keycloak" | "cognito";
+}
+
+function requireConfigValue(
+  value: string | undefined,
+  code: string,
+  message: string,
+  shouldEnforce: boolean
+): void {
+  if (shouldEnforce && (!value || value.trim().length === 0)) {
+    throw new Error(`${code}: ${message}`);
+  }
+}
 
 export function getConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const parsed = configSchema.safeParse(env);
@@ -75,5 +110,74 @@ export function getConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     throw new Error(`Invalid environment configuration: ${parsed.error.message}`);
   }
 
-  return parsed.data;
+  const nodeEnv = parsed.data.NODE_ENV;
+  const appEnv = parsed.data.APP_ENV ?? (nodeEnv === "production" ? "prod" : "dev");
+  const authProvider = parsed.data.AUTH_PROVIDER ?? (appEnv === "prod" ? "cognito" : "keycloak");
+
+  const derivedIssuerUrl =
+    parsed.data.OIDC_ISSUER_URL ??
+    (authProvider === "cognito" && parsed.data.COGNITO_REGION && parsed.data.COGNITO_USER_POOL_ID
+      ? `https://cognito-idp.${parsed.data.COGNITO_REGION}.amazonaws.com/${parsed.data.COGNITO_USER_POOL_ID}`
+      : undefined);
+
+  const cfg: AppConfig = {
+    ...parsed.data,
+    APP_ENV: appEnv,
+    AUTH_PROVIDER: authProvider,
+    OIDC_ISSUER_URL: derivedIssuerUrl,
+    OIDC_AUDIENCE: parsed.data.OIDC_AUDIENCE ?? (authProvider === "cognito" ? parsed.data.COGNITO_CLIENT_ID : undefined),
+    OIDC_PUBLIC_ISSUER_URL: parsed.data.OIDC_PUBLIC_ISSUER_URL ?? derivedIssuerUrl
+  };
+
+  if (cfg.APP_ENV === "prod") {
+    if (cfg.AUTH_PROVIDER !== "cognito") {
+      throw new Error("CONFIG_AUTH_PROVIDER_INSECURE: APP_ENV=prod requires AUTH_PROVIDER=cognito");
+    }
+    if (cfg.AUTH_SESSION_SECURE_COOKIE !== true) {
+      throw new Error(
+        "CONFIG_AUTH_COOKIE_INSECURE: APP_ENV=prod requires AUTH_SESSION_SECURE_COOKIE=true"
+      );
+    }
+    requireConfigValue(
+      cfg.CORS_ALLOWED_ORIGINS,
+      "CONFIG_CORS_INVALID",
+      "CORS_ALLOWED_ORIGINS must include at least one explicit origin in prod",
+      true
+    );
+    if (cfg.CORS_ALLOWED_ORIGINS.trim() === "*") {
+      throw new Error("CONFIG_CORS_INSECURE: CORS_ALLOWED_ORIGINS cannot be '*' in APP_ENV=prod");
+    }
+    if (cfg.AUTH_SESSION_STORE !== "redis") {
+      throw new Error("CONFIG_SESSION_STORE_INSECURE: APP_ENV=prod requires AUTH_SESSION_STORE=redis");
+    }
+    requireConfigValue(
+      cfg.REDIS_URL,
+      "CONFIG_REDIS_MISSING",
+      "REDIS_URL must be configured when APP_ENV=prod",
+      true
+    );
+  }
+
+  if (cfg.AUTH_PROVIDER === "cognito") {
+    requireConfigValue(
+      cfg.COGNITO_REGION,
+      "CONFIG_COGNITO_REGION_MISSING",
+      "COGNITO_REGION is required when AUTH_PROVIDER=cognito",
+      true
+    );
+    requireConfigValue(
+      cfg.COGNITO_USER_POOL_ID,
+      "CONFIG_COGNITO_USER_POOL_ID_MISSING",
+      "COGNITO_USER_POOL_ID is required when AUTH_PROVIDER=cognito",
+      true
+    );
+    requireConfigValue(
+      cfg.COGNITO_CLIENT_ID,
+      "CONFIG_COGNITO_CLIENT_ID_MISSING",
+      "COGNITO_CLIENT_ID is required when AUTH_PROVIDER=cognito",
+      true
+    );
+  }
+
+  return cfg;
 }

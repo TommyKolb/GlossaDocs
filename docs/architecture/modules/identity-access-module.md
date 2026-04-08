@@ -2,7 +2,7 @@
 
 **Code path:** `backend/src/modules/identity-access/`
 
-This module verifies **OIDC access tokens** (JWT), resolves an **`AuthenticatedPrincipal`**, supports **cookie-backed server sessions** that hold the access token server-side, and orchestrates **Keycloak** for login, registration, and password-reset emails. It does **not** store or hash passwords in GlossaDocs.
+This module verifies **OIDC access tokens** (JWT), resolves an **`AuthenticatedPrincipal`**, supports **cookie-backed server sessions** that hold the access token server-side, and orchestrates a provider adapter (local dev Keycloak, production Cognito) for login, registration, and password-reset flows. It does **not** store or hash passwords in GlossaDocs.
 
 ## Features
 
@@ -12,15 +12,15 @@ This module verifies **OIDC access tokens** (JWT), resolves an **`AuthenticatedP
 - **`requireAuth`**: loads access token from **session cookie** (via `AuthSessionStore`) or **`Authorization: Bearer`**; verifies token; sets `request.principal` and extends `request.requestContext`.
 - **`requireActorSub`**: returns `actorSub` or throws `401` if missing.
 - **Session routes:** `POST /auth/login`, `POST /auth/logout`, `GET /auth/session` (cookie session).
-- **Keycloak ROPC login** via `HttpKeycloakOidcClient` (`grant_type=password`).
-- **Registration** via Keycloak Admin API (`HttpKeycloakAdminClient.createUser`).
-- **Password reset email** via Admin API `execute-actions-email` (`sendPasswordResetEmail`).
+- **Provider-based app login** via `AuthPasswordLoginClient` adapters (`HttpKeycloakOidcClient` or `HttpCognitoOidcClient`).
+- **Registration** via `AuthAdminClient` adapters (`HttpKeycloakAdminClient` or `HttpCognitoAdminClient`).
+- **Password reset email** via provider admin APIs behind `AuthAdminClient`.
 - **Public OIDC discovery helper:** `GET /auth/public` (optional URLs for alternate frontends).
 - **Profile:** `GET /me` (Bearer or session, same verifier).
 
 **What it does not do**
 - Persist GlossaDocs-owned user passwords or credentials.
-- Issue or sign JWTs (Keycloak does).
+- Issue or sign JWTs (identity provider does).
 - Authorization beyond “authenticated + `actorSub`” (resource ownership lives in document/settings repositories).
 
 ## Internal architecture
@@ -39,8 +39,8 @@ flowchart TB
     tv[TokenVerifier]
     jose[JoseTokenVerifier]
     store[AuthSessionStore]
-    oidc[KeycloakOidcClient]
-    admin[KeycloakAdminClient]
+    oidc[AuthPasswordLoginClient]
+    admin[AuthAdminClient]
   end
   me --> ra
   sess --> oidc
@@ -56,10 +56,10 @@ flowchart TB
 ### Design justification (senior review)
 
 - **TokenVerifier interface** allows tests to inject a fake verifier while production uses JWKS-backed verification.
-- **Session cookie stores only an opaque session id**; the access token lives in **Redis or memory** (`AuthSessionStore`), reducing token exposure if `httpOnly` is misconfigured and aligning TTL with Keycloak’s `expires_in`.
+- **Session cookie stores only an opaque session id**; the access token lives in **Redis or memory** (`AuthSessionStore`), reducing token exposure if `httpOnly` is misconfigured and aligning TTL with the provider token expiry.
 - **Bearer fallback** supports tooling and non-browser clients without cookies.
-- **Keycloak Admin** is isolated behind `KeycloakAdminClient` so route handlers do not embed HTTP details.
-- **Production forbids in-memory session store** in `buildApp` when `NODE_ENV=production` (Redis required).
+- **Auth provider adapters** isolate IdP-specific API details from route handlers.
+- **Production (`APP_ENV=prod`) forbids in-memory session store** and requires secure cookie/CORS posture.
 
 ## Data abstractions
 
@@ -69,18 +69,18 @@ flowchart TB
 | `TokenVerifier` | Contract: `verify(token) → AuthenticatedPrincipal`. |
 | `AuthSession` | Opaque `id`, `accessToken`, `expiresAt` (ms). |
 | `AuthSessionStore` | `create`, `get`, `delete` for sessions. |
-| `KeycloakOidcClient` | Resource-owner password grant against Keycloak token URL. |
-| `KeycloakAdminClient` | Create user; send password-reset email flow. |
+| `AuthPasswordLoginClient` | App-hosted username/password login adapter. |
+| `AuthAdminClient` | Create user and password-reset adapter. |
 
 ## Stable storage mechanisms
 
 | Mechanism | Durability | Used for |
 |-----------|------------|----------|
-| **Keycloak realm database** | Durable (IdP) | User accounts, passwords, email actions |
+| **Identity provider store** | Durable (IdP) | User accounts, passwords, reset workflows |
 | **Redis** (`RedisAuthSessionStore`) | Durable | Session records when `AUTH_SESSION_STORE=redis` |
 | **`InMemoryAuthSessionStore`** | **Lost on process restart** | Dev/test only; **blocked in production** in `buildApp` |
 
-No GlossaDocs-owned `user_profiles` table exists in this module; identity source of truth is Keycloak.
+No GlossaDocs-owned `user_profiles` table exists in this module; identity source of truth is the configured IdP.
 
 ## Storage schemas (session backends)
 
@@ -99,10 +99,10 @@ No GlossaDocs-owned `user_profiles` table exists in this module; identity source
 | Method | Path | Auth | Behavior summary |
 |--------|------|------|------------------|
 | `GET` | `/auth/public` | Public | Returns OIDC client metadata URLs if `OIDC_PUBLIC_*` configured. |
-| `POST` | `/auth/login` | Public | Body `{ username, password }`; sets httpOnly session cookie; returns `{ user }`. Requires `KeycloakOidcClient`. |
+| `POST` | `/auth/login` | Public | Body `{ username, password }`; sets httpOnly session cookie; returns `{ user }`. Requires `AuthPasswordLoginClient`. |
 | `POST` | `/auth/logout` | Cookie | Deletes session server-side; clears cookie. |
 | `GET` | `/auth/session` | Cookie | Returns `{ user }` if session valid. |
-| `POST` | `/auth/register` | Public | Body `{ email, password }`; requires `KeycloakAdminClient`. |
+| `POST` | `/auth/register` | Public | Body `{ email, password }`; requires `AuthAdminClient`. |
 | `POST` | `/auth/password-reset` | Public | Body `{ email }`; generic success message (no account enumeration). |
 | `GET` | `/me` | Session or Bearer | Returns `{ sub, username, email, scopes }`. |
 

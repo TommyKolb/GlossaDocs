@@ -51,6 +51,7 @@ describe("public auth bootstrap routes", () => {
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({
+      authProvider: "keycloak",
       issuerUrl: "http://localhost:8080/realms/glossadocs",
       clientId: "glossadocs-frontend",
       redirectUri: "http://localhost:5173/auth/callback",

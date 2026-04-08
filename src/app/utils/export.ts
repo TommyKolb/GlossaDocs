@@ -4,6 +4,25 @@ import { PDF_CONFIG } from './constants';
 
 export type ExportFormat = 'json' | 'txt' | 'docx' | 'pdf';
 
+const DEFAULT_EXPORT_BASENAME = 'Untitled Document';
+const MAX_EXPORT_BASENAME_LENGTH = 120;
+
+function sanitizeFilenameBaseName(title: string): string {
+  const normalized = title
+    .replace(/[<>:"/\\|?*\u0000-\u001F]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/[. ]+$/g, '');
+  if (!normalized) {
+    return DEFAULT_EXPORT_BASENAME;
+  }
+  return normalized.slice(0, MAX_EXPORT_BASENAME_LENGTH);
+}
+
+function buildExportFilename(title: string, extension: string): string {
+  return `${sanitizeFilenameBaseName(title)}${extension}`;
+}
+
 /**
  * Helper function to trigger a file download
  */
@@ -13,16 +32,64 @@ function triggerDownload(blob: Blob, filename: string): void {
   link.href = url;
   link.download = filename;
   link.click();
-  URL.revokeObjectURL(url);
+  setTimeout(() => {
+    URL.revokeObjectURL(url);
+  }, 0);
 }
 
 /**
  * Extracts plain text from HTML content
  */
-function htmlToPlainText(html: string): string {
+export function htmlToPlainText(html: string): string {
   const tempDiv = document.createElement('div');
   tempDiv.innerHTML = html;
-  return tempDiv.textContent || tempDiv.innerText || '';
+
+  const blockTags = new Set([
+    'P',
+    'DIV',
+    'LI',
+    'UL',
+    'OL',
+    'H1',
+    'H2',
+    'H3',
+    'H4',
+    'H5',
+    'H6',
+    'BLOCKQUOTE',
+    'PRE'
+  ]);
+
+  function nodeToText(node: Node): string {
+    if (node.nodeType === Node.TEXT_NODE) {
+      return node.textContent ?? '';
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) {
+      return '';
+    }
+
+    const element = node as HTMLElement;
+    if (element.tagName === 'BR') {
+      return '\n';
+    }
+
+    let text = '';
+    Array.from(element.childNodes).forEach((child) => {
+      text += nodeToText(child);
+    });
+
+    if (blockTags.has(element.tagName)) {
+      return `${text.replace(/\n+$/g, '')}\n`;
+    }
+    return text;
+  }
+
+  let output = '';
+  Array.from(tempDiv.childNodes).forEach((node) => {
+    output += nodeToText(node);
+  });
+
+  return output.replace(/\n{3,}/g, '\n\n').trimEnd();
 }
 
 /**
@@ -30,6 +97,14 @@ function htmlToPlainText(html: string): string {
  * Removes class names and style declarations that use unsupported color funcs
  * like oklch(...), while preserving semantic formatting tags.
  */
+function removeUnsupportedColorDeclarations(cssText: string): string {
+  return cssText
+    .replace(/(^|;)\s*[^:;]+:\s*[^;]*oklch\([^)]*\)[^;]*\s*(?=;|$)/gi, '')
+    .replace(/;;+/g, ';')
+    .replace(/^\s*;\s*|\s*;\s*$/g, '')
+    .trim();
+}
+
 function sanitizeHtmlForPdf(html: string): string {
   const container = document.createElement('div');
   container.innerHTML = html;
@@ -41,13 +116,7 @@ function sanitizeHtmlForPdf(html: string): string {
     const styleAttr = element.getAttribute('style');
     if (!styleAttr) return;
 
-    const sanitizedStyle = styleAttr
-      // Remove individual declarations whose value contains oklch(...)
-      .replace(/(^|;)\s*[^:;]+:\s*[^;]*oklch\([^)]*\)[^;]*\s*(?=;|$)/gi, '')
-      // Normalize leftover semicolon spacing
-      .replace(/;;+/g, ';')
-      .replace(/^\s*;\s*|\s*;\s*$/g, '')
-      .trim();
+    const sanitizedStyle = removeUnsupportedColorDeclarations(styleAttr);
 
     if (sanitizedStyle) {
       element.setAttribute('style', sanitizedStyle);
@@ -61,6 +130,13 @@ function sanitizeHtmlForPdf(html: string): string {
 
 function stripUnsupportedColorsFromStyleText(cssText: string): string {
   return cssText.replace(/oklch\([^)]*\)/gi, '#111111');
+}
+
+function normalizeStyleAttribute(cssText: string): string {
+  return cssText
+    .replace(/;;+/g, ';')
+    .replace(/^\s*;\s*|\s*;\s*$/g, '')
+    .trim();
 }
 
 /**
@@ -93,10 +169,7 @@ function sanitizeClonedDocumentForPdf(clonedDoc: Document): void {
     const styleAttr = element.getAttribute('style');
     if (!styleAttr) return;
 
-    const sanitizedStyle = stripUnsupportedColorsFromStyleText(styleAttr)
-      .replace(/;;+/g, ';')
-      .replace(/^\s*;\s*|\s*;\s*$/g, '')
-      .trim();
+    const sanitizedStyle = normalizeStyleAttribute(stripUnsupportedColorsFromStyleText(styleAttr));
 
     if (sanitizedStyle) {
       element.setAttribute('style', sanitizedStyle);
@@ -106,61 +179,156 @@ function sanitizeClonedDocumentForPdf(clonedDoc: Document): void {
   });
 }
 
+interface DocxRunModel {
+  text?: string;
+  break?: number;
+  bold?: boolean;
+  italics?: boolean;
+  underline?: boolean;
+}
+
+type DocxAlignment = (typeof AlignmentType)[keyof typeof AlignmentType];
+
+interface DocxParagraphModel {
+  alignment: DocxAlignment;
+  runs: DocxRunModel[];
+}
+
+interface InlineStyleState {
+  bold: boolean;
+  italics: boolean;
+  underline: boolean;
+}
+
+function nextInlineStyleState(element: HTMLElement, current: InlineStyleState): InlineStyleState {
+  const tagName = element.tagName;
+  return {
+    bold: current.bold || tagName === 'B' || tagName === 'STRONG',
+    italics: current.italics || tagName === 'I' || tagName === 'EM',
+    underline: current.underline || tagName === 'U'
+  };
+}
+
+function runsFromNode(node: Node, style: InlineStyleState): DocxRunModel[] {
+  if (node.nodeType === Node.TEXT_NODE) {
+    const text = node.textContent ?? '';
+    if (text.length === 0) {
+      return [];
+    }
+    return [
+      {
+        text,
+        bold: style.bold || undefined,
+        italics: style.italics || undefined,
+        underline: style.underline || undefined
+      }
+    ];
+  }
+
+  if (node.nodeType !== Node.ELEMENT_NODE) {
+    return [];
+  }
+
+  const element = node as HTMLElement;
+  if (element.tagName === 'BR') {
+    return [
+      {
+        break: 1,
+        bold: style.bold || undefined,
+        italics: style.italics || undefined,
+        underline: style.underline || undefined
+      }
+    ];
+  }
+
+  const nextStyle = nextInlineStyleState(element, style);
+  return Array.from(element.childNodes).flatMap((child) => runsFromNode(child, nextStyle));
+}
+
+function defaultInlineStyleState(): InlineStyleState {
+  return { bold: false, italics: false, underline: false };
+}
+
+function paragraphAlignmentForElement(element: HTMLElement): DocxAlignment {
+  const style = window.getComputedStyle(element);
+  if (style.textAlign === 'center') {
+    return AlignmentType.CENTER;
+  }
+  if (style.textAlign === 'right') {
+    return AlignmentType.RIGHT;
+  }
+  return AlignmentType.LEFT;
+}
+
+/**
+ * Converts HTML content to paragraph/run models for docx export.
+ * Exported for regression tests.
+ */
+export function htmlToDocxParagraphModels(html: string): DocxParagraphModel[] {
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = html;
+
+  const paragraphs: DocxParagraphModel[] = [];
+
+  Array.from(tempDiv.childNodes).forEach((node) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const text = node.textContent ?? '';
+      if (text.trim().length > 0) {
+        paragraphs.push({
+          alignment: AlignmentType.LEFT,
+          runs: [{ text }]
+        });
+      }
+    } else if (node.nodeType === Node.ELEMENT_NODE) {
+      const element = node as HTMLElement;
+      const runs = runsFromNode(element, defaultInlineStyleState());
+      if (runs.length === 0) {
+        return;
+      }
+      paragraphs.push({
+        alignment: paragraphAlignmentForElement(element),
+        runs
+      });
+    }
+  });
+
+  if (paragraphs.length === 0) {
+    paragraphs.push({
+      alignment: AlignmentType.LEFT,
+      runs: [{ text: '' }]
+    });
+  }
+
+  return paragraphs;
+}
+
 /**
  * Converts HTML content to structured paragraphs for docx
  */
 function htmlToDocxParagraphs(html: string): Paragraph[] {
-  const tempDiv = document.createElement('div');
-  tempDiv.innerHTML = html;
-  
-  const paragraphs: Paragraph[] = [];
-  
-  // Process each child element
-  tempDiv.childNodes.forEach((node) => {
-    if (node.nodeType === Node.TEXT_NODE) {
-      const text = node.textContent?.trim();
-      if (text) {
-        paragraphs.push(
-          new Paragraph({
-            children: [new TextRun(text)],
-          })
-        );
+  return htmlToDocxParagraphModels(html).map((paragraph) => {
+    const children = paragraph.runs.map((run) => {
+      if (run.break) {
+        return new TextRun({
+          break: run.break,
+          bold: run.bold,
+          italics: run.italics,
+          underline: run.underline ? {} : undefined
+        });
       }
-    } else if (node.nodeType === Node.ELEMENT_NODE) {
-      const element = node as HTMLElement;
-      const text = element.textContent?.trim();
-      if (!text) return;
-
-      const textRun = new TextRun({
-        text,
-        bold: element.querySelector('b, strong') !== null,
-        italics: element.querySelector('i, em') !== null,
-        underline: element.querySelector('u') ? {} : undefined,
+      return new TextRun({
+        text: run.text ?? '',
+        bold: run.bold,
+        italics: run.italics,
+        underline: run.underline ? {} : undefined
       });
+    });
 
-      const style = window.getComputedStyle(element);
-      const alignment =
-        style.textAlign === 'center'
-          ? AlignmentType.CENTER
-          : style.textAlign === 'right'
-            ? AlignmentType.RIGHT
-            : AlignmentType.LEFT;
-
-      paragraphs.push(
-        new Paragraph({
-          children: [textRun],
-          alignment,
-        })
-      );
-    }
+    return new Paragraph({
+      children,
+      alignment: paragraph.alignment
+    });
   });
-
-  // If no paragraphs were created, add an empty one
-  if (paragraphs.length === 0) {
-    paragraphs.push(new Paragraph({ children: [new TextRun('')] }));
-  }
-
-  return paragraphs;
 }
 
 /**
@@ -169,7 +337,7 @@ function htmlToDocxParagraphs(html: string): Paragraph[] {
 export function exportAsText(doc: AppDocument): void {
   const plainText = htmlToPlainText(doc.content);
   const blob = new Blob([plainText], { type: 'text/plain' });
-  triggerDownload(blob, `${doc.title}.txt`);
+  triggerDownload(blob, buildExportFilename(doc.title, '.txt'));
 }
 
 /**
@@ -205,7 +373,7 @@ export async function exportAsDocx(doc: AppDocument): Promise<void> {
   const { Packer } = await import('docx');
   const blob = await Packer.toBlob(docxDoc);
   
-  triggerDownload(blob, `${doc.title}.docx`);
+  triggerDownload(blob, buildExportFilename(doc.title, '.docx'));
 }
 
 /**
@@ -276,7 +444,7 @@ export async function exportAsPdf(doc: AppDocument): Promise<void> {
         .from(renderContainer)
         .set({
           margin: PDF_CONFIG.MARGIN / 4,
-          filename: `${doc.title || 'Untitled Document'}.pdf`,
+          filename: buildExportFilename(doc.title, '.pdf'),
           image: { type: 'jpeg', quality: 0.98 },
           html2canvas: {
             scale: 1.5,
@@ -328,7 +496,7 @@ export async function exportAsPdf(doc: AppDocument): Promise<void> {
 export function exportAsJson(doc: AppDocument): void {
   const dataStr = JSON.stringify(doc, null, 2);
   const dataBlob = new Blob([dataStr], { type: 'application/json' });
-  triggerDownload(dataBlob, `${doc.title}.glossadoc.json`);
+  triggerDownload(dataBlob, buildExportFilename(doc.title, '.glossadoc.json'));
 }
 
 /**

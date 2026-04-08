@@ -169,7 +169,7 @@ describe("auth utilities", () => {
       expect(stored.email).toBe("new@example.com");
     });
 
-    it("clears storage when fetch fails with a non-API error", async () => {
+    it("keeps storage when fetch fails with a non-API error", async () => {
       localStorage.setItem(
         "glossadocs_user",
         JSON.stringify({
@@ -183,8 +183,75 @@ describe("auth utilities", () => {
 
       const user = await getAuthenticatedUserFromBackend();
 
-      expect(user).toBeNull();
-      expect(localStorage.getItem("glossadocs_user")).toBeNull();
+      expect(user).toEqual({
+        id: "user-123",
+        username: "alice",
+        email: "alice@example.com",
+        isGuest: false
+      });
+      expect(localStorage.getItem("glossadocs_user")).toContain("user-123");
+    });
+
+    it("keeps storage when /auth/session fails with 5xx", async () => {
+      localStorage.setItem(
+        "glossadocs_user",
+        JSON.stringify({
+          id: "user-123",
+          username: "alice",
+          email: "alice@example.com",
+          isGuest: false
+        })
+      );
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () =>
+          Promise.resolve({
+            ok: false,
+            status: 503,
+            json: async () => ({ code: "AUTH_IDP_UNAVAILABLE", message: "Unavailable" })
+          } as any)
+        )
+      );
+
+      const user = await getAuthenticatedUserFromBackend();
+
+      expect(user).toEqual({
+        id: "user-123",
+        username: "alice",
+        email: "alice@example.com",
+        isGuest: false
+      });
+      expect(localStorage.getItem("glossadocs_user")).toContain("user-123");
+    });
+
+    it("keeps storage when /auth/session aborts (timeout)", async () => {
+      localStorage.setItem(
+        "glossadocs_user",
+        JSON.stringify({
+          id: "user-123",
+          username: "alice",
+          email: "alice@example.com",
+          isGuest: false
+        })
+      );
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(() => {
+          const abortError = new Error("The operation was aborted");
+          abortError.name = "AbortError";
+          return Promise.reject(abortError);
+        })
+      );
+
+      const user = await getAuthenticatedUserFromBackend();
+
+      expect(user).toEqual({
+        id: "user-123",
+        username: "alice",
+        email: "alice@example.com",
+        isGuest: false
+      });
+      expect(localStorage.getItem("glossadocs_user")).toContain("user-123");
     });
   });
 });

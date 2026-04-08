@@ -8,8 +8,6 @@ export const AUTO_SAVE_DELAY_MS = 10000; // 10 seconds
 // PDF export configuration
 export const PDF_CONFIG = {
   MARGIN: 20,
-  LINE_HEIGHT: 7,
-  FONT_SIZE: 12,
   ORIENTATION: 'portrait' as const,
   FORMAT: 'a4' as const,
 };

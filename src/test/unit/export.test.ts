@@ -19,6 +19,7 @@ describe("exportDocument", () => {
 
 describe("exportAsJson", () => {
   it("triggers a download with JSON payload", () => {
+    vi.useFakeTimers();
     const createObjectURL = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:mock");
     const revokeObjectURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
     const click = vi.fn();
@@ -30,10 +31,28 @@ describe("exportAsJson", () => {
     expect(createObjectURL).toHaveBeenCalled();
     expect(anchor.download).toBe("My Title.glossadoc.json");
     expect(click).toHaveBeenCalled();
+    vi.runAllTimers();
     expect(revokeObjectURL).toHaveBeenCalledWith("blob:mock");
 
+    vi.useRealTimers();
     createObjectURL.mockRestore();
     revokeObjectURL.mockRestore();
+    createElementSpy.mockRestore();
+  });
+
+  it("sanitizes unsupported filename characters and falls back when title is blank", () => {
+    const createObjectURL = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:mock");
+    const click = vi.fn();
+    const anchor = { click, href: "", download: "" } as unknown as HTMLAnchorElement;
+    const createElementSpy = vi.spyOn(document, "createElement").mockReturnValue(anchor);
+
+    exportAsJson(minimalDocumentFixture({ title: 'bad<>:"/\\\\|?*name   ' }));
+    expect(anchor.download).toBe("bad name.glossadoc.json");
+
+    exportAsJson(minimalDocumentFixture({ title: "   " }));
+    expect(anchor.download).toBe("Untitled Document.glossadoc.json");
+
+    createObjectURL.mockRestore();
     createElementSpy.mockRestore();
   });
 });

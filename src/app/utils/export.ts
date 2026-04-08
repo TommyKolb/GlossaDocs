@@ -4,6 +4,25 @@ import { PDF_CONFIG } from './constants';
 
 export type ExportFormat = 'json' | 'txt' | 'docx' | 'pdf';
 
+const DEFAULT_EXPORT_BASENAME = 'Untitled Document';
+const MAX_EXPORT_BASENAME_LENGTH = 120;
+
+function sanitizeFilenameBaseName(title: string): string {
+  const normalized = title
+    .replace(/[<>:"/\\|?*\u0000-\u001F]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/[. ]+$/g, '');
+  if (!normalized) {
+    return DEFAULT_EXPORT_BASENAME;
+  }
+  return normalized.slice(0, MAX_EXPORT_BASENAME_LENGTH);
+}
+
+function buildExportFilename(title: string, extension: string): string {
+  return `${sanitizeFilenameBaseName(title)}${extension}`;
+}
+
 /**
  * Helper function to trigger a file download
  */
@@ -13,7 +32,9 @@ function triggerDownload(blob: Blob, filename: string): void {
   link.href = url;
   link.download = filename;
   link.click();
-  URL.revokeObjectURL(url);
+  setTimeout(() => {
+    URL.revokeObjectURL(url);
+  }, 0);
 }
 
 /**
@@ -76,6 +97,14 @@ export function htmlToPlainText(html: string): string {
  * Removes class names and style declarations that use unsupported color funcs
  * like oklch(...), while preserving semantic formatting tags.
  */
+function removeUnsupportedColorDeclarations(cssText: string): string {
+  return cssText
+    .replace(/(^|;)\s*[^:;]+:\s*[^;]*oklch\([^)]*\)[^;]*\s*(?=;|$)/gi, '')
+    .replace(/;;+/g, ';')
+    .replace(/^\s*;\s*|\s*;\s*$/g, '')
+    .trim();
+}
+
 function sanitizeHtmlForPdf(html: string): string {
   const container = document.createElement('div');
   container.innerHTML = html;
@@ -87,13 +116,7 @@ function sanitizeHtmlForPdf(html: string): string {
     const styleAttr = element.getAttribute('style');
     if (!styleAttr) return;
 
-    const sanitizedStyle = styleAttr
-      // Remove individual declarations whose value contains oklch(...)
-      .replace(/(^|;)\s*[^:;]+:\s*[^;]*oklch\([^)]*\)[^;]*\s*(?=;|$)/gi, '')
-      // Normalize leftover semicolon spacing
-      .replace(/;;+/g, ';')
-      .replace(/^\s*;\s*|\s*;\s*$/g, '')
-      .trim();
+    const sanitizedStyle = removeUnsupportedColorDeclarations(styleAttr);
 
     if (sanitizedStyle) {
       element.setAttribute('style', sanitizedStyle);
@@ -107,6 +130,13 @@ function sanitizeHtmlForPdf(html: string): string {
 
 function stripUnsupportedColorsFromStyleText(cssText: string): string {
   return cssText.replace(/oklch\([^)]*\)/gi, '#111111');
+}
+
+function normalizeStyleAttribute(cssText: string): string {
+  return cssText
+    .replace(/;;+/g, ';')
+    .replace(/^\s*;\s*|\s*;\s*$/g, '')
+    .trim();
 }
 
 /**
@@ -139,10 +169,7 @@ function sanitizeClonedDocumentForPdf(clonedDoc: Document): void {
     const styleAttr = element.getAttribute('style');
     if (!styleAttr) return;
 
-    const sanitizedStyle = stripUnsupportedColorsFromStyleText(styleAttr)
-      .replace(/;;+/g, ';')
-      .replace(/^\s*;\s*|\s*;\s*$/g, '')
-      .trim();
+    const sanitizedStyle = normalizeStyleAttribute(stripUnsupportedColorsFromStyleText(styleAttr));
 
     if (sanitizedStyle) {
       element.setAttribute('style', sanitizedStyle);
@@ -310,7 +337,7 @@ function htmlToDocxParagraphs(html: string): Paragraph[] {
 export function exportAsText(doc: AppDocument): void {
   const plainText = htmlToPlainText(doc.content);
   const blob = new Blob([plainText], { type: 'text/plain' });
-  triggerDownload(blob, `${doc.title}.txt`);
+  triggerDownload(blob, buildExportFilename(doc.title, '.txt'));
 }
 
 /**
@@ -346,7 +373,7 @@ export async function exportAsDocx(doc: AppDocument): Promise<void> {
   const { Packer } = await import('docx');
   const blob = await Packer.toBlob(docxDoc);
   
-  triggerDownload(blob, `${doc.title}.docx`);
+  triggerDownload(blob, buildExportFilename(doc.title, '.docx'));
 }
 
 /**
@@ -417,7 +444,7 @@ export async function exportAsPdf(doc: AppDocument): Promise<void> {
         .from(renderContainer)
         .set({
           margin: PDF_CONFIG.MARGIN / 4,
-          filename: `${doc.title || 'Untitled Document'}.pdf`,
+          filename: buildExportFilename(doc.title, '.pdf'),
           image: { type: 'jpeg', quality: 0.98 },
           html2canvas: {
             scale: 1.5,
@@ -469,7 +496,7 @@ export async function exportAsPdf(doc: AppDocument): Promise<void> {
 export function exportAsJson(doc: AppDocument): void {
   const dataStr = JSON.stringify(doc, null, 2);
   const dataBlob = new Blob([dataStr], { type: 'application/json' });
-  triggerDownload(dataBlob, `${doc.title}.glossadoc.json`);
+  triggerDownload(dataBlob, buildExportFilename(doc.title, '.glossadoc.json'));
 }
 
 /**

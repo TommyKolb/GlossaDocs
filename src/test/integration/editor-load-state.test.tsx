@@ -4,10 +4,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Editor } from "@/app/components/Editor";
 
-const { getUserSettingsMock, updateUserSettingsMock, getDocumentMock } = vi.hoisted(() => ({
+const { getUserSettingsMock, updateUserSettingsMock, getDocumentMock, saveDocumentMock } = vi.hoisted(() => ({
   getUserSettingsMock: vi.fn(),
   updateUserSettingsMock: vi.fn(),
-  getDocumentMock: vi.fn()
+  getDocumentMock: vi.fn(),
+  saveDocumentMock: vi.fn()
 }));
 
 vi.mock("sonner", () => ({
@@ -35,7 +36,7 @@ vi.mock("@/app/data/document-repository", async () => {
   return {
     ...actual,
     getDocument: getDocumentMock,
-    saveDocument: vi.fn()
+    saveDocument: saveDocumentMock
   };
 });
 
@@ -88,6 +89,7 @@ describe("Editor load-state handling", () => {
       writable: true,
       configurable: true
     });
+    saveDocumentMock.mockImplementation(async (doc) => doc);
   });
 
   afterEach(() => {
@@ -130,5 +132,29 @@ describe("Editor load-state handling", () => {
       expect(screen.getByRole("textbox", { name: /Second document/i })).toBeInTheDocument();
     });
     expect(screen.queryByRole("textbox", { name: /First document/i })).not.toBeInTheDocument();
+  });
+
+  it("hydrates editor content updates even when the document id is unchanged", async () => {
+    const docId = "11111111-1111-4111-8111-000000000001";
+    getDocumentMock.mockResolvedValue({
+      ...buildApiDoc(docId, "Hydration doc"),
+      content: "<p>initial content</p>"
+    });
+    saveDocumentMock.mockImplementation(async (doc) => ({
+      ...doc,
+      id: docId,
+      content: "<p>server-normalized content</p>"
+    }));
+
+    render(<Editor documentId={docId} onBack={() => {}} />);
+    const editor = await screen.findByRole("textbox", { name: /Hydration doc/i });
+    expect(editor.innerHTML).toContain("initial content");
+
+    editor.innerHTML = "<p>local content before save</p>";
+    await userEvent.setup().keyboard("{Control>}s{/Control}");
+
+    await waitFor(() => {
+      expect(editor.innerHTML).toContain("server-normalized content");
+    });
   });
 });

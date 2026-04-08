@@ -704,18 +704,23 @@ export function Editor({ documentId, onBack }: EditorProps) {
     };
   }, [documentId]);
 
-  // Set editor content when document is loaded and ref is available
+  // Keep the editable DOM synchronized with loaded/saved document content.
+  // Guard against unnecessary resets so we do not disturb caret/selection.
   useEffect(() => {
     if (document && editorRef.current) {
-      editorRef.current.innerHTML = document.content;
+      if (editorRef.current.innerHTML !== document.content) {
+        editorRef.current.innerHTML = document.content;
+      }
     }
-  }, [document?.id]); // Only run when document changes
+  }, [document?.id, document?.content]);
 
   useEffect(() => {
     if (document && editorRef.current) {
-      editorRef.current.style.fontFamily = document.fontFamily;
+      if (editorRef.current.style.fontFamily !== document.fontFamily) {
+        editorRef.current.style.fontFamily = document.fontFamily;
+      }
     }
-  }, [document?.id]);
+  }, [document?.id, document?.fontFamily]);
 
   useEffect(() => {
     documentRef.current = document;
@@ -725,7 +730,9 @@ export function Editor({ documentId, onBack }: EditorProps) {
     if (loadErrorMessage) {
       return (
         <div className="flex flex-col items-center justify-center h-screen gap-4 px-4 text-center">
-          <div className="text-gray-700">{loadErrorMessage}</div>
+          <div className="text-gray-700" role="alert" aria-live="assertive">
+            {loadErrorMessage}
+          </div>
           <button
             type="button"
             onClick={onBack}

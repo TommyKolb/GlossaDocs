@@ -262,10 +262,13 @@ describe("document repository authenticated get/save/delete", () => {
     expect(out.id).toBe(recreated.id);
   });
 
-  it("saveDocument treats a plain object with status 404 like ApiClientError on update", async () => {
+  it("saveDocument treats an ApiClientError-like object as 404 on update", async () => {
     const { documentsApi } = await import("@/app/api/endpoints");
     vi.mocked(documentsApi.list).mockResolvedValue([remoteDoc]);
-    vi.mocked(documentsApi.update).mockRejectedValue({ status: 404 });
+    vi.mocked(documentsApi.update).mockRejectedValue({
+      name: "ApiClientError",
+      status: 404
+    });
     const recreated = {
       ...remoteDoc,
       id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",

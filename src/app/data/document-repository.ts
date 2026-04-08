@@ -2,6 +2,11 @@ import { ApiClientError } from "../api/client";
 import { documentsApi, foldersApi } from "../api/endpoints";
 import { generateDocumentId, type Document, type Folder } from "../models/document";
 import { resolveDocumentFontFamily } from "../utils/language-fonts";
+import {
+  forgetRemoteDocumentId,
+  hasRemoteDocumentId,
+  rememberRemoteDocumentId
+} from "./remote-document-cache";
 import { isAuthenticatedMode } from "./session-mode";
 import {
   deleteDocument as deleteLocalDocument,
@@ -13,16 +18,29 @@ import {
   saveFolder as saveLocalFolder
 } from "../utils/db";
 
-const knownRemoteDocumentIds = new Set<string>();
+type ApiClientLikeError = {
+  name: string;
+  status: number;
+};
 
-/** Resolves HTTP status from API errors (handles duplicate class identity across bundles in tests). */
+function isApiClientLikeError(error: unknown): error is ApiClientLikeError {
+  return (
+    !!error &&
+    typeof error === "object" &&
+    "name" in error &&
+    "status" in error &&
+    (error as { name: unknown }).name === "ApiClientError" &&
+    typeof (error as { status: unknown }).status === "number"
+  );
+}
+
+/** Resolves HTTP status from API errors while avoiding overly broad duck-typing. */
 function getApiErrorStatus(error: unknown): number | undefined {
   if (error instanceof ApiClientError) {
     return error.status;
   }
-  if (error && typeof error === "object" && "status" in error) {
-    const status = (error as { status: unknown }).status;
-    return typeof status === "number" ? status : undefined;
+  if (isApiClientLikeError(error)) {
+    return error.status;
   }
   return undefined;
 }
@@ -76,7 +94,7 @@ export async function getAllDocuments(): Promise<Document[]> {
 
   const apiDocuments = await documentsApi.list();
   for (const apiDocument of apiDocuments) {
-    knownRemoteDocumentIds.add(apiDocument.id);
+    rememberRemoteDocumentId(apiDocument.id);
   }
   return apiDocuments.map(toAppDocument);
 }
@@ -92,7 +110,7 @@ export async function getDocument(id: string): Promise<Document | null> {
 
   try {
     const apiDocument = await documentsApi.get(id);
-    knownRemoteDocumentIds.add(apiDocument.id);
+    rememberRemoteDocumentId(apiDocument.id);
     return toAppDocument(apiDocument);
   } catch (error) {
     if (getApiErrorStatus(error) === 404) {
@@ -116,22 +134,22 @@ export async function saveDocument(document: Document): Promise<Document> {
     fontFamily: document.fontFamily
   };
 
-  const shouldCreate = !isUuid(document.id) || !knownRemoteDocumentIds.has(document.id);
+  const shouldCreate = !isUuid(document.id) || !hasRemoteDocumentId(document.id);
   if (shouldCreate) {
     const created = await documentsApi.create(payload);
-    knownRemoteDocumentIds.add(created.id);
+    rememberRemoteDocumentId(created.id);
     return toAppDocument(created);
   }
 
   try {
     const updated = await documentsApi.update(document.id, payload);
-    knownRemoteDocumentIds.add(updated.id);
+    rememberRemoteDocumentId(updated.id);
     return toAppDocument(updated);
   } catch (error) {
     if (getApiErrorStatus(error) === 404) {
-      knownRemoteDocumentIds.delete(document.id);
+      forgetRemoteDocumentId(document.id);
       const created = await documentsApi.create(payload);
-      knownRemoteDocumentIds.add(created.id);
+      rememberRemoteDocumentId(created.id);
       return toAppDocument(created);
     }
     throw error;
@@ -157,7 +175,7 @@ export async function moveDocumentToFolder(documentId: string, folderId: string 
   }
 
   await documentsApi.update(documentId, { folderId });
-  knownRemoteDocumentIds.add(documentId);
+  rememberRemoteDocumentId(documentId);
 }
 
 export async function deleteDocument(id: string): Promise<void> {
@@ -171,7 +189,7 @@ export async function deleteDocument(id: string): Promise<void> {
   }
 
   await documentsApi.remove(id);
-  knownRemoteDocumentIds.delete(id);
+  forgetRemoteDocumentId(id);
 }
 
 export async function getAllFolders(): Promise<Folder[]> {

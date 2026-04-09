@@ -113,6 +113,9 @@ export function getConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const nodeEnv = parsed.data.NODE_ENV;
   const appEnv = parsed.data.APP_ENV ?? (nodeEnv === "production" ? "prod" : "dev");
   const authProvider = parsed.data.AUTH_PROVIDER ?? (appEnv === "prod" ? "cognito" : "keycloak");
+  if (nodeEnv === "production" && appEnv !== "prod") {
+    throw new Error("CONFIG_ENV_MISMATCH: NODE_ENV=production requires APP_ENV=prod");
+  }
 
   const derivedIssuerUrl =
     parsed.data.OIDC_ISSUER_URL ??

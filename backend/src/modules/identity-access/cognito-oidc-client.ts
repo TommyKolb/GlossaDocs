@@ -3,9 +3,9 @@ import {
   InitiateAuthCommand,
   type InitiateAuthCommandInput
 } from "@aws-sdk/client-cognito-identity-provider";
-import { createHmac } from "node:crypto";
 
 import { ApiError } from "../../shared/api-error.js";
+import { computeCognitoSecretHash } from "./cognito-secret-hash.js";
 
 export type CognitoOidcClientErrorCode =
   | "COGNITO_OIDC_INVALID_CREDENTIALS"
@@ -58,10 +58,6 @@ function isCognitoInvalidCredentialsError(error: unknown): boolean {
   return name === "NotAuthorizedException" || name === "UserNotFoundException";
 }
 
-function computeSecretHash(username: string, clientId: string, clientSecret: string): string {
-  return createHmac("sha256", clientSecret).update(`${username}${clientId}`).digest("base64");
-}
-
 export class HttpCognitoOidcClient implements CognitoOidcClient {
   private readonly config: CognitoOidcClientConfig;
   private readonly client: CognitoIdentityProviderClient;
@@ -80,7 +76,7 @@ export class HttpCognitoOidcClient implements CognitoOidcClient {
       PASSWORD: args.password
     };
     if (this.config.clientSecret) {
-      authParameters.SECRET_HASH = computeSecretHash(
+      authParameters.SECRET_HASH = computeCognitoSecretHash(
         args.username,
         this.config.clientId,
         this.config.clientSecret

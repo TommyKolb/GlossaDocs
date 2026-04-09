@@ -62,23 +62,63 @@ interface BuildAppOptions {
   keycloakOidcClient?: AuthPasswordLoginClient | null;
 }
 
-type BuildAppConfig = Pick<AppConfig, "NODE_ENV" | "API_PORT" | "CORS_ALLOWED_ORIGINS"> &
+export type BuildAppConfig = Pick<AppConfig, "NODE_ENV" | "API_PORT" | "CORS_ALLOWED_ORIGINS"> &
   Partial<AppConfig>;
+
+function isProductionPosture(config: BuildAppConfig): boolean {
+  if (config.APP_ENV) {
+    return config.APP_ENV === "prod";
+  }
+  return config.NODE_ENV === "production";
+}
+
+export function resolveDefaultJwksUrl(config: BuildAppConfig, issuerUrl: string): string {
+  if (config.AUTH_PROVIDER === "cognito") {
+    return `${issuerUrl.replace(/\/+$/, "")}/.well-known/jwks.json`;
+  }
+  return `${issuerUrl.replace(/\/+$/, "")}/protocol/openid-connect/certs`;
+}
 
 function resolveTokenVerifier(config: BuildAppConfig, injected?: TokenVerifier): TokenVerifier {
   if (injected) {
     return injected;
   }
 
-  if (!config.OIDC_ISSUER_URL || !config.OIDC_AUDIENCE) {
+  if (!config.OIDC_ISSUER_URL) {
     throw new ApiError(
       500,
       "CONFIG_OIDC_INCOMPLETE",
-      "OIDC_ISSUER_URL and OIDC_AUDIENCE must be configured when no test token verifier is injected"
+      "OIDC_ISSUER_URL must be configured when no test token verifier is injected"
     );
   }
 
-  const jwksUrl = config.OIDC_JWKS_URL ?? `${config.OIDC_ISSUER_URL}/protocol/openid-connect/certs`;
+  const jwksUrl = config.OIDC_JWKS_URL ?? resolveDefaultJwksUrl(config, config.OIDC_ISSUER_URL);
+  const authProvider = config.AUTH_PROVIDER ?? "keycloak";
+  if (authProvider === "cognito") {
+    const cognitoClientId = config.COGNITO_CLIENT_ID ?? config.OIDC_AUDIENCE;
+    if (!cognitoClientId) {
+      throw new ApiError(
+        500,
+        "CONFIG_COGNITO_INCOMPLETE",
+        "COGNITO_CLIENT_ID (or OIDC_AUDIENCE) must be configured when AUTH_PROVIDER=cognito"
+      );
+    }
+    return new JoseTokenVerifier({
+      issuerUrl: config.OIDC_ISSUER_URL,
+      jwksUrl,
+      cognitoClientId,
+      expectedTokenUse: "access"
+    });
+  }
+
+  if (!config.OIDC_AUDIENCE) {
+    throw new ApiError(
+      500,
+      "CONFIG_OIDC_INCOMPLETE",
+      "OIDC_AUDIENCE must be configured when AUTH_PROVIDER=keycloak"
+    );
+  }
+
   return new JoseTokenVerifier({
     issuerUrl: config.OIDC_ISSUER_URL,
     audience: config.OIDC_AUDIENCE,
@@ -90,7 +130,7 @@ function resolveCorsOrigin(config: BuildAppConfig): true | string[] {
   const configuredOrigins = config.CORS_ALLOWED_ORIGINS.trim();
   const isWildcard = configuredOrigins === "*";
 
-  if (isWildcard && config.NODE_ENV === "production") {
+  if (isWildcard && isProductionPosture(config)) {
     throw new ApiError(
       500,
       "CONFIG_CORS_INSECURE",
@@ -135,7 +175,7 @@ function resolveAuthSessionStore(config: BuildAppConfig, injected?: AuthSessionS
     });
   }
 
-  if (config.NODE_ENV === "production") {
+  if (selectedStore === "memory" && isProductionPosture(config)) {
     throw new ApiError(
       500,
       "CONFIG_SESSION_STORE_INSECURE",

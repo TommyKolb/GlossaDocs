@@ -29,8 +29,7 @@ Naming conventions:
 Key architectural separations:
 
 - **Identity and access:** JWT verification, session-backed login/logout, provider-adapter flows for register / password reset
-- **Documents:** user-owned document CRUD, sanitization, optional encryption at rest
-- **Documents:** user-owned document CRUD, folders, and per-document language-aware font metadata
+- **Documents:** user-owned document CRUD, folders, sanitization, optional encryption at rest, and per-document language-aware font metadata
 - **Input preferences:** per-user settings (`keyboardVisible`, `lastUsedLocale`)
 - **API edge:** centralized error mapping and health/readiness endpoints (no domain logic)
 - **Operational store:** append-only HTTP audit trail in PostgreSQL (no idempotency store in this codebase)

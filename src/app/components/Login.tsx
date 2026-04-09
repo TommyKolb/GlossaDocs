@@ -129,13 +129,15 @@ export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: Log
           </div>
 
           {/* Language badges with animation */}
-          <div className="h-12 flex items-center justify-center gap-2 sm:gap-3 mb-6 sm:mb-8" role="list" aria-label="Supported languages">
+          <ul className="h-12 flex items-center justify-center gap-2 sm:gap-3 mb-6 sm:mb-8 list-none p-0 m-0" aria-label="Supported languages">
             <AnimatePresence mode="sync">
               {visibleLanguages.map((index) => (
-                <LanguageBadge key={LANGUAGES[index].value} language={LANGUAGES[index]} />
+                <li key={LANGUAGES[index].value}>
+                  <LanguageBadge language={LANGUAGES[index]} />
+                </li>
               ))}
             </AnimatePresence>
-          </div>
+          </ul>
         </div>
 
         {/* Login Card */}
@@ -143,12 +145,17 @@ export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: Log
           <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-2 sm:mb-4 text-center">
             Sign in to continue
           </h2>
-          <p className="text-xs text-center text-gray-500 mb-4" role="note">
+          <p className="text-xs text-center text-gray-500 mb-4">
             Sign in with your GlossaDocs account.
           </p>
 
           {/* Login Form */}
-          <form onSubmit={handleLogin} className="space-y-4 mb-6" aria-label="Login form">
+          <form
+            onSubmit={handleLogin}
+            className="space-y-4 mb-6"
+            aria-label="Login form"
+            aria-describedby={formErrors.general ? 'login-error' : undefined}
+          >
             <div>
               <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
                 Email
@@ -250,7 +257,7 @@ export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: Log
             </Button>
           </div>
 
-          <p className="mb-6 text-xs text-center text-gray-500" role="note">
+          <p className="mb-6 text-xs text-center text-gray-500">
             Your email will never be used for spam or shared with anyone else.
           </p>
 
@@ -277,12 +284,12 @@ export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: Log
             Continue as Guest
           </Button>
 
-          <p className="mt-4 text-xs text-center text-gray-500" role="note">
+          <p className="mt-4 text-xs text-center text-gray-500">
             Guest mode saves documents locally on your device
           </p>
           {showDevAuthNote ? (
-            <p className="mt-1 text-xs text-center text-gray-500" role="note">
-              In local Docker dev, create an account from this screen or continue as guest.
+            <p className="mt-1 text-xs text-center text-gray-500">
+              In local development, create an account from this screen or continue as guest.
             </p>
           ) : null}
         </div>

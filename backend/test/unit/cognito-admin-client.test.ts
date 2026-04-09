@@ -1,23 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
-  CognitoAdminClientError,
   HttpCognitoAdminClient,
-  isCognitoAdminErrorCode,
   requireCognitoAdminConfig
 } from "../../src/modules/identity-access/cognito-admin-client.js";
 import { ApiError } from "../../src/shared/api-error.js";
-
-describe("isCognitoAdminErrorCode", () => {
-  it("matches typed errors and plain object error payloads", () => {
-    const err = new CognitoAdminClientError("COGNITO_USER_EXISTS", "exists");
-    expect(isCognitoAdminErrorCode(err, "COGNITO_USER_EXISTS")).toBe(true);
-    expect(isCognitoAdminErrorCode({ code: "COGNITO_USER_NOT_FOUND" }, "COGNITO_USER_NOT_FOUND")).toBe(
-      true
-    );
-    expect(isCognitoAdminErrorCode("bad", "COGNITO_USER_EXISTS")).toBe(false);
-  });
-});
 
 describe("requireCognitoAdminConfig", () => {
   it("throws when required fields are missing", () => {

@@ -60,13 +60,12 @@ Deeper detail: [docs/architecture/backend-architecture.md](docs/architecture/bac
 For authenticated mode in local Docker dev, create an account from the app's **Create account** flow.
 You can also use **Continue as Guest** if you do not want an account.
 
-The Docker backend is configured so token verification uses the **internal** Keycloak URL (`http://keycloak:8080/...`) while browsers use `localhost`. You can also use **Create account** on the login screen; outbound mail is optional in dev, and password-reset messages appear in Mailpit.
+The Docker backend is configured so token verification uses the **internal** Keycloak URL (`http://keycloak:8080/...`) while browsers use `localhost`; outbound mail is optional in dev, and password-reset messages appear in Mailpit.
 
 ### Auth mode switch (`APP_ENV`)
 
 Backend auth behavior now uses one environment selector:
 
-- `APP_ENV=dev`: local-friendly defaults (Keycloak provider, Docker seed user support)
 - `APP_ENV=dev`: local-friendly defaults (Keycloak provider, create-account or guest flow)
 - `APP_ENV=prod`: strict startup checks and Cognito provider defaults
 
@@ -84,9 +83,7 @@ See [backend/.env.example](backend/.env.example) and the AWS auth runbook:
 
 ## Tests
 
-**Node.js 20+** and `npm run setup:dev` (or install root + `backend/` packages yourself). Run everything: `npm test`. Tests are split into **unit**, **integration**, and **E2E** (Playwright). CI on push/PR to `main`/`develop` runs the **Tests** workflow (`.github/workflows/tests.yml`)—font catalogs plus path-filtered frontend and backend jobs. Details: [docs/testing.md](docs/testing.md).
-
-Details—commands, coverage, folders, CI: **[docs/testing.md](docs/testing.md)**.
+**Node.js 20+** and `npm run setup:dev` (or install root + `backend/` packages yourself). Run everything: `npm test`. Tests are split into **unit**, **integration**, and **E2E** (Playwright). CI on push/PR to `main`/`develop` runs the **Tests** workflow (`.github/workflows/tests.yml`)—font catalogs plus path-filtered frontend and backend jobs. Details—commands, coverage, folders, CI: **[docs/testing.md](docs/testing.md)**.
 
 ## Further reading
 

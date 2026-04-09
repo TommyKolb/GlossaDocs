@@ -25,17 +25,9 @@ export const authPasswordResetRoutes: FastifyPluginAsync<AuthPasswordResetRoutes
 
     try {
       await options.authAdminClient.sendPasswordResetEmail({ email });
-    } catch (err) {
+    } catch {
       // Security: do not leak whether a user exists.
-      const errorCode =
-        typeof err === "object" && err !== null && "code" in err
-          ? String((err as { code?: string }).code)
-          : null;
-      if (errorCode === "KEYCLOAK_USER_NOT_FOUND" || errorCode === "COGNITO_USER_NOT_FOUND") {
-        // swallow
-      } else {
-        // treat transient IdP errors as a no-op for privacy; user sees generic success.
-      }
+      // Treat all IdP outcomes as no-op for anti-enumeration behavior.
     }
 
     return {

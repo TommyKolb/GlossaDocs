@@ -50,7 +50,12 @@ Use one switch to control behavior:
   - strict config validation (secure cookies, explicit CORS origins, Redis sessions)
   - fails fast if required Cognito config is missing
 
-## 2) Required Production Variables (Auth + Session)
+Invalid combination note:
+
+- `NODE_ENV=production` with `APP_ENV=dev` is rejected at startup.
+- `APP_ENV=prod` with `AUTH_PROVIDER=keycloak` is rejected at startup.
+
+## 3) Required Production Variables (Auth + Session)
 
 Backend (`backend/.env` or Lambda environment):
 
@@ -72,12 +77,13 @@ Optional and auto-derived when omitted in Cognito mode:
 
 - `OIDC_ISSUER_URL` (derived from region + user pool)
 - `OIDC_AUDIENCE` (derived from `COGNITO_CLIENT_ID`)
+- `OIDC_JWKS_URL` (derived as `${OIDC_ISSUER_URL}/.well-known/jwks.json`)
 
 Frontend (Amplify env vars):
 
 - `VITE_API_BASE_URL=https://<api-gateway-domain-or-custom-domain>`
 
-## 3) Next-Branch Implementation Process (Required)
+## 4) Next-Branch Implementation Process (Required)
 
 Execute in this order:
 
@@ -101,7 +107,7 @@ Execute in this order:
   - Add API Gateway throttling/WAF baseline
   - Add CloudWatch alarms and post-deploy smoke tests
 
-## 4) CI/CD Automation Requirement (Next Branch)
+## 5) CI/CD Automation Requirement (Next Branch)
 
 The next branch must implement **fully automatic deployment from GitHub Actions**:
 
@@ -120,14 +126,14 @@ Required automated stages in GitHub Actions:
 
 Manual steps should be limited to one-time environment/bootstrap setup (for example IAM/OIDC trust and initial resource provisioning). Day-to-day deployments after merge to `main` must be hands-off.
 
-## 5) API Gateway + Lambda Wiring
+## 6) API Gateway + Lambda Wiring
 
 - Build backend (`npm --prefix backend run build`).
 - Deploy Lambda using `backend/src/lambda.ts` handler.
 - Configure API Gateway with Lambda proxy integration for the backend routes.
 - Ensure API Gateway custom domain/TLS is configured before enforcing strict production CORS origins.
 
-## 6) Migration Execution Strategy
+## 7) Migration Execution Strategy
 
 Do not run `node-pg-migrate` inside Lambda invocations.
 
@@ -137,7 +143,7 @@ Use a dedicated migration step during release:
 2. Run `npm --prefix backend run migrate:up` against production `DATABASE_URL` (RDS Proxy endpoint).
 3. Deploy Lambda code after successful migrations.
 
-## 7) Auth Endpoint Contract (Stable)
+## 8) Auth Endpoint Contract (Stable)
 
 The frontend continues to use the same API contract:
 
@@ -150,7 +156,7 @@ The frontend continues to use the same API contract:
 
 Provider-specific logic is now behind backend auth provider clients, allowing Cognito in production and local-friendly dev mode without changing frontend endpoint usage.
 
-## 8) Deployment Test Gate (Required)
+## 9) Deployment Test Gate (Required)
 
 Before merge or release:
 
@@ -163,7 +169,7 @@ Before merge or release:
 
 The next deployment branch is not merge-ready unless this matrix is green.
 
-## 9) Done Criteria For AWS Deployment Branch
+## 10) Done Criteria For AWS Deployment Branch
 
 All items below must be true:
 

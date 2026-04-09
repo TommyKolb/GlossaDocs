@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { ApiError } from "../../shared/api-error.js";
 import type { AppConfig } from "../../shared/config.js";
+import { getAuthProviderErrorCode } from "./auth-provider-errors.js";
 import type { AuthSessionStore } from "./auth-session-store.js";
 import type { AuthPasswordLoginClient } from "./auth-provider-clients.js";
 import type { TokenVerifier } from "./token-verifier.js";
@@ -73,10 +74,7 @@ export const authSessionRoutes: FastifyPluginAsync<AuthSessionRoutesOptions> = a
         }
       });
     } catch (error) {
-      const errorCode =
-        typeof error === "object" && error !== null && "code" in error
-          ? String((error as { code?: string }).code)
-          : null;
+      const errorCode = getAuthProviderErrorCode(error);
       if (
         errorCode === "KEYCLOAK_OIDC_INVALID_CREDENTIALS" ||
         errorCode === "COGNITO_OIDC_INVALID_CREDENTIALS"

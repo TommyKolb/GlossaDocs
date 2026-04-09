@@ -89,7 +89,7 @@ No GlossaDocs-owned `user_profiles` table exists in this module; identity source
 | Field | Notes |
 |-------|--------|
 | Session id | UUID string (cookie value) |
-| `accessToken` | JWT string from Keycloak |
+| `accessToken` | JWT string from the configured identity provider |
 | TTL | Redis `SET` with `EX`; memory uses `expiresAt` |
 
 **Redis key:** `{AUTH_REDIS_KEY_PREFIX}{sessionId}` (default prefix `glossadocs:session:`).

@@ -3,9 +3,9 @@ import {
   ForgotPasswordCommand,
   SignUpCommand
 } from "@aws-sdk/client-cognito-identity-provider";
-import { createHmac } from "node:crypto";
 
 import { ApiError } from "../../shared/api-error.js";
+import { computeCognitoSecretHash } from "./cognito-secret-hash.js";
 
 export type CognitoAdminClientErrorCode =
   | "COGNITO_USER_EXISTS"
@@ -34,15 +34,6 @@ interface CognitoAdminClientConfig {
   clientSecret?: string;
 }
 
-export function isCognitoAdminErrorCode(
-  error: unknown,
-  expectedCode: CognitoAdminClientErrorCode
-): boolean {
-  return error instanceof CognitoAdminClientError || (typeof error === "object" && error !== null)
-    ? (error as { code?: string }).code === expectedCode
-    : false;
-}
-
 export function requireCognitoAdminConfig(
   config: Partial<CognitoAdminClientConfig>
 ): CognitoAdminClientConfig {
@@ -55,10 +46,6 @@ export function requireCognitoAdminConfig(
     );
   }
   return { region, userPoolId, clientId, clientSecret };
-}
-
-function computeSecretHash(username: string, clientId: string, clientSecret: string): string {
-  return createHmac("sha256", clientSecret).update(`${username}${clientId}`).digest("base64");
 }
 
 function mapCognitoAdminError(error: unknown): never {
@@ -83,7 +70,7 @@ export class HttpCognitoAdminClient implements CognitoAdminClient {
 
   public async createUser(args: { email: string; password: string }): Promise<void> {
     const secretHash = this.config.clientSecret
-      ? computeSecretHash(args.email, this.config.clientId, this.config.clientSecret)
+      ? computeCognitoSecretHash(args.email, this.config.clientId, this.config.clientSecret)
       : undefined;
 
     try {
@@ -103,7 +90,7 @@ export class HttpCognitoAdminClient implements CognitoAdminClient {
 
   public async sendPasswordResetEmail(args: { email: string }): Promise<void> {
     const secretHash = this.config.clientSecret
-      ? computeSecretHash(args.email, this.config.clientId, this.config.clientSecret)
+      ? computeCognitoSecretHash(args.email, this.config.clientId, this.config.clientSecret)
       : undefined;
 
     try {

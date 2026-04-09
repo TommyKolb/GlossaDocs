@@ -49,4 +49,32 @@ describe("public auth bootstrap routes (cognito mode)", () => {
     expect(response.body.loginUrl).toContain("/login?");
     expect(response.body.registrationUrl).toContain("/signup?");
   });
+
+  it("returns null hosted-ui links when public domain is not configured", async () => {
+    const appWithoutDomain = buildApp(
+      {
+        NODE_ENV: "test",
+        API_PORT: 4000,
+        CORS_ALLOWED_ORIGINS: "*",
+        AUTH_PROVIDER: "cognito",
+        OIDC_PUBLIC_ISSUER_URL: "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_pool",
+        OIDC_PUBLIC_CLIENT_ID: "frontend-client",
+        OIDC_PUBLIC_REDIRECT_URI: "https://app.example.com/auth/callback"
+      } as any,
+      {
+        tokenVerifier: testTokenVerifier,
+        documentService: createTestDocumentService(),
+        settingsService: createTestSettingsService()
+      }
+    );
+    await appWithoutDomain.ready();
+
+    const response = await request(appWithoutDomain.server).get("/auth/public");
+    expect(response.status).toBe(200);
+    expect(response.body.authProvider).toBe("cognito");
+    expect(response.body.loginUrl).toBeNull();
+    expect(response.body.registrationUrl).toBeNull();
+
+    await appWithoutDomain.close();
+  });
 });

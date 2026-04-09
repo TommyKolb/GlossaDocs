@@ -95,6 +95,15 @@ describe("getConfig", () => {
     expect(cfg.OIDC_AUDIENCE).toBe("client123");
   });
 
+  it("throws when NODE_ENV=production is paired with APP_ENV=dev", () => {
+    expect(() =>
+      getConfig({
+        NODE_ENV: "production",
+        APP_ENV: "dev"
+      } as unknown as NodeJS.ProcessEnv)
+    ).toThrow(/CONFIG_ENV_MISMATCH/);
+  });
+
   it("throws when APP_ENV=prod uses insecure cookie settings", () => {
     expect(() =>
       getConfig({

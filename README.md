@@ -67,6 +67,7 @@ The Docker backend is configured so token verification uses the **internal** Key
 Backend auth behavior now uses one environment selector:
 
 - `APP_ENV=dev`: local-friendly defaults (Keycloak provider, Docker seed user support)
+- `APP_ENV=dev`: local-friendly defaults (Keycloak provider, create-account or guest flow)
 - `APP_ENV=prod`: strict startup checks and Cognito provider defaults
 
 See [backend/.env.example](backend/.env.example) and the AWS auth runbook:

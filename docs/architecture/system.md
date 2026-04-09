@@ -98,7 +98,7 @@ This comfortably supports small-team CRUD + settings workloads; tune pools and i
 ## Deployment Mapping
 
 - **Local:** Docker Compose with API + PostgreSQL + Keycloak (+ optional Redis for sessions)
-- **AWS auth target:** API Gateway + Lambda + Cognito + RDS (+ Redis for sessions)
+- **AWS auth target:** API Gateway + Lambda + Cognito + RDS PostgreSQL via RDS Proxy (+ Redis for sessions)
 
 ## Runtime Configuration
 
@@ -122,4 +122,4 @@ Variables consumed via `getConfig` / `buildApp` in this repo (see `backend/src/s
 | `AUTH_SESSION_STORE`, `REDIS_URL`, `AUTH_REDIS_KEY_PREFIX` | `memory` (dev) or `redis` (production sessions) |
 | `DOCUMENT_ENCRYPTION_KEY` | Optional AES-GCM for document title/content at rest |
 
-For AWS deployment/auth wiring, see [deployment runbook](../deployment/aws-amplify-apigw-lambda-auth-runbook.md).
+For AWS deployment/auth wiring and next-branch completion steps, see [deployment runbook](../deployment/aws-amplify-apigw-lambda-auth-runbook.md).

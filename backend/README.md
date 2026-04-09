@@ -57,6 +57,25 @@ All **application** relational state is in the database named in **`DATABASE_URL
 
 ---
 
+## AWS production database strategy
+
+For the AWS deployment completion branch, the chosen production data path is:
+
+- **RDS PostgreSQL** as the primary relational database
+- **RDS Proxy** as the Lambda connection endpoint (`DATABASE_URL`)
+- **ElastiCache Redis** for auth sessions (`AUTH_SESSION_STORE=redis`)
+
+Why this strategy:
+
+- keeps parity with the current PostgreSQL data model and migrations
+- reduces Lambda connection pressure via RDS Proxy
+- avoids unnecessary platform churn while deployment is being stabilized
+
+Deployment completion steps are documented in:
+[docs/deployment/aws-amplify-apigw-lambda-auth-runbook.md](../docs/deployment/aws-amplify-apigw-lambda-auth-runbook.md)
+
+---
+
 ## Install
 
 1. **Node.js 20+** and npm.

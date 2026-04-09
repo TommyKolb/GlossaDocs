@@ -51,6 +51,7 @@ describe("public auth bootstrap routes", () => {
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({
+      authProvider: "keycloak",
       issuerUrl: "http://localhost:8080/realms/glossadocs",
       clientId: "glossadocs-frontend",
       redirectUri: "http://localhost:5173/auth/callback",
@@ -59,12 +60,6 @@ describe("public auth bootstrap routes", () => {
       registrationUrl:
         "http://localhost:8080/realms/glossadocs/protocol/openid-connect/auth?client_id=glossadocs-frontend&redirect_uri=http%3A%2F%2Flocalhost%3A5173%2Fauth%2Fcallback&response_type=code&scope=openid&kc_action=register"
     });
-  });
-
-  it("constructs loginUrl with stable Keycloak authorize endpoint and required query params", async () => {
-    const response = await request(app.server).get("/auth/public");
-    expect(response.status).toBe(200);
-
     const loginUrl = new URL(response.body.loginUrl as string);
     expect(loginUrl.origin).toBe("http://localhost:8080");
     expect(loginUrl.pathname).toBe("/realms/glossadocs/protocol/openid-connect/auth");
@@ -75,12 +70,6 @@ describe("public auth bootstrap routes", () => {
     expect(params.get("response_type")).toBe("code");
     expect(params.get("scope")).toBe("openid");
     expect(params.get("kc_action")).toBe(null);
-  });
-
-  it("constructs registrationUrl by adding kc_action=register", async () => {
-    const response = await request(app.server).get("/auth/public");
-    expect(response.status).toBe(200);
-
     const registrationUrl = new URL(response.body.registrationUrl as string);
     expect(registrationUrl.pathname).toBe("/realms/glossadocs/protocol/openid-connect/auth");
     expect(registrationUrl.searchParams.get("kc_action")).toBe("register");

@@ -12,24 +12,7 @@
     "from": "no-reply@glossadocs.local",
     "fromDisplayName": "GlossaDocs"
   },
-  "users": [
-    {
-      "username": "devuser@example.com",
-      "firstName": "Dev",
-      "lastName": "User",
-      "enabled": true,
-      "emailVerified": true,
-      "email": "devuser@example.com",
-      "requiredActions": [],
-      "credentials": [
-        {
-          "type": "password",
-          "value": "devpass",
-          "temporary": false
-        }
-      ]
-    }
-  ],
+  "users": [],
   "clients": [
     {
       "clientId": "glossadocs-api",

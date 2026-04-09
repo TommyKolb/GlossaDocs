@@ -6,7 +6,7 @@ import type { TokenVerifier } from "../../src/modules/identity-access/token-veri
 import { createTestDocumentService } from "../helpers/test-document-service.js";
 import { createTestSettingsService } from "../helpers/test-settings-service.js";
 
-type KeycloakAdminClient = {
+type AuthAdminClientMock = {
   createUser: (args: { email: string; password: string }) => Promise<void>;
 };
 
@@ -20,7 +20,7 @@ const tokenVerifier: TokenVerifier = {
 };
 
 describe("POST /auth/register", () => {
-  const keycloakAdminClient: KeycloakAdminClient = {
+  const authAdminClient: AuthAdminClientMock = {
     createUser: vi.fn(async () => {})
   };
 
@@ -34,7 +34,7 @@ describe("POST /auth/register", () => {
       tokenVerifier,
       documentService: createTestDocumentService(),
       settingsService: createTestSettingsService(),
-      keycloakAdminClient
+      keycloakAdminClient: authAdminClient
     } as any
   );
   const appWithoutAdmin = buildApp(
@@ -69,15 +69,29 @@ describe("POST /auth/register", () => {
 
     expect(response.status).toBe(201);
     expect(response.body).toEqual({ message: "Account created." });
-    expect(keycloakAdminClient.createUser).toHaveBeenCalledWith({
+    expect(authAdminClient.createUser).toHaveBeenCalledWith({
       email: "new.user@example.com",
       password: "correct horse battery staple"
     });
   });
 
   it("returns 409 when email is already taken", async () => {
-    vi.mocked(keycloakAdminClient.createUser).mockRejectedValueOnce({
+    vi.mocked(authAdminClient.createUser).mockRejectedValueOnce({
       code: "KEYCLOAK_USER_EXISTS"
+    });
+
+    const response = await request(app.server).post("/auth/register").send({
+      email: "taken@example.com",
+      password: "correct horse battery staple"
+    });
+
+    expect(response.status).toBe(409);
+    expect(response.body.code).toBe("AUTH_EMAIL_TAKEN");
+  });
+
+  it("returns 409 when cognito reports an existing user", async () => {
+    vi.mocked(authAdminClient.createUser).mockRejectedValueOnce({
+      code: "COGNITO_USER_EXISTS"
     });
 
     const response = await request(app.server).post("/auth/register").send({
@@ -99,18 +113,18 @@ describe("POST /auth/register", () => {
     expect(response.body.code).toBe("VALIDATION_ERROR");
   });
 
-  it("returns 500 when keycloak admin configuration is incomplete", async () => {
+  it("returns 500 when auth admin configuration is incomplete", async () => {
     const response = await request(appWithoutAdmin.server).post("/auth/register").send({
       email: "new.user@example.com",
       password: "correct horse battery staple"
     });
 
     expect(response.status).toBe(500);
-    expect(response.body.code).toBe("CONFIG_KEYCLOAK_ADMIN_INCOMPLETE");
+    expect(response.body.code).toBe("CONFIG_AUTH_ADMIN_INCOMPLETE");
   });
 
   it("returns 502 when keycloak is unavailable", async () => {
-    vi.mocked(keycloakAdminClient.createUser).mockRejectedValueOnce(new Error("upstream down"));
+    vi.mocked(authAdminClient.createUser).mockRejectedValueOnce(new Error("upstream down"));
 
     const response = await request(app.server).post("/auth/register").send({
       email: "new.user@example.com",

@@ -1,6 +1,6 @@
 # GlossaDocs backend
 
-This directory is the **Node.js API** for GlossaDocs: a **Fastify** application that exposes REST endpoints for authentication (via **Keycloak**), documents, user settings, and operational audit logging. It is designed as a **modular monolith** (`src/modules/*`) with shared infrastructure under `src/shared/`.
+This directory is the **Node.js API** for GlossaDocs: a **Fastify** application that exposes REST endpoints for authentication (provider-based: local **Keycloak** or production **Cognito**), documents, user settings, and operational audit logging. It is designed as a **modular monolith** (`src/modules/*`) with shared infrastructure under `src/shared/`.
 
 **Audience:** operators and SREs responsible for installing, running, and recovering this service and its dependencies.
 
@@ -29,11 +29,11 @@ This directory is the **Node.js API** for GlossaDocs: a **Fastify** application 
 | Service / technology | Required? | Used for |
 |----------------------|-----------|----------|
 | **PostgreSQL** | **Yes** for normal operation | Application database: documents, user settings, audit events. Migrations live in `migrations/`. |
-| **Keycloak** | **Yes** for authenticated flows | OIDC issuer, JWKS, resource-owner password grant (login), Admin REST API (register user, send password-reset email). The app does not store user passwords. |
+| **Identity provider (Keycloak/Cognito)** | **Yes** for authenticated flows | OIDC issuer + JWT verification, app-hosted login/register/password-reset through provider adapters. |
 | **Redis** | **Optional** | Server-side session storage when `AUTH_SESSION_STORE=redis`. If unset, **in-memory** sessions are used (dev-only; **disallowed in production** in `app.ts`). |
 | **SMTP / Mailpit** | **Optional for login** | Keycloak sends email for password reset; in Docker, **Mailpit** receives SMTP and exposes a web UI. Dev signup may bypass strict email verification depending on realm configuration. |
 
-**Identity storage:** user accounts and credentials live in **Keycloak’s** database (embedded store in Keycloak `start-dev`, or a configured DB in real deployments—not created by this Node app).
+**Identity storage:** user accounts and credentials live in the configured IdP. In local Docker dev that is Keycloak; production mode is designed for Cognito.
 
 ---
 
@@ -57,6 +57,25 @@ All **application** relational state is in the database named in **`DATABASE_URL
 
 ---
 
+## AWS production database strategy
+
+For the AWS deployment completion branch, the chosen production data path is:
+
+- **RDS PostgreSQL** as the primary relational database
+- **RDS Proxy** as the Lambda connection endpoint (`DATABASE_URL`)
+- **ElastiCache Redis** for auth sessions (`AUTH_SESSION_STORE=redis`)
+
+Why this strategy:
+
+- keeps parity with the current PostgreSQL data model and migrations
+- reduces Lambda connection pressure via RDS Proxy
+- avoids unnecessary platform churn while deployment is being stabilized
+
+Deployment completion steps are documented in:
+[docs/deployment/aws-amplify-apigw-lambda-auth-runbook.md](../docs/deployment/aws-amplify-apigw-lambda-auth-runbook.md)
+
+---
+
 ## Install
 
 1. **Node.js 20+** and npm.
@@ -67,7 +86,7 @@ All **application** relational state is in the database named in **`DATABASE_URL
    npm --prefix backend install
    ```
 
-3. **Configuration:** copy `backend/.env.example` to `backend/.env` and set at least `DATABASE_URL`, OIDC/Keycloak variables, and session options as required by your environment. For local Keycloak matching the example files, use the issuer and token URLs that match how browsers and containers reach Keycloak (`localhost` vs Docker service names—see comments in `.env.example`).
+3. **Configuration:** copy `backend/.env.example` to `backend/.env` and set at least `DATABASE_URL`, auth provider variables, and session options as required by your environment. Use `APP_ENV=dev` for local Keycloak and `APP_ENV=prod` for Cognito-focused production posture.
 
    **Large document saves (inline images):** the API sets Fastify’s JSON **`bodyLimit`** from **`API_BODY_LIMIT_BYTES`** (default **15 MiB**). The previous Fastify default (**1 MiB**) is too small for documents that embed images as `data:` URLs; saves could fail with **413** `PAYLOAD_TOO_LARGE` (or, before a dedicated handler, as a generic **500**). Increase `API_BODY_LIMIT_BYTES` in `.env` or Docker Compose if needed.
 
@@ -137,16 +156,16 @@ On next start, migrations recreate empty tables, and Compose rebuilds images if 
 
 If using Redis, flushing keys with prefix `AUTH_REDIS_KEY_PREFIX` logs users out server-side; combine with cookie expiry as needed.
 
-### Keycloak users
+### Identity provider users
 
-User accounts are **not** stored in the app DB. To reset test users, use the Keycloak admin UI or realm re-import; see project Docker docs and `docker/keycloak/`.
+User accounts are **not** stored in the app DB. In local Docker dev, reset users via Keycloak admin UI/realm import; in production, manage users through Cognito and IAM-approved processes.
 
 ---
 
 ## Health and readiness
 
 - **Liveness:** `GET /health` → `{ "status": "ok" }`
-- **Readiness:** `GET /ready` → currently static; can be extended to check DB connectivity.
+- **Readiness:** `GET /ready` → checks DB connectivity (when `DATABASE_URL` is set) and auth session store health.
 
 ---
 
@@ -164,4 +183,5 @@ npm run typecheck
 - [System architecture](../docs/architecture/system.md)
 - [Module index](../docs/architecture/backend-architecture.md)
 - [Document encryption](../docs/architecture/document-encryption.md)
+- [AWS auth foundation runbook](../docs/deployment/aws-amplify-apigw-lambda-auth-runbook.md)
 - Language font catalog used for validation: `src/shared/document-fonts.ts`

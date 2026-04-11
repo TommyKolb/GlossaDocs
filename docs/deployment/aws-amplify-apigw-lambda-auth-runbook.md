@@ -6,6 +6,10 @@ This runbook captures:
 - the chosen AWS database strategy, and
 - the exact next-branch process to complete deployment to Amplify + API Gateway + Lambda + Cognito.
 
+Companion setup for maintainers deploying from a fork:
+
+- `docs/deployment/aws-fork-bootstrap.md`
+
 Current branch foundation:
 
 - Frontend target: AWS Amplify
@@ -83,7 +87,57 @@ Frontend (Amplify env vars):
 
 - `VITE_API_BASE_URL=https://<api-gateway-domain-or-custom-domain>`
 
-## 4) Next-Branch Implementation Process (Required)
+## 4) One-Time AWS Bootstrap (Before First Merge to `main`)
+
+Complete this checklist once per AWS account/region/repository before the first production merge:
+
+1. **Choose production target**
+  - Select AWS account and region for production.
+  - Create AWS Budgets alerts and billing notifications.
+2. **Configure GitHub Actions -> AWS trust (OIDC)**
+  - Add GitHub OIDC identity provider in IAM.
+  - Create deploy IAM role trusted by this repository/workflow.
+  - Grant least-privilege permissions required for CDK/CloudFormation, IAM pass-role, Lambda, API Gateway, Amplify, Cognito, RDS, RDS Proxy, ElastiCache, EC2 networking, and CloudWatch.
+3. **Bootstrap CDK**
+  - Run `cdk bootstrap aws://<account-id>/<region>` for the production target.
+  - Confirm bootstrap stack/resources exist.
+4. **Prepare domain and TLS plan**
+  - Decide whether to use default Amplify/API domains initially or custom domains now.
+  - If custom domains are used, verify hosted zone ownership and certificate flow.
+5. **Configure repository deploy settings**
+  - Add required GitHub repository/environment secrets and variables (role ARN, region, and any required deploy-time settings).
+  - Configure branch/environment protections as desired.
+6. **Run initial infrastructure deploy**
+  - Run first `cdk deploy` from this branch and capture outputs (API URL, Cognito identifiers/domain, DB and Redis secret references).
+7. **Finalize Cognito and frontend URLs**
+  - Set Cognito callback and logout URLs to actual frontend domains.
+  - Confirm callback path matches frontend behavior (for example `/auth/callback`).
+8. **Set production runtime configuration**
+  - Ensure backend receives required production variables (`APP_ENV=prod`, Cognito values, `DATABASE_URL` via RDS Proxy, `REDIS_URL`, strict CORS origin).
+  - Ensure Amplify has `VITE_API_BASE_URL` set to production API.
+9. **Run first migrations and smoke checks**
+  - Run `npm --prefix backend run migrate:up` against production `DATABASE_URL`.
+  - Verify `/health`, `/ready`, auth flow, and one authenticated CRUD route.
+10. **Enable alarms and rollback readiness**
+  - Confirm CloudWatch alarms are active.
+  - Confirm rollback procedure is documented and tested at least once.
+
+After this checklist is complete, merges to `main` should be able to deploy without additional manual AWS setup.
+
+## 5) Recommended Release Flow
+
+Use this order for safe rollout and pipeline validation:
+
+1. Implement deployment code on feature branch.
+2. Open/merge PR to `develop` for integration confidence.
+3. Open PR to `main`; ensure all required checks are green.
+4. Merge to `main` to trigger automated deploy pipeline.
+5. Confirm post-deploy smoke checks and alarms are healthy.
+
+Important: do **not** wait to merge to `main` until after production is already live.  
+The `main` merge should be the event that triggers the first automated production deployment once bootstrap is done.
+
+## 6) Next-Branch Implementation Process (Required)
 
 Execute in this order:
 
@@ -107,7 +161,7 @@ Execute in this order:
   - Add API Gateway throttling/WAF baseline
   - Add CloudWatch alarms and post-deploy smoke tests
 
-## 5) CI/CD Automation Requirement (Next Branch)
+## 7) CI/CD Automation Requirement (Next Branch)
 
 The next branch must implement **fully automatic deployment from GitHub Actions**:
 
@@ -126,14 +180,21 @@ Required automated stages in GitHub Actions:
 
 Manual steps should be limited to one-time environment/bootstrap setup (for example IAM/OIDC trust and initial resource provisioning). Day-to-day deployments after merge to `main` must be hands-off.
 
-## 6) API Gateway + Lambda Wiring
+Repository workflows expected after implementation:
+
+- `.github/workflows/tests.yml` (test orchestrator)
+- `.github/workflows/run-infrastructure-tests.yml` (infra typecheck/lint/assert/synth)
+- `.github/workflows/infrastructure-diff.yml` (PR dry-run diff visibility)
+- `.github/workflows/deploy-production.yml` (main-branch automated release)
+
+## 8) API Gateway + Lambda Wiring
 
 - Build backend (`npm --prefix backend run build`).
 - Deploy Lambda using `backend/src/lambda.ts` handler.
 - Configure API Gateway with Lambda proxy integration for the backend routes.
 - Ensure API Gateway custom domain/TLS is configured before enforcing strict production CORS origins.
 
-## 7) Migration Execution Strategy
+## 9) Migration Execution Strategy
 
 Do not run `node-pg-migrate` inside Lambda invocations.
 
@@ -143,7 +204,7 @@ Use a dedicated migration step during release:
 2. Run `npm --prefix backend run migrate:up` against production `DATABASE_URL` (RDS Proxy endpoint).
 3. Deploy Lambda code after successful migrations.
 
-## 8) Auth Endpoint Contract (Stable)
+## 10) Auth Endpoint Contract (Stable)
 
 The frontend continues to use the same API contract:
 
@@ -156,7 +217,7 @@ The frontend continues to use the same API contract:
 
 Provider-specific logic is now behind backend auth provider clients, allowing Cognito in production and local-friendly dev mode without changing frontend endpoint usage.
 
-## 9) Deployment Test Gate (Required)
+## 11) Deployment Test Gate (Required)
 
 Before merge or release:
 
@@ -167,9 +228,21 @@ Before merge or release:
   - `npm test`
 3. Verify CI is green for changed backend/frontend test jobs.
 
+Infrastructure deployment code checks:
+
+4. CDK tests and synth:
+  - `npm --prefix infrastructure run typecheck`
+  - `npm --prefix infrastructure run lint`
+  - `npm --prefix infrastructure run test`
+  - `npm --prefix infrastructure run synth`
+5. Deploy workflow prechecks:
+  - Required AWS/GitHub variables and secrets validation passes
+  - Migration job succeeds before application deployment continues
+  - Smoke checks pass after deploy
+
 The next deployment branch is not merge-ready unless this matrix is green.
 
-## 10) Done Criteria For AWS Deployment Branch
+## 12) Done Criteria For AWS Deployment Branch
 
 All items below must be true:
 
@@ -180,4 +253,14 @@ All items below must be true:
 - Redis session store is healthy in production mode
 - CI/CD migration step runs before Lambda release
 - Post-deploy smoke tests and alarms are in place
+
+## 13) Rollback Baseline
+
+If post-deploy smoke checks fail:
+
+1. Stop further release steps and keep failed deploy artifacts for investigation.
+2. Roll API/Lambda back to the previous known-good deployment (previous stack/app revision).
+3. If the failure was migration-related, restore from backup/snapshot according to your DB recovery policy before reopening traffic.
+4. Re-run `/health` and `/ready`, then auth + CRUD smoke checks.
+5. Document root cause and fix forward before the next `main` deployment.
 

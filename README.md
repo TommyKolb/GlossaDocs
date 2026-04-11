@@ -72,6 +72,15 @@ Backend auth behavior now uses one environment selector:
 See [backend/.env.example](backend/.env.example) and the AWS auth runbook:
 [docs/deployment/aws-amplify-apigw-lambda-auth-runbook.md](docs/deployment/aws-amplify-apigw-lambda-auth-runbook.md).
 
+## Public AWS deployment
+
+Production deployment targets AWS Amplify + API Gateway + Lambda + Cognito + RDS Proxy + Redis.
+
+- Maintainer runbook (one-time bootstrap + release flow): [docs/deployment/aws-amplify-apigw-lambda-auth-runbook.md](docs/deployment/aws-amplify-apigw-lambda-auth-runbook.md)
+- Fork maintainer setup guide (from zero in your own AWS account): [docs/deployment/aws-fork-bootstrap.md](docs/deployment/aws-fork-bootstrap.md)
+
+The local Docker flow in this README is for development only; it does not publish the app to the public internet.
+
 ## Other ways to run
 
 | Goal | Command / steps |

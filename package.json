@@ -25,7 +25,9 @@
     "test:backend:coverage": "npm --prefix backend run test:coverage",
     "test:e2e": "playwright test",
     "test:e2e:install": "playwright install --with-deps chromium",
-    "check:font-catalogs": "node scripts/check-font-catalogs.mjs"
+    "check:font-catalogs": "node scripts/check-font-catalogs.mjs",
+    "test:infrastructure": "npm --prefix infrastructure run typecheck && npm --prefix infrastructure run lint && npm --prefix infrastructure run test",
+    "synth:infrastructure": "npm --prefix infrastructure run build && npm --prefix infrastructure run synth"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",

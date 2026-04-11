@@ -17,6 +17,7 @@ Requires **Node.js 20+** and dependencies (`npm run setup:dev` at the repo root,
 - Frontend coverage: `npm run test:frontend:coverage` → `coverage/frontend/`
 - Backend Vitest: `npm run test:backend` (or `npm --prefix backend run test:unit` / `test:integration`)
 - Backend coverage: `npm run test:backend:coverage` → `coverage/backend/`
+- Infrastructure checks: `npm --prefix infrastructure run typecheck && npm --prefix infrastructure run lint && npm --prefix infrastructure run test && npm --prefix infrastructure run synth`
 - E2E: `npm run test:e2e` (first time: `npm run test:e2e:install` for Chromium)
 
 `test:frontend` / `test:backend` alone do not run `check:font-catalogs`; use `npm test` for the full gate.
@@ -38,6 +39,7 @@ On push and pull requests to **`main`** or **`develop`**, the **[Tests](../.gith
 | [check-font-catalogs.yml](../.github/workflows/check-font-catalogs.yml) | Always; ensures `language-fonts.ts` and `document-fonts.ts` list the same `family` names (no `npm ci` required). |
 | [run-frontend-tests.yml](../.github/workflows/run-frontend-tests.yml) | Vitest with coverage and Playwright E2E — only when frontend-related paths change (`src/`, `e2e/`, root `package.json`, Vite/Playwright config, `tests.yml`, or `run-frontend-tests.yml`). |
 | [run-backend-tests.yml](../.github/workflows/run-backend-tests.yml) | `typecheck` and Vitest with coverage — only when `backend/` or orchestration files under the backend filter change. |
+| [run-infrastructure-tests.yml](../.github/workflows/run-infrastructure-tests.yml) | Infrastructure typecheck, lint, CDK assertion tests, and `cdk synth` — only when `infrastructure/` or infra workflow files change. |
 
 Those YAML files use **`workflow_call`** so the **Tests** run can invoke them; they also expose **`workflow_dispatch`** so you can run each workflow alone from the Actions tab when debugging.
 

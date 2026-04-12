@@ -9,7 +9,9 @@ import { getConfig } from "./shared/config.js";
 
 const config = getConfig();
 const app = buildApp(config);
-const proxy = awsLambdaFastify(app);
+const proxy = awsLambdaFastify(app, {
+  callbackWaitsForEmptyEventLoop: false
+});
 
 await app.ready();
 

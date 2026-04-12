@@ -210,7 +210,7 @@ export class GlossaDocsStack extends cdk.Stack {
       dbCredentials.secretValueFromJson("password").toString(),
       "@",
       dbProxy.endpoint,
-      ":5432/glossadocs"
+      ":5432/glossadocs?sslmode=require"
     ]);
 
     const redisUrl = cdk.Fn.join("", [
@@ -226,7 +226,7 @@ export class GlossaDocsStack extends cdk.Stack {
       runtime: lambda.Runtime.NODEJS_20_X,
       handler: "dist/lambda.handler",
       code: lambda.Code.fromAsset(backendAssetPath, {
-        exclude: ["node_modules", "coverage", "test", "src", "*.tsbuildinfo"]
+        exclude: ["coverage", "test", "src/**/*.ts", "*.tsbuildinfo"]
       }),
       timeout: Duration.seconds(30),
       memorySize: 1024,

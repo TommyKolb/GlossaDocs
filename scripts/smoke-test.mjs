@@ -6,7 +6,9 @@ if (!apiBaseUrl) {
 }
 
 async function check(pathname, expectedStatus = 200) {
-  const url = new URL(pathname, apiBaseUrl).toString();
+  const normalizedBase = apiBaseUrl.replace(/\/+$/, "");
+  const normalizedPath = pathname.startsWith("/") ? pathname : `/${pathname}`;
+  const url = `${normalizedBase}${normalizedPath}`;
   const response = await fetch(url, {
     method: "GET",
     headers: { Accept: "application/json" }

@@ -24,6 +24,7 @@ jobs:
       GLOSSADOCS_GITHUB_REPOSITORY: ${{ vars.GLOSSADOCS_GITHUB_REPOSITORY || 'glossadocs' }}
       GLOSSADOCS_GITHUB_TOKEN_SECRET_ARN: ${{ vars.GLOSSADOCS_GITHUB_TOKEN_SECRET_ARN || 'arn:aws:secretsmanager:us-east-1:111111111111:secret:github-token' }}
       GLOSSADOCS_BACKEND_CORS_ORIGIN: ${{ vars.GLOSSADOCS_BACKEND_CORS_ORIGIN || 'https://main.example.amplifyapp.com' }}
+      DEPLOY_ROLE_ARN_FOR_DIFF: ${{ vars.DEPLOY_AWS_ROLE_ARN || '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -40,16 +41,16 @@ jobs:
         run: npm --prefix infrastructure run build
 
       - name: Configure AWS credentials for diff
-        if: ${{ secrets.DEPLOY_AWS_ROLE_ARN != '' }}
+        if: ${{ env.DEPLOY_ROLE_ARN_FOR_DIFF != '' }}
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.DEPLOY_AWS_ROLE_ARN }}
+          role-to-assume: ${{ env.DEPLOY_ROLE_ARN_FOR_DIFF }}
           aws-region: ${{ env.CDK_DEFAULT_REGION }}
 
       - name: Diff synthesized changes (dry-run with AWS auth)
-        if: ${{ secrets.DEPLOY_AWS_ROLE_ARN != '' }}
+        if: ${{ env.DEPLOY_ROLE_ARN_FOR_DIFF != '' }}
         run: npm --prefix infrastructure run diff -- --no-lookups
 
       - name: Fallback synth check (no AWS auth available)
-        if: ${{ secrets.DEPLOY_AWS_ROLE_ARN == '' }}
+        if: ${{ env.DEPLOY_ROLE_ARN_FOR_DIFF == '' }}
         run: npm --prefix infrastructure run synth

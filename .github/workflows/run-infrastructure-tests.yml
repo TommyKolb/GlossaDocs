@@ -1,0 +1,43 @@
+name: Infrastructure tests
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infrastructure
+    env:
+      CDK_DEFAULT_ACCOUNT: "111111111111"
+      CDK_DEFAULT_REGION: us-east-1
+      GLOSSADOCS_GITHUB_OWNER: example
+      GLOSSADOCS_GITHUB_REPOSITORY: glossadocs
+      GLOSSADOCS_GITHUB_TOKEN_SECRET_ARN: arn:aws:secretsmanager:us-east-1:111111111111:secret:github-token
+      GLOSSADOCS_BACKEND_CORS_ORIGIN: https://main.example.amplifyapp.com
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: infrastructure/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: CDK assertion tests
+        run: npm run test
+
+      - name: CDK synth
+        run: npm run build && npm run synth

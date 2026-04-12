@@ -1,0 +1,56 @@
+name: Infrastructure diff
+
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "infrastructure/**"
+      - ".github/workflows/infrastructure-diff.yml"
+      - ".github/workflows/run-infrastructure-tests.yml"
+      - ".github/workflows/deploy-production.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  diff:
+    runs-on: ubuntu-latest
+    env:
+      CDK_DEFAULT_ACCOUNT: ${{ vars.AWS_ACCOUNT_ID || '111111111111' }}
+      CDK_DEFAULT_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+      GLOSSADOCS_GITHUB_OWNER: ${{ vars.GLOSSADOCS_GITHUB_OWNER || 'example' }}
+      GLOSSADOCS_GITHUB_REPOSITORY: ${{ vars.GLOSSADOCS_GITHUB_REPOSITORY || 'glossadocs' }}
+      GLOSSADOCS_GITHUB_TOKEN_SECRET_ARN: ${{ vars.GLOSSADOCS_GITHUB_TOKEN_SECRET_ARN || 'arn:aws:secretsmanager:us-east-1:111111111111:secret:github-token' }}
+      GLOSSADOCS_BACKEND_CORS_ORIGIN: ${{ vars.GLOSSADOCS_BACKEND_CORS_ORIGIN || 'https://main.example.amplifyapp.com' }}
+      DEPLOY_ROLE_ARN_FOR_DIFF: ${{ vars.DEPLOY_AWS_ROLE_ARN || '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: infrastructure/package-lock.json
+
+      - name: Install infrastructure dependencies
+        run: npm --prefix infrastructure ci
+
+      - name: Build infrastructure code
+        run: npm --prefix infrastructure run build
+
+      - name: Configure AWS credentials for diff
+        if: ${{ env.DEPLOY_ROLE_ARN_FOR_DIFF != '' }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.DEPLOY_ROLE_ARN_FOR_DIFF }}
+          aws-region: ${{ env.CDK_DEFAULT_REGION }}
+
+      - name: Diff synthesized changes (dry-run with AWS auth)
+        if: ${{ env.DEPLOY_ROLE_ARN_FOR_DIFF != '' }}
+        run: npm --prefix infrastructure run diff -- --no-lookups
+
+      - name: Fallback synth check (no AWS auth available)
+        if: ${{ env.DEPLOY_ROLE_ARN_FOR_DIFF == '' }}
+        run: npm --prefix infrastructure run synth

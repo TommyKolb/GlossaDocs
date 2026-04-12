@@ -1,0 +1,29 @@
+{
+  "name": "glossadocs-infrastructure",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "synth": "cdk synth",
+    "diff": "cdk diff",
+    "deploy": "cdk deploy --require-approval never",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint \"bin/**/*.ts\" \"lib/**/*.ts\" \"test/**/*.ts\""
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.219.0",
+    "constructs": "^10.4.2",
+    "source-map-support": "^0.5.21"
+  },
+  "devDependencies": {
+    "@types/node": "^24.5.2",
+    "@typescript-eslint/eslint-plugin": "^8.44.1",
+    "@typescript-eslint/parser": "^8.44.1",
+    "aws-cdk": "^2.1028.0",
+    "eslint": "^9.36.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
+  }
+}

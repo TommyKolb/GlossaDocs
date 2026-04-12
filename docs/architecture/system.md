@@ -110,6 +110,7 @@ Variables consumed via `getConfig` / `buildApp` in this repo (see `backend/src/s
 | `AUTH_PROVIDER` | `keycloak` \| `cognito`; selects auth adapter |
 | `API_PORT` | Listen port |
 | `CORS_ALLOWED_ORIGINS` | Comma-separated origins or `*` (wildcard rejected in production with credentials) |
+| `API_BODY_LIMIT_BYTES` | Max JSON payload size for document saves (default 15 MiB) |
 | `DATABASE_URL` | PostgreSQL connection string |
 | `OIDC_ISSUER_URL`, `OIDC_AUDIENCE`, `OIDC_JWKS_URL` | JWT verification for `JoseTokenVerifier` |
 | `OIDC_PUBLIC_ISSUER_URL`, `OIDC_PUBLIC_CLIENT_ID`, `OIDC_PUBLIC_REDIRECT_URI` | Optional; `GET /auth/public` |

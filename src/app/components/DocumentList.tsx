@@ -9,7 +9,8 @@ import {
   updateFolder,
   deleteFolder,
   deleteDocument,
-  saveDocument
+  saveDocument,
+  moveDocumentToFolder
 } from '../data/document-repository';
 import { importDocumentFile, isSupportedDocumentFile } from '../utils/import';
 import { DocumentListHero } from './DocumentListHero';
@@ -32,6 +33,7 @@ import { MoveDocumentDialog } from './document-list/MoveDocumentDialog';
 import { sortedChildFolders } from './document-list/folder-utils';
 import { useDocumentDragPreview } from './document-list/useDocumentDragPreview';
 import { UI_CONSTANTS } from '../utils/constants';
+import { DOCUMENT_PAYLOAD_TOO_LARGE_MESSAGE, isPayloadTooLargeError } from '../api/client';
 import { toast } from 'sonner';
 
 interface DocumentListProps {
@@ -160,16 +162,20 @@ export function DocumentList({ onSelectDocument }: DocumentListProps) {
   }
 
   async function handleMoveDocumentToFolder(documentId: string, folderId: string | null): Promise<void> {
-    const document = documents.find((doc) => doc.id === documentId);
-    if (!document) {
+    const existsInCurrentView = documents.some((doc) => doc.id === documentId);
+    if (!existsInCurrentView) {
       return;
     }
     try {
-      await saveDocument({ ...document, folderId, updatedAt: Date.now() });
+      await moveDocumentToFolder(documentId, folderId);
       await loadDocuments();
     } catch (error) {
       console.error('Error moving document:', error);
-      toast.error('Failed to move document');
+      if (isPayloadTooLargeError(error)) {
+        toast.error(DOCUMENT_PAYLOAD_TOO_LARGE_MESSAGE);
+      } else {
+        toast.error('Failed to move document');
+      }
     }
   }
 

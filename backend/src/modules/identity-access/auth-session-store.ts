@@ -10,6 +10,7 @@ export interface AuthSessionStore {
   create(args: { accessToken: string; ttlSeconds: number }): Promise<AuthSession>;
   get(sessionId: string): Promise<AuthSession | null>;
   delete(sessionId: string): Promise<void>;
+  healthCheck?(): Promise<void>;
 }
 
 export class InMemoryAuthSessionStore implements AuthSessionStore {
@@ -41,5 +42,9 @@ export class InMemoryAuthSessionStore implements AuthSessionStore {
 
   public async delete(sessionId: string): Promise<void> {
     this.sessions.delete(sessionId);
+  }
+
+  public async healthCheck(): Promise<void> {
+    // In-memory store has no external dependency.
   }
 }

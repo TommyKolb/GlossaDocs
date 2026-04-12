@@ -4,13 +4,13 @@ GlossaDocs is a browser-based document editor inspired by Google Docs, aimed at 
 
 **Why it exists:** many tools treat language as an afterthought. GlossaDocs is built so language choice and input methods sit next to editing, not in a separate toolchain.
 
-**Privacy:** your email is used for sign-in and account recovery only. We do not sell it or use it for marketing. Passwords are handled by **Keycloak**, not stored in GlossaDocs application code.
+**Privacy:** your email is used for sign-in and account recovery only. We do not sell it or use it for marketing. Passwords are handled by the configured identity provider (local dev: Keycloak, production target: Cognito), not stored in GlossaDocs application code.
 
 ## Architecture (high level)
 
 - **Frontend:** React (Vite), rich text via `contentEditable`, local **guest** mode (IndexedDB) or **authenticated** mode talking to the API.
 - **Backend:** single **Fastify** service (modular monolith)—JWT verification, cookie-backed sessions, REST for documents and user settings, HTML sanitization, optional encryption at rest in PostgreSQL.
-- **Identity:** **Keycloak** (OIDC). The app does not store passwords; login, signup, and password reset go through Keycloak (and the Admin API where needed).
+- **Identity:** OIDC-based provider integration. Local development defaults to **Keycloak** and production mode targets **AWS Cognito**.
 
 Deeper detail: [docs/architecture/backend-architecture.md](docs/architecture/backend-architecture.md) and [docs/architecture/system.md](docs/architecture/system.md). Backend operations (dependencies, data stores, runbooks): [backend/README.md](backend/README.md).
 
@@ -55,14 +55,31 @@ Deeper detail: [docs/architecture/backend-architecture.md](docs/architecture/bac
 
 **Linux:** install the Docker Engine and [Compose plugin](https://docs.docker.com/compose/install/linux/); your user may need to be in the `docker` group.
 
-### Docker dev login (pre-seeded user)
+### Docker dev login
 
-Use these to sign in in **authenticated** mode without registering:
+For authenticated mode in local Docker dev, create an account from the app's **Create account** flow.
+You can also use **Continue as Guest** if you do not want an account.
 
-- **Email:** `devuser@example.com`
-- **Password:** `devpass`
+The Docker backend is configured so token verification uses the **internal** Keycloak URL (`http://keycloak:8080/...`) while browsers use `localhost`; outbound mail is optional in dev, and password-reset messages appear in Mailpit.
 
-The Docker backend is configured so token verification uses the **internal** Keycloak URL (`http://keycloak:8080/...`) while browsers use `localhost`. You can also use **Create account** on the login screen; outbound mail is optional in dev, and password-reset messages appear in Mailpit.
+### Auth mode switch (`APP_ENV`)
+
+Backend auth behavior now uses one environment selector:
+
+- `APP_ENV=dev`: local-friendly defaults (Keycloak provider, create-account or guest flow)
+- `APP_ENV=prod`: strict startup checks and Cognito provider defaults
+
+See [backend/.env.example](backend/.env.example) and the AWS auth runbook:
+[docs/deployment/aws-amplify-apigw-lambda-auth-runbook.md](docs/deployment/aws-amplify-apigw-lambda-auth-runbook.md).
+
+## Public AWS deployment
+
+Production deployment targets AWS Amplify + API Gateway + Lambda + Cognito + RDS Proxy + Redis.
+
+- Maintainer runbook (one-time bootstrap + release flow): [docs/deployment/aws-amplify-apigw-lambda-auth-runbook.md](docs/deployment/aws-amplify-apigw-lambda-auth-runbook.md)
+- Fork maintainer setup guide (from zero in your own AWS account): [docs/deployment/aws-fork-bootstrap.md](docs/deployment/aws-fork-bootstrap.md)
+
+The local Docker flow in this README is for development only; it does not publish the app to the public internet.
 
 ## Other ways to run
 
@@ -75,24 +92,23 @@ The Docker backend is configured so token verification uses the **internal** Key
 
 ## Tests
 
-**Node.js 20+** and `npm run setup:dev` (or install root + `backend/` packages yourself). Run everything: `npm test`. Tests are split into **unit**, **integration**, and **E2E** (Playwright). CI on push/PR to `main`/`develop` runs the **Tests** workflow (`.github/workflows/tests.yml`)—font catalogs plus path-filtered frontend and backend jobs. Details: [docs/testing.md](docs/testing.md).
-
-Details—commands, coverage, folders, CI: **[docs/testing.md](docs/testing.md)**.
+**Node.js 20+** and `npm run setup:dev` (or install root + `backend/` packages yourself). Run everything: `npm test`. Tests are split into **unit**, **integration**, and **E2E** (Playwright). CI on push/PR to `main`/`develop` runs the **Tests** workflow (`.github/workflows/tests.yml`)—font catalogs plus path-filtered frontend and backend jobs. Details—commands, coverage, folders, CI: **[docs/testing.md](docs/testing.md)**.
 
 ## Further reading
 
 - [Document encryption at rest](docs/architecture/document-encryption.md) (`DOCUMENT_ENCRYPTION_KEY`)
 - Operational concerns (sessions, Postgres, Keycloak, reset procedures): **[backend/README.md](backend/README.md)**
+- AWS auth/deploy foundation runbook: [docs/deployment/aws-amplify-apigw-lambda-auth-runbook.md](docs/deployment/aws-amplify-apigw-lambda-auth-runbook.md)
 
-## Adding a new language font set
+## Adding a new language
 
-To add another language with minimal code changes:
+Use this checklist so fonts, keyboard defaults, locale mapping, and tests stay aligned.
 
-1. Add/update language entry in `src/app/utils/languages.ts`.
-2. Add font catalog entry in `src/app/utils/language-fonts.ts` with:
-   - `defaultFamily`
-   - `fonts[]` (`family`, `googleFontFamily`, `fallbackStack`)
-3. Mirror allowed font family updates in `backend/src/shared/document-fonts.ts`.
-4. Add/update tests:
-   - `src/test/integration/editor-fonts.test.tsx`
-   - `backend/test/integration/document-routes.test.ts` / `backend/test/unit/document-service.test.ts`
+1. **Language code** — Add/update the entry in `src/app/utils/languages.ts` (`LANGUAGES` / `Language` union).
+2. **Fonts** — Add a catalog entry in `src/app/utils/language-fonts.ts` (`defaultFamily`, `fonts[]` with `family`, `googleFontFamily`, `fallbackStack`). Mirror allowed families in `backend/src/shared/document-fonts.ts`.
+3. **Locale ↔ language** — Extend `LANGUAGE_TO_LOCALE` and `LOCALE_PREFIX_TO_LANGUAGE` in `src/app/data/settings-repository.ts` so `lastUsedLocale` and new documents resolve to the new `Language`. If the backend validates document language codes, update the documents language check / constraints there too (see existing migrations and shared language lists).
+4. **On-screen keyboard defaults** — Register a built-in layout in `src/app/utils/keyboardLayouts.ts`: define a `KeyboardLayout` constant and add it to `LANGUAGE_KEYBOARD_LAYOUTS`. Each key has fixed `output` (the letter shown) and default `typedWith` (physical key). Add at least one unit test in `src/test/unit/keyboard-layouts.test.ts` for that layout. Extend `backend/src/modules/input-preferences/keyboard-layout-overrides-schema.ts` so `keyboardLayoutOverrides` includes the new language code at the top level (`en` / `de` / `ru` / …).
+5. **User keyboard overrides** — Persisted as JSON: per language, **output letter → physical key** (`typedWith`). No separate “shift” mapping; Shift still uses `toUpperCase()` of the letter. No extra DB migration when adding a language—only the Zod allowlist and built-in layout.
+6. **Tests** — Update or add:
+   - `src/test/integration/editor-fonts.test.tsx` (font catalog coverage)
+   - `backend/test/integration/document-routes.test.ts` / `backend/test/unit/document-service.test.ts` if document language validation changes

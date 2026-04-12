@@ -11,11 +11,13 @@ import { getDefaultFontFamilyForLanguage, resolveDocumentFontFamily } from '../u
 import { EDITOR_CONFIG, UI_CONSTANTS } from '../utils/constants';
 import { findBlockElement, getLineHeight, getNextImageSize } from '../utils/dom';
 import { ensureSelectionInEditor } from '../utils/editor-selection';
+import type { KeyboardLayoutOverrides } from '../utils/keyboardLayouts';
 import { getRemappedCharacter } from '../utils/keyboardLayouts';
 import { getEditorShortcutAction } from '../utils/keyboardShortcuts';
 import { useFormattingState } from '../hooks/useFormattingState';
 import { useAutoSave } from '../hooks/useAutoSave';
 import { getUserSettings, languageToLocale, localeToLanguage, updateUserSettings } from '../data/settings-repository';
+import { DOCUMENT_PAYLOAD_TOO_LARGE_MESSAGE, isPayloadTooLargeError } from '../api/client';
 import { toast } from 'sonner';
 
 interface EditorProps {
@@ -26,9 +28,12 @@ interface EditorProps {
 export function Editor({ documentId, onBack }: EditorProps) {
   // State hooks
   const [document, setDocument] = useState<Document | null>(null);
+  const [loadErrorMessage, setLoadErrorMessage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(true);
+  const [keyboardLayoutOverrides, setKeyboardLayoutOverrides] = useState<KeyboardLayoutOverrides>({});
+  const keyboardLayoutSaveRequestRef = useRef(0);
   
   // Refs
   const editorRef = useRef<HTMLDivElement>(null);
@@ -37,6 +42,8 @@ export function Editor({ documentId, onBack }: EditorProps) {
   const documentRef = useRef<Document | null>(null);
   const isSaveRunningRef = useRef(false);
   const saveRequestedWhileRunningRef = useRef(false);
+  const isMountedRef = useRef(true);
+  const latestLoadRequestRef = useRef(0);
   
   // Custom hooks
   const { formattingState, updateFormattingState } = useFormattingState();
@@ -106,7 +113,11 @@ export function Editor({ documentId, onBack }: EditorProps) {
       } while (saveRequestedWhileRunningRef.current);
     } catch (error) {
       console.error('Error saving document:', error);
-      toast.error('Failed to save document');
+      if (isPayloadTooLargeError(error)) {
+        toast.error(DOCUMENT_PAYLOAD_TOO_LARGE_MESSAGE);
+      } else {
+        toast.error('Failed to save document');
+      }
     } finally {
       isSaveRunningRef.current = false;
       setIsSaving(false);
@@ -332,6 +343,10 @@ export function Editor({ documentId, onBack }: EditorProps) {
       // Read the file as base64
       const reader = new FileReader();
       reader.onload = (e) => {
+        if (!isMountedRef.current) {
+          return;
+        }
+
         const base64Data = e.target?.result as string;
         const imageName = file.name.replace(/\.[^/.]+$/, '').trim();
         
@@ -416,6 +431,9 @@ export function Editor({ documentId, onBack }: EditorProps) {
       };
       
       reader.onerror = () => {
+        if (!isMountedRef.current) {
+          return;
+        }
         toast.error('Failed to read image file');
       };
       
@@ -441,6 +459,21 @@ export function Editor({ documentId, onBack }: EditorProps) {
       const next = !prev;
       void updateUserSettings({ keyboardVisible: next }).catch((error) => {
         console.error('Error saving keyboard visibility setting:', error);
+      });
+      return next;
+    });
+  }, []);
+
+  const persistKeyboardLayoutOverrides = useCallback((next: KeyboardLayoutOverrides) => {
+    setKeyboardLayoutOverrides((previous) => {
+      const rollback = previous;
+      const requestId = ++keyboardLayoutSaveRequestRef.current;
+      void updateUserSettings({ keyboardLayoutOverrides: next }).catch((error) => {
+        console.error('Error saving keyboard layout overrides:', error);
+        if (keyboardLayoutSaveRequestRef.current === requestId) {
+          setKeyboardLayoutOverrides(rollback);
+          toast.error('Failed to save keyboard mappings. Your previous mappings were restored.');
+        }
       });
       return next;
     });
@@ -519,8 +552,10 @@ export function Editor({ documentId, onBack }: EditorProps) {
       const remappedCharacter = getRemappedCharacter({
         language: activeLanguage,
         key: event.key,
+        code: event.code,
         shiftKey: event.shiftKey,
         capsLock: event.getModifierState('CapsLock'),
+        keyboardLayoutOverrides,
       });
 
       if (remappedCharacter && remappedCharacter !== event.key) {
@@ -550,7 +585,7 @@ export function Editor({ documentId, onBack }: EditorProps) {
         }
       }, 0);
     }
-  }, [activeLanguage, handleFormat, insertTextAtCursor, isKeyboardVisible]);
+  }, [activeLanguage, handleFormat, insertTextAtCursor, isKeyboardVisible, keyboardLayoutOverrides]);
 
   const handleGlobalKeyDown = useCallback((event: KeyboardEvent) => {
     const shortcutAction = getEditorShortcutAction(event);
@@ -587,20 +622,56 @@ export function Editor({ documentId, onBack }: EditorProps) {
 
   // Load document on mount
   useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const requestId = ++latestLoadRequestRef.current;
+    let cancelled = false;
+    setLoadErrorMessage(null);
+    setDocument(null);
+
+    const applyIfCurrent = (apply: () => void) => {
+      if (cancelled || latestLoadRequestRef.current !== requestId || !isMountedRef.current) {
+        return;
+      }
+      apply();
+    };
+
     async function loadDocument() {
+
       let lastUsedLocale: string | null = null;
       try {
         const settings = await getUserSettings();
-        setIsKeyboardVisible(settings.keyboardVisible);
+        applyIfCurrent(() => {
+          setIsKeyboardVisible(settings.keyboardVisible);
+          setKeyboardLayoutOverrides(settings.keyboardLayoutOverrides ?? {});
+        });
         lastUsedLocale = settings.lastUsedLocale;
       } catch (error) {
         console.error('Error loading user settings:', error);
       }
 
       if (documentId) {
-        const doc = await getDocument(documentId);
-        if (doc) {
-          setDocument(doc);
+        try {
+          const doc = await getDocument(documentId);
+          if (!doc) {
+            applyIfCurrent(() => {
+              setLoadErrorMessage('This document no longer exists or you no longer have access to it.');
+            });
+            return;
+          }
+          applyIfCurrent(() => {
+            setDocument(doc);
+          });
+        } catch (error) {
+          console.error('Error loading document:', error);
+          applyIfCurrent(() => {
+            setLoadErrorMessage('Failed to load this document. Please try again.');
+          });
         }
       } else {
         let preferredLanguage: Language = EDITOR_CONFIG.DEFAULT_LANGUAGE;
@@ -620,30 +691,58 @@ export function Editor({ documentId, onBack }: EditorProps) {
           createdAt: Date.now(),
           updatedAt: Date.now(),
         };
-        setDocument(newDoc);
+        applyIfCurrent(() => {
+          setDocument(newDoc);
+        });
       }
+
     }
-    loadDocument();
+    void loadDocument();
+
+    return () => {
+      cancelled = true;
+    };
   }, [documentId]);
 
-  // Set editor content when document is loaded and ref is available
+  // Keep the editable DOM synchronized with loaded/saved document content.
+  // Guard against unnecessary resets so we do not disturb caret/selection.
   useEffect(() => {
     if (document && editorRef.current) {
-      editorRef.current.innerHTML = document.content;
+      if (editorRef.current.innerHTML !== document.content) {
+        editorRef.current.innerHTML = document.content;
+      }
     }
-  }, [document?.id]); // Only run when document changes
+  }, [document?.id, document?.content]);
 
   useEffect(() => {
     if (document && editorRef.current) {
-      editorRef.current.style.fontFamily = document.fontFamily;
+      if (editorRef.current.style.fontFamily !== document.fontFamily) {
+        editorRef.current.style.fontFamily = document.fontFamily;
+      }
     }
-  }, [document?.id]);
+  }, [document?.id, document?.fontFamily]);
 
   useEffect(() => {
     documentRef.current = document;
   }, [document]);
 
   if (!document) {
+    if (loadErrorMessage) {
+      return (
+        <div className="flex flex-col items-center justify-center h-screen gap-4 px-4 text-center">
+          <div className="text-gray-700" role="alert" aria-live="assertive">
+            {loadErrorMessage}
+          </div>
+          <button
+            type="button"
+            onClick={onBack}
+            className="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            Back to documents
+          </button>
+        </div>
+      );
+    }
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-gray-500">Loading...</div>
@@ -712,6 +811,8 @@ export function Editor({ documentId, onBack }: EditorProps) {
               isVisible={isKeyboardVisible}
               onToggleVisibility={toggleKeyboardVisibility}
               onInsertCharacter={insertTextAtCursor}
+              keyboardLayoutOverrides={keyboardLayoutOverrides}
+              onKeyboardLayoutOverridesChange={persistKeyboardLayoutOverrides}
             />
           </div>
         </div>

@@ -1,4 +1,4 @@
-import { Language } from './languages';
+import { isLanguage, type Language } from './languages';
 
 export interface KeyboardKey {
   output: string;
@@ -7,6 +7,13 @@ export interface KeyboardKey {
 }
 
 export type KeyboardLayout = readonly (readonly KeyboardKey[])[];
+
+/**
+ * Per-language overrides: **alphabet letter (output)** → **physical key label** (`typedWith`).
+ * On-screen letters stay as in the built-in layout; only which key you type with changes.
+ * Shift + key uses the same mapping; the shifted character is always `output.toUpperCase()` (existing remap rules).
+ */
+export type KeyboardLayoutOverrides = Partial<Record<Language, Record<string, string>>>;
 
 interface KeyRemap {
   output: string;
@@ -41,8 +48,139 @@ const LANGUAGE_KEYBOARD_LAYOUTS: Readonly<Record<Language, KeyboardLayout>> = {
   ru: RUSSIAN_LAYOUT,
 };
 
-export function getKeyboardLayout(language: Language): KeyboardLayout {
+/** Built-in layout for the language (no user overrides). */
+export function getDefaultKeyboardLayout(language: Language): KeyboardLayout {
   return LANGUAGE_KEYBOARD_LAYOUTS[language];
+}
+
+/**
+ * Apply **output → typedWith** overrides: each built-in letter keeps its display `output`;
+ * only `typedWith` changes. Unknown output keys in the override map are ignored.
+ */
+export function applyOutputToTypedWithOverrides(
+  layout: KeyboardLayout,
+  overrides: Record<string, string>
+): KeyboardLayout {
+  return layout.map((row) =>
+    row.map((layoutKey) => {
+      const typedWith = overrides[layoutKey.output];
+      if (typedWith === undefined) {
+        return layoutKey;
+      }
+      const next: KeyboardKey = { ...layoutKey, typedWith };
+      delete next.shiftOutput;
+      return next;
+    })
+  ) as KeyboardLayout;
+}
+
+export function getKeyboardLayout(language: Language, overrides?: KeyboardLayoutOverrides): KeyboardLayout {
+  const base = LANGUAGE_KEYBOARD_LAYOUTS[language];
+  const langOverrides = overrides?.[language];
+  if (!langOverrides || Object.keys(langOverrides).length === 0) {
+    return base;
+  }
+  return applyOutputToTypedWithOverrides(base, langOverrides);
+}
+
+/**
+ * Returns **output → typedWith** entries that differ from the built-in layout (for persistence).
+ */
+export function diffKeyboardLayoutAgainstLanguageDefaults(
+  language: Language,
+  effective: KeyboardLayout
+): Record<string, string> {
+  const defFlat = getDefaultKeyboardLayout(language).flat();
+  const effFlat = effective.flat();
+  const out: Record<string, string> = {};
+
+  for (let i = 0; i < defFlat.length; i++) {
+    const def = defFlat[i];
+    const eff = effFlat[i];
+    if (!def || !eff || def.output !== eff.output) {
+      continue;
+    }
+    if (eff.typedWith !== def.typedWith) {
+      out[def.output] = eff.typedWith;
+    }
+  }
+
+  return out;
+}
+
+/** If two different letters use the same physical key, returns an error message; otherwise null. */
+export function getDuplicatePhysicalKeyError(layout: KeyboardLayout): string | null {
+  const map = new Map<string, string>();
+  for (const k of layout.flat()) {
+    const t = k.typedWith.toLowerCase();
+    const prev = map.get(t);
+    if (prev !== undefined && prev !== k.output) {
+      return `The same physical key cannot type two different letters (“${prev}” and “${k.output}”).`;
+    }
+    map.set(t, k.output);
+  }
+  return null;
+}
+
+/** One physical key label. Extra characters are dropped when pasting. */
+export function normalizeSinglePhysicalKey(value: string): string {
+  if (value.length <= 1) {
+    return value;
+  }
+  return value.slice(0, 1);
+}
+
+export type PhysicalKeyRow = { output: string; typedWith: string };
+
+/** Output letters that share the same physical key (case-insensitive) with another letter. */
+export function getOutputsWithDuplicatePhysicalKeys(rows: PhysicalKeyRow[]): Set<string> {
+  const byTyped = new Map<string, string[]>();
+  for (const r of rows) {
+    const k = r.typedWith.toLowerCase();
+    const list = byTyped.get(k) ?? [];
+    list.push(r.output);
+    byTyped.set(k, list);
+  }
+  const dups = new Set<string>();
+  for (const [, outputs] of byTyped) {
+    if (outputs.length > 1) {
+      outputs.forEach((o) => dups.add(o));
+    }
+  }
+  return dups;
+}
+
+/**
+ * Strips legacy object-shaped values; keeps only **output → typedWith** string maps per language.
+ */
+export function normalizeKeyboardLayoutOverrides(raw: unknown): KeyboardLayoutOverrides {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return {};
+  }
+
+  const result: KeyboardLayoutOverrides = {};
+
+  for (const [lang, inner] of Object.entries(raw as Record<string, unknown>)) {
+    if (!isLanguage(lang)) {
+      continue;
+    }
+    if (!inner || typeof inner !== 'object' || Array.isArray(inner)) {
+      continue;
+    }
+
+    const per: Record<string, string> = {};
+    for (const [key, value] of Object.entries(inner as Record<string, unknown>)) {
+      if (typeof value === 'string' && value.length > 0) {
+        per[key] = value;
+      }
+    }
+
+    if (Object.keys(per).length > 0) {
+      result[lang] = per;
+    }
+  }
+
+  return result;
 }
 
 function shouldUseShiftedCharacter(shiftKey: boolean, capsLock: boolean): boolean {
@@ -61,25 +199,59 @@ function buildRemapTable(layout: KeyboardLayout): Readonly<Record<string, KeyRem
   }, {});
 }
 
-const LANGUAGE_KEY_REMAP_TABLES: Readonly<Record<Language, Readonly<Record<string, KeyRemap>>>> = {
-  en: buildRemapTable(ENGLISH_LAYOUT),
-  de: buildRemapTable(GERMAN_LAYOUT),
-  ru: buildRemapTable(RUSSIAN_LAYOUT),
-};
-
 interface RemapArgs {
   language: Language;
   key: string;
+  code?: string;
   shiftKey: boolean;
   capsLock: boolean;
+  keyboardLayoutOverrides?: KeyboardLayoutOverrides;
 }
 
-export function getRemappedCharacter({ language, key, shiftKey, capsLock }: RemapArgs): string | null {
-  if (key.length !== 1) {
+const CODE_TO_PHYSICAL_KEY: Readonly<Record<string, string>> = {
+  Backquote: "`",
+  Minus: "-",
+  Equal: "=",
+  BracketLeft: "[",
+  BracketRight: "]",
+  Backslash: "\\",
+  Semicolon: ";",
+  Quote: "'",
+  Comma: ",",
+  Period: ".",
+  Slash: "/"
+};
+
+function codeToPhysicalKey(code?: string): string | null {
+  if (!code) {
+    return null;
+  }
+  if (code.startsWith("Key") && code.length === 4) {
+    return code.slice(3).toLowerCase();
+  }
+  if (code.startsWith("Digit") && code.length === 6) {
+    return code.slice(5);
+  }
+  return CODE_TO_PHYSICAL_KEY[code] ?? null;
+}
+
+export function getRemappedCharacter({
+  language,
+  key,
+  code,
+  shiftKey,
+  capsLock,
+  keyboardLayoutOverrides
+}: RemapArgs): string | null {
+  if (key.length !== 1 && !codeToPhysicalKey(code)) {
     return null;
   }
 
-  const remap = LANGUAGE_KEY_REMAP_TABLES[language][key.toLowerCase()];
+  const layout = getKeyboardLayout(language, keyboardLayoutOverrides);
+  const table = buildRemapTable(layout);
+  const keyCandidate = key.length === 1 ? key.toLowerCase() : null;
+  const codeCandidate = codeToPhysicalKey(code)?.toLowerCase() ?? null;
+  const remap = (keyCandidate ? table[keyCandidate] : undefined) ?? (codeCandidate ? table[codeCandidate] : undefined);
   if (!remap) {
     return null;
   }

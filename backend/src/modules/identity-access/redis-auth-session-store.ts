@@ -68,4 +68,11 @@ export class RedisAuthSessionStore implements AuthSessionStore {
   public async delete(sessionId: string): Promise<void> {
     await this.redis.del(this.key(sessionId));
   }
+
+  public async healthCheck(): Promise<void> {
+    const response = await this.redis.ping();
+    if (response !== "PONG") {
+      throw new Error("Redis ping failed");
+    }
+  }
 }

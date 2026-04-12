@@ -3,8 +3,8 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { buildApp } from "../../src/app.js";
 import { InMemoryAuthSessionStore } from "../../src/modules/identity-access/auth-session-store.js";
-import type { KeycloakOidcClient } from "../../src/modules/identity-access/keycloak-oidc-client.js";
 import { KeycloakOidcClientError } from "../../src/modules/identity-access/keycloak-oidc-client.js";
+import type { AuthPasswordLoginClient } from "../../src/modules/identity-access/auth-provider-clients.js";
 import type { TokenVerifier } from "../../src/modules/identity-access/token-verifier.js";
 import { ApiError } from "../../src/shared/api-error.js";
 import { createTestDocumentService } from "../helpers/test-document-service.js";
@@ -25,7 +25,7 @@ const tokenVerifier: TokenVerifier = {
 };
 
 describe("auth session routes", () => {
-  const keycloakOidcClient: KeycloakOidcClient = {
+  const passwordLoginClient: AuthPasswordLoginClient = {
     loginWithPassword: vi.fn(async () => ({
       accessToken: "good-token",
       expiresInSeconds: 3600
@@ -45,7 +45,7 @@ describe("auth session routes", () => {
     } as any,
     {
       tokenVerifier,
-      keycloakOidcClient,
+      keycloakOidcClient: passwordLoginClient,
       authSessionStore: new InMemoryAuthSessionStore(),
       documentService: createTestDocumentService(),
       settingsService: createTestSettingsService()
@@ -94,7 +94,7 @@ describe("auth session routes", () => {
       }
     });
     expect(response.headers["set-cookie"]).toBeDefined();
-    expect(vi.mocked(keycloakOidcClient.loginWithPassword)).toHaveBeenCalledWith({
+    expect(vi.mocked(passwordLoginClient.loginWithPassword)).toHaveBeenCalledWith({
       username: "alice@example.com",
       password: "secret"
     });
@@ -143,9 +143,23 @@ describe("auth session routes", () => {
   });
 
   it("POST /auth/login returns 401 for invalid credentials", async () => {
-    vi.mocked(keycloakOidcClient.loginWithPassword).mockRejectedValueOnce(
+    vi.mocked(passwordLoginClient.loginWithPassword).mockRejectedValueOnce(
       new KeycloakOidcClientError("KEYCLOAK_OIDC_INVALID_CREDENTIALS", "Invalid username or password")
     );
+
+    const response = await request(app.server).post("/auth/login").send({
+      username: "alice@example.com",
+      password: "wrong"
+    });
+
+    expect(response.status).toBe(401);
+    expect(response.body.code).toBe("AUTH_INVALID_CREDENTIALS");
+  });
+
+  it("POST /auth/login maps cognito invalid credentials to 401", async () => {
+    vi.mocked(passwordLoginClient.loginWithPassword).mockRejectedValueOnce({
+      code: "COGNITO_OIDC_INVALID_CREDENTIALS"
+    });
 
     const response = await request(app.server).post("/auth/login").send({
       username: "alice@example.com",
@@ -163,6 +177,6 @@ describe("auth session routes", () => {
     });
 
     expect(response.status).toBe(500);
-    expect(response.body.code).toBe("CONFIG_KEYCLOAK_OIDC_INCOMPLETE");
+    expect(response.body.code).toBe("CONFIG_AUTH_LOGIN_INCOMPLETE");
   });
 });

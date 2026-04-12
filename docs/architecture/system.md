@@ -10,7 +10,7 @@ This is the system-level architecture for the single backend that supports:
 ## Design Goals
 
 - One backend system, no story-specific backend silos.
-- Standards-based authentication (OIDC/Keycloak); the app does not store passwords.
+- Standards-based authentication (OIDC; local Keycloak and production Cognito support); the app does not store passwords.
 - Durable storage for documents, settings, and audit events; session tokens stored server-side (memory or Redis) when using cookie sessions.
 - Local-first development with minimal AWS architecture drift.
 
@@ -28,9 +28,8 @@ Naming conventions:
 
 Key architectural separations:
 
-- **Identity and access:** JWT verification, session-backed login/logout, Keycloak admin flows for register / password reset
-- **Documents:** user-owned document CRUD, sanitization, optional encryption at rest
-- **Documents:** user-owned document CRUD, folders, and per-document language-aware font metadata
+- **Identity and access:** JWT verification, session-backed login/logout, provider-adapter flows for register / password reset
+- **Documents:** user-owned document CRUD, folders, sanitization, optional encryption at rest, and per-document language-aware font metadata
 - **Input preferences:** per-user settings (`keyboardVisible`, `lastUsedLocale`)
 - **API edge:** centralized error mapping and health/readiness endpoints (no domain logic)
 - **Operational store:** append-only HTTP audit trail in PostgreSQL (no idempotency store in this codebase)
@@ -40,7 +39,8 @@ Key architectural separations:
 ```mermaid
 flowchart LR
   fe[ReactFrontend] -->|"Cookie + JSON API"| fastify[FastifyApp]
-  fastify -->|"Resource Owner Password"| kc[Keycloak]
+  fastify -->|"Dev login flow"| kc[Keycloak]
+  fastify -->|"Prod login flow"| cognito[Cognito]
   subgraph modules [Domain and cross-cutting plugins]
     edge[ApiEdge errors + health]
     idm[IdentityAccess]
@@ -50,6 +50,7 @@ flowchart LR
   end
   fastify --> modules
   idm -->|"JWKS verify access tokens"| kc
+  idm -->|"JWKS verify access tokens"| cognito
   docm --> pg[(PostgreSQL)]
   setm --> pg
   obs -->|"insert api_audit_events"| pg
@@ -57,7 +58,7 @@ flowchart LR
 
 ### Design Justification (Senior Review)
 
-- **Security boundary:** credential verification stays in Keycloak; GlossaDocs verifies **signed** JWTs and never persists user passwords.
+- **Security boundary:** credential verification stays in the configured IdP (Keycloak/Cognito); GlossaDocs verifies **signed** JWTs and never persists user passwords.
 - **Modular monolith:** avoids distributed-system overhead while keeping replaceable ports (`DocumentRepository`, `SettingsRepository`, `AuditWriter`).
 - **Extensibility:** Story 3 adds settings without changing document or auth contracts.
 - **Cloud portability:** same module boundaries for Docker Compose, ECS, or Lambda (see `README.md`).
@@ -77,7 +78,7 @@ flowchart LR
 ## Security Baseline
 
 - JWT verification: signature (JWKS), issuer, audience, expiry (`JoseTokenVerifier`).
-- Registration and password reset are **delegated to Keycloak** (Admin API). Current server code may mark new users **email-verified** for dev convenience; production posture should follow Keycloak realm policy (see `HttpKeycloakAdminClient` in the identity module doc).
+- Registration and password reset are delegated to the configured IdP adapter. Local Docker defaults still use Keycloak; production mode targets Cognito.
 - Ownership enforced in repositories: `owner_id = actorSub` for documents and settings.
 - Request bodies validated with **Zod** on mutating routes.
 - HTML sanitization on document write path (see [Document Module](modules/document-module.md)).
@@ -89,14 +90,14 @@ flowchart LR
 
 - 1 Fastify instance (example: 0.5 vCPU, 1 GB RAM)
 - 1 PostgreSQL instance with connection pooling (`backend/src/shared/db.ts`)
-- Keycloak single node for low traffic
+- Local Keycloak single node for low traffic dev environments
 
 This comfortably supports small-team CRUD + settings workloads; tune pools and instances for production SLAs.
 
 ## Deployment Mapping
 
 - **Local:** Docker Compose with API + PostgreSQL + Keycloak (+ optional Redis for sessions)
-- **AWS target:** API on ECS/EC2 or Lambda, PostgreSQL on RDS, Keycloak on ECS/EC2, CloudFront + ALB edge
+- **AWS auth target:** API Gateway + Lambda + Cognito + RDS PostgreSQL via RDS Proxy (+ Redis for sessions)
 
 ## Runtime Configuration
 
@@ -105,15 +106,20 @@ Variables consumed via `getConfig` / `buildApp` in this repo (see `backend/src/s
 | Variable | Purpose |
 |----------|---------|
 | `NODE_ENV` | `development` \| `test` \| `production` |
+| `APP_ENV` | `dev` \| `prod`; top-level runtime mode switch |
+| `AUTH_PROVIDER` | `keycloak` \| `cognito`; selects auth adapter |
 | `API_PORT` | Listen port |
 | `CORS_ALLOWED_ORIGINS` | Comma-separated origins or `*` (wildcard rejected in production with credentials) |
+| `API_BODY_LIMIT_BYTES` | Max JSON payload size for document saves (default 15 MiB) |
 | `DATABASE_URL` | PostgreSQL connection string |
 | `OIDC_ISSUER_URL`, `OIDC_AUDIENCE`, `OIDC_JWKS_URL` | JWT verification for `JoseTokenVerifier` |
 | `OIDC_PUBLIC_ISSUER_URL`, `OIDC_PUBLIC_CLIENT_ID`, `OIDC_PUBLIC_REDIRECT_URI` | Optional; `GET /auth/public` |
 | `KEYCLOAK_ADMIN_URL`, `KEYCLOAK_REALM`, `KEYCLOAK_ADMIN_USERNAME`, `KEYCLOAK_ADMIN_PASSWORD` | Keycloak Admin API (register / reset) |
 | `KEYCLOAK_TOKEN_URL`, `KEYCLOAK_CLIENT_ID`, `KEYCLOAK_CLIENT_SECRET` | Resource-owner password grant for `POST /auth/login` |
+| `COGNITO_REGION`, `COGNITO_USER_POOL_ID`, `COGNITO_CLIENT_ID`, `COGNITO_CLIENT_SECRET` | Cognito auth adapter config |
+| `COGNITO_PUBLIC_DOMAIN` | Cognito Hosted UI domain used by `GET /auth/public` |
 | `AUTH_SESSION_COOKIE_NAME`, `AUTH_SESSION_TTL_SECONDS`, `AUTH_SESSION_SECURE_COOKIE` | Session cookie |
 | `AUTH_SESSION_STORE`, `REDIS_URL`, `AUTH_REDIS_KEY_PREFIX` | `memory` (dev) or `redis` (production sessions) |
 | `DOCUMENT_ENCRYPTION_KEY` | Optional AES-GCM for document title/content at rest |
 
-For Lambda/OIDC deploy targets, see `README.md` (OIDC env vars for the handler).
+For AWS deployment/auth wiring and next-branch completion steps, see [deployment runbook](../deployment/aws-amplify-apigw-lambda-auth-runbook.md).

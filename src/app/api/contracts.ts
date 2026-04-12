@@ -1,4 +1,5 @@
 import type { Language } from "../utils/languages";
+import type { KeyboardLayoutOverrides } from "../utils/keyboardLayouts";
 
 export interface MeResponse {
   sub: string;
@@ -57,9 +58,11 @@ export interface UpdateApiFolderPayload {
 export interface UserSettings {
   lastUsedLocale: string;
   keyboardVisible: boolean;
+  keyboardLayoutOverrides: KeyboardLayoutOverrides;
 }
 
 export interface UpdateUserSettingsPayload {
   lastUsedLocale?: string;
   keyboardVisible?: boolean;
+  keyboardLayoutOverrides?: KeyboardLayoutOverrides;
 }

@@ -16,6 +16,7 @@ jobs:
     outputs:
       frontend: ${{ steps.filter.outputs.frontend }}
       backend: ${{ steps.filter.outputs.backend }}
+      infrastructure: ${{ steps.filter.outputs.infrastructure }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -38,6 +39,10 @@ jobs:
               - 'backend/**'
               - '.github/workflows/tests.yml'
               - '.github/workflows/run-backend-tests.yml'
+            infrastructure:
+              - 'infrastructure/**'
+              - '.github/workflows/tests.yml'
+              - '.github/workflows/run-infrastructure-tests.yml'
 
   font-catalogs:
     uses: ./.github/workflows/check-font-catalogs.yml
@@ -53,3 +58,9 @@ jobs:
     needs: changes
     if: needs.changes.outputs.backend == 'true'
     uses: ./.github/workflows/run-backend-tests.yml
+
+  infrastructure:
+    name: Infrastructure tests
+    needs: changes
+    if: needs.changes.outputs.infrastructure == 'true'
+    uses: ./.github/workflows/run-infrastructure-tests.yml

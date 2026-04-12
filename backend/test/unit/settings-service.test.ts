@@ -8,14 +8,16 @@ class InertSettingsRepository implements SettingsRepository {
   public async findByOwner() {
     return {
       lastUsedLocale: "en-US",
-      keyboardVisible: true
+      keyboardVisible: true,
+      keyboardLayoutOverrides: {}
     };
   }
 
   public async upsert() {
     return {
       lastUsedLocale: "en-US",
-      keyboardVisible: true
+      keyboardVisible: true,
+      keyboardLayoutOverrides: {}
     };
   }
 }

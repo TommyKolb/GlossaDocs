@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { ApiClientError } from "../api/client";
 import { authApi, type AuthSessionUser } from "../api/endpoints";
+import { resetRemoteDocumentCache } from "../data/remote-document-cache";
 
 export interface User {
   id: string;
@@ -35,12 +36,18 @@ function toAppUser(user: AuthSessionUser): User {
   };
 }
 
+function clearClientAuthState(): void {
+  localStorage.removeItem(USER_STORAGE_KEY);
+  resetRemoteDocumentCache();
+}
+
 export async function loginWithCredentials(credentials: LoginCredentials): Promise<User> {
   const data = await authApi.login({
     username: credentials.username,
     password: credentials.password
   });
 
+  resetRemoteDocumentCache();
   const user = toAppUser(data.user);
   localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
   return user;
@@ -59,6 +66,7 @@ export async function continueAsGuest(): Promise<User> {
     isGuest: true
   };
 
+  resetRemoteDocumentCache();
   // Store guest user in localStorage.
   localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(guestUser));
 
@@ -72,7 +80,7 @@ export async function logout(): Promise<void> {
     // Ignore network errors and still clear local state.
   }
 
-  localStorage.removeItem(USER_STORAGE_KEY);
+  clearClientAuthState();
 }
 
 export function getCurrentUser(): User | null {
@@ -82,14 +90,26 @@ export function getCurrentUser(): User | null {
     const parsed = JSON.parse(userJson);
     const result = storedUserSchema.safeParse(parsed);
     if (!result.success) {
-      localStorage.removeItem(USER_STORAGE_KEY);
+      clearClientAuthState();
       return null;
     }
     return result.data;
   } catch {
-    localStorage.removeItem(USER_STORAGE_KEY);
+    clearClientAuthState();
     return null;
   }
+}
+
+/** Max time to wait for `/auth/session` during startup so the UI never hangs on "Loading…" if the API is down. */
+const SESSION_BOOTSTRAP_TIMEOUT_MS = 12_000;
+
+function createSessionBootstrapSignal(): AbortSignal {
+  if (typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function") {
+    return AbortSignal.timeout(SESSION_BOOTSTRAP_TIMEOUT_MS);
+  }
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(), SESSION_BOOTSTRAP_TIMEOUT_MS);
+  return controller.signal;
 }
 
 export async function getAuthenticatedUserFromBackend(): Promise<User | null> {
@@ -99,9 +119,9 @@ export async function getAuthenticatedUserFromBackend(): Promise<User | null> {
   }
 
   try {
-    const data = await authApi.session();
+    const data = await authApi.session({ signal: createSessionBootstrapSignal() });
     if (!data.user) {
-      localStorage.removeItem(USER_STORAGE_KEY);
+      clearClientAuthState();
       return null;
     }
     const backendUser = toAppUser(data.user);
@@ -109,15 +129,19 @@ export async function getAuthenticatedUserFromBackend(): Promise<User | null> {
     return backendUser;
   } catch (error) {
     if (error instanceof ApiClientError) {
-      localStorage.removeItem(USER_STORAGE_KEY);
-      return null;
+      if (error.status === 401) {
+        clearClientAuthState();
+        return null;
+      }
+      if (isDevBuild) {
+        console.error("Session bootstrap failed with API error; keeping current user:", error);
+      }
+      return currentUser;
     }
     if (isDevBuild) {
       console.error("Failed to bootstrap user from /auth/session:", error);
     }
-    // Prevent entering a broken authenticated state where all writes fail.
-    localStorage.removeItem(USER_STORAGE_KEY);
-    return null;
+    return currentUser;
   }
 }
 

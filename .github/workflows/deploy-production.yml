@@ -106,6 +106,7 @@ jobs:
     environment: production
     env:
       DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+      SKIP_DB_MIGRATIONS: ${{ vars.SKIP_DB_MIGRATIONS || 'false' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -118,7 +119,20 @@ jobs:
       - name: Install backend dependencies
         run: npm --prefix backend ci
 
+      # TEMPORARY UNBLOCK:
+      # GitHub-hosted runners cannot reach private RDS Proxy endpoints directly.
+      # Set production variable SKIP_DB_MIGRATIONS=true only as a short-lived workaround
+      # after manually running migrations from inside the VPC.
+      # TODO: Replace with a VPC-attached migration runner (e.g., CodeBuild in VPC)
+      # and remove this bypass.
+      - name: Migration bypass notice (temporary)
+        if: ${{ env.SKIP_DB_MIGRATIONS == 'true' }}
+        run: |
+          echo "WARNING: SKIP_DB_MIGRATIONS=true. Migration step is bypassed."
+          echo "This is temporary and must be removed once VPC migration runner exists."
+
       - name: Run migrations (must succeed before release)
+        if: ${{ env.SKIP_DB_MIGRATIONS != 'true' }}
         run: npm --prefix backend run migrate:up
 
   deploy-application:

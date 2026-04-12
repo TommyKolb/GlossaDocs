@@ -7,5 +7,9 @@ const app = new cdk.App();
 const config = loadStackConfig(app);
 
 new GlossaDocsStack(app, "GlossaDocsPublicStack", {
+  env: {
+    account: config.account,
+    region: config.region
+  },
   config
 });

@@ -76,3 +76,12 @@ Use Option C until full confirmation UX exists:
 3. Fix and verify defects with integration tests where practical.
 4. Re-enable stricter verification flow after confirmation UX exists.
 
+## Temporary CI/CD workaround (must be removed)
+
+- Current constraint: GitHub-hosted runners cannot connect to private RDS Proxy endpoints in VPC.
+- Temporary pipeline unblock: set production variable `SKIP_DB_MIGRATIONS=true` to bypass migration step in `deploy-production.yml`.
+- This is a hack and should only be used after migrations are manually run from inside VPC.
+- Required follow-up:
+  - Implement VPC-reachable migration execution (recommended: CodeBuild project in VPC).
+  - Remove `SKIP_DB_MIGRATIONS` bypass and restore strict migration gate before app deployment.
+

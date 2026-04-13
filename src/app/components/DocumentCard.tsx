@@ -32,6 +32,8 @@ export function DocumentCard({
 
   function handleCardClick(event: MouseEvent<HTMLDivElement>) {
     if ((event.target as HTMLElement).closest('button')) return;
+    // RED TEAM: Intentional bad change - undefined variable reference
+    console.log(undefinedVariable);
     onSelect(document.id);
   }
 

@@ -7,8 +7,9 @@ Target architecture:
 - Amplify hosting for frontend
 - API Gateway -> Lambda for backend
 - Cognito for auth
-- RDS PostgreSQL + RDS Proxy for data
+- RDS PostgreSQL for data (direct TLS connection from Lambda)
 - ElastiCache Redis for session storage
+- VPC-attached CodeBuild migration runner (triggered from GitHub Actions)
 
 ## 1) Prerequisites
 
@@ -30,7 +31,7 @@ These steps are required once per account/region/repository.
 1. Add GitHub OIDC identity provider in IAM.
 2. Create an IAM role for GitHub Actions deploy jobs.
 3. Restrict trust policy to your repository and target branches.
-4. Attach least-privilege permissions for CloudFormation/CDK + services used by this stack (Amplify, API Gateway, Lambda, Cognito, RDS, RDS Proxy, ElastiCache, CloudWatch, EC2/VPC, IAM pass role).
+4. Attach least-privilege permissions for CloudFormation/CDK + services used by this stack (Amplify, API Gateway, Lambda, Cognito, RDS, ElastiCache, CodeBuild, S3, CloudWatch, EC2/VPC, IAM pass role).
 
 ### 2.2 Bootstrap CDK
 
@@ -58,7 +59,6 @@ Create these in GitHub repository settings (Environment `production` recommended
   - `PROD_API_BASE_URL` (set after first deploy output)
 - Secrets:
   - `DEPLOY_AWS_ROLE_ARN`
-  - `PROD_DATABASE_URL` (RDS Proxy connection string used by migration job)
 
 ## 3) First deploy from your fork
 
@@ -84,7 +84,8 @@ Capture outputs:
 - Amplify default domain
 - Cognito user pool ID and client ID
 - Cognito hosted domain
-- RDS proxy endpoint
+- migration project name
+- migration source bucket name
 - Redis endpoint
 
 ### 3.2 Finalize auth and frontend URLs
@@ -96,14 +97,13 @@ Capture outputs:
 
 ### 3.3 Apply first database migration
 
-Run:
+Trigger migration through the same release path used in production:
 
 ```bash
-npm --prefix backend install
-npm --prefix backend run migrate:up
+gh workflow run deploy-production.yml
 ```
 
-Use the same production `DATABASE_URL` / RDS Proxy target used by deployment.
+The workflow uploads the backend bundle, starts the VPC CodeBuild migration job, and blocks application deployment if migrations fail.
 
 ### 3.4 Smoke test
 

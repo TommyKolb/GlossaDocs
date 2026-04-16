@@ -74,7 +74,7 @@ See [backend/.env.example](backend/.env.example) and the AWS auth runbook:
 
 ## Public AWS deployment
 
-Production deployment targets AWS Amplify + API Gateway + Lambda + Cognito + RDS Proxy + Redis.
+Production deployment targets AWS Amplify + API Gateway + Lambda + Cognito + RDS PostgreSQL (direct TLS connection) + Redis, with a VPC-attached CodeBuild migration runner.
 
 - Maintainer runbook (one-time bootstrap + release flow): [docs/deployment/aws-amplify-apigw-lambda-auth-runbook.md](docs/deployment/aws-amplify-apigw-lambda-auth-runbook.md)
 - Fork maintainer setup guide (from zero in your own AWS account): [docs/deployment/aws-fork-bootstrap.md](docs/deployment/aws-fork-bootstrap.md)

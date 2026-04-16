@@ -97,7 +97,7 @@ This comfortably supports small-team CRUD + settings workloads; tune pools and i
 ## Deployment Mapping
 
 - **Local:** Docker Compose with API + PostgreSQL + Keycloak (+ optional Redis for sessions)
-- **AWS auth target:** API Gateway + Lambda + Cognito + RDS PostgreSQL via RDS Proxy (+ Redis for sessions)
+- **AWS auth target:** API Gateway + Lambda + Cognito + RDS PostgreSQL direct TLS (+ Redis for sessions), plus VPC CodeBuild migrations before release
 
 ## Runtime Configuration
 

@@ -4,7 +4,7 @@ This document tracks application-level issues discovered after successful AWS de
 
 Scope:
 
-- Deployment stack is functioning (Amplify, API Gateway, Lambda, Cognito, RDS Proxy, Redis).
+- Deployment stack is functioning (Amplify, API Gateway, Lambda, Cognito, direct RDS, Redis, VPC CodeBuild migrations).
 - Items below are product/auth behavior bugs or UX gaps to address in follow-up PRs.
 
 ## Status snapshot
@@ -76,12 +76,9 @@ Use Option C until full confirmation UX exists:
 3. Fix and verify defects with integration tests where practical.
 4. Re-enable stricter verification flow after confirmation UX exists.
 
-## Temporary CI/CD workaround (must be removed)
+## Deployment pipeline status (current)
 
-- Current constraint: GitHub-hosted runners cannot connect to private RDS Proxy endpoints in VPC.
-- Temporary pipeline unblock: set production variable `SKIP_DB_MIGRATIONS=true` to bypass migration step in `deploy-production.yml`.
-- This is a hack and should only be used after migrations are manually run from inside VPC.
-- Required follow-up:
-  - Implement VPC-reachable migration execution (recommended: CodeBuild project in VPC).
-  - Remove `SKIP_DB_MIGRATIONS` bypass and restore strict migration gate before app deployment.
+- Migrations execute in a VPC-attached CodeBuild project before application deployment.
+- Production release remains blocked until migration build reports success.
+- GitHub-hosted runners no longer run direct DB migrations against private endpoints.
 

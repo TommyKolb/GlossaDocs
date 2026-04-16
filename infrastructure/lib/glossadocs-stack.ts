@@ -3,13 +3,16 @@ import * as cdk from "aws-cdk-lib";
 import { Duration, RemovalPolicy, SecretValue } from "aws-cdk-lib";
 import * as amplify from "aws-cdk-lib/aws-amplify";
 import * as apigateway from "aws-cdk-lib/aws-apigateway";
+import * as codebuild from "aws-cdk-lib/aws-codebuild";
 import * as cloudwatch from "aws-cdk-lib/aws-cloudwatch";
 import * as cognito from "aws-cdk-lib/aws-cognito";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
 import * as elasticache from "aws-cdk-lib/aws-elasticache";
 import * as lambda from "aws-cdk-lib/aws-lambda";
+import * as logs from "aws-cdk-lib/aws-logs";
 import * as rds from "aws-cdk-lib/aws-rds";
 import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
+import * as s3 from "aws-cdk-lib/aws-s3";
 import * as wafv2 from "aws-cdk-lib/aws-wafv2";
 import { Construct } from "constructs";
 import type { StackConfig } from "./stack-config.js";
@@ -27,7 +30,7 @@ export class GlossaDocsStack extends cdk.Stack {
 
     const vpc = new ec2.Vpc(this, "AppVpc", {
       availabilityZones: [`${config.region}a`, `${config.region}b`],
-      natGateways: 1,
+      natGateways: 0,
       subnetConfiguration: [
         {
           name: "public",
@@ -35,7 +38,7 @@ export class GlossaDocsStack extends cdk.Stack {
         },
         {
           name: "app",
-          subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS
+          subnetType: ec2.SubnetType.PRIVATE_ISOLATED
         },
         {
           name: "data",
@@ -62,8 +65,68 @@ export class GlossaDocsStack extends cdk.Stack {
       allowAllOutbound: false
     });
 
+    const migrationRunnerSg = new ec2.SecurityGroup(this, "MigrationRunnerSg", {
+      vpc,
+      description: "CodeBuild migration runner access to PostgreSQL",
+      allowAllOutbound: true
+    });
+
+    const vpcEndpointSg = new ec2.SecurityGroup(this, "VpcEndpointSg", {
+      vpc,
+      description: "Interface endpoint security group",
+      allowAllOutbound: false
+    });
+
     dbSg.addIngressRule(lambdaSg, ec2.Port.tcp(5432), "Lambda to PostgreSQL");
+    dbSg.addIngressRule(migrationRunnerSg, ec2.Port.tcp(5432), "CodeBuild to PostgreSQL");
     redisSg.addIngressRule(lambdaSg, ec2.Port.tcp(6379), "Lambda to Redis");
+    vpcEndpointSg.addIngressRule(lambdaSg, ec2.Port.tcp(443), "Lambda to VPC interface endpoints");
+    vpcEndpointSg.addIngressRule(
+      migrationRunnerSg,
+      ec2.Port.tcp(443),
+      "CodeBuild to VPC interface endpoints"
+    );
+
+    vpc.addGatewayEndpoint("S3GatewayEndpoint", {
+      service: ec2.GatewayVpcEndpointAwsService.S3,
+      subnets: [{ subnetType: ec2.SubnetType.PRIVATE_ISOLATED }]
+    });
+
+    vpc.addInterfaceEndpoint("CloudWatchLogsEndpoint", {
+      service: ec2.InterfaceVpcEndpointAwsService.CLOUDWATCH_LOGS,
+      subnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
+      securityGroups: [vpcEndpointSg]
+    });
+
+    vpc.addInterfaceEndpoint("SecretsManagerEndpoint", {
+      service: ec2.InterfaceVpcEndpointAwsService.SECRETS_MANAGER,
+      subnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
+      securityGroups: [vpcEndpointSg]
+    });
+
+    vpc.addInterfaceEndpoint("CognitoIdpEndpoint", {
+      service: ec2.InterfaceVpcEndpointAwsService.COGNITO_IDP,
+      subnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
+      securityGroups: [vpcEndpointSg]
+    });
+
+    vpc.addInterfaceEndpoint("StsEndpoint", {
+      service: ec2.InterfaceVpcEndpointAwsService.STS,
+      subnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
+      securityGroups: [vpcEndpointSg]
+    });
+
+    vpc.addInterfaceEndpoint("EcrApiEndpoint", {
+      service: ec2.InterfaceVpcEndpointAwsService.ECR,
+      subnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
+      securityGroups: [vpcEndpointSg]
+    });
+
+    vpc.addInterfaceEndpoint("EcrDockerEndpoint", {
+      service: ec2.InterfaceVpcEndpointAwsService.ECR_DOCKER,
+      subnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
+      securityGroups: [vpcEndpointSg]
+    });
 
     const dbCredentials = new secretsmanager.Secret(this, "DbCredentialsSecret", {
       generateSecretString: {
@@ -91,16 +154,6 @@ export class GlossaDocsStack extends cdk.Stack {
       storageEncrypted: true,
       multiAz: false,
       publiclyAccessible: false
-    });
-
-    const dbProxy = db.addProxy("DatabaseProxy", {
-      vpc,
-      securityGroups: [dbSg],
-      dbProxyName: "glossadocs-rds-proxy",
-      secrets: [dbCredentials],
-      iamAuth: false,
-      requireTLS: true,
-      maxConnectionsPercent: 90
     });
 
     const redisAuthToken = new secretsmanager.Secret(this, "RedisAuthToken", {
@@ -132,6 +185,79 @@ export class GlossaDocsStack extends cdk.Stack {
       automaticFailoverEnabled: false
     });
 
+    const migrationSourceBucket = new s3.Bucket(this, "MigrationSourceBucket", {
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      enforceSSL: true,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      lifecycleRules: [
+        {
+          expiration: Duration.days(7)
+        }
+      ]
+    });
+
+    const migrationLogGroup = new logs.LogGroup(this, "MigrationCodeBuildLogGroup", {
+      retention: logs.RetentionDays.TWO_WEEKS
+    });
+
+    const backendLambdaLogGroup = new logs.LogGroup(this, "BackendLambdaLogGroup", {
+      retention: logs.RetentionDays.TWO_WEEKS
+    });
+
+    const migrationProject = new codebuild.Project(this, "DatabaseMigrationProject", {
+      projectName: "glossadocs-db-migrations",
+      description: "Runs PostgreSQL migrations inside the VPC before application release.",
+      vpc,
+      securityGroups: [migrationRunnerSg],
+      subnetSelection: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
+      source: codebuild.Source.s3({
+        bucket: migrationSourceBucket,
+        path: "placeholder/migration-source.zip"
+      }),
+      environment: {
+        buildImage: codebuild.LinuxBuildImage.STANDARD_7_0
+      },
+      timeout: Duration.minutes(15),
+      logging: {
+        cloudWatch: {
+          enabled: true,
+          logGroup: migrationLogGroup
+        }
+      },
+      environmentVariables: {
+        DB_SECRET_ARN: {
+          value: dbCredentials.secretArn
+        },
+        DB_HOST: {
+          value: db.instanceEndpoint.hostname
+        },
+        DB_PORT: {
+          value: "5432"
+        },
+        DB_NAME: {
+          value: "glossadocs"
+        }
+      },
+      buildSpec: codebuild.BuildSpec.fromObject({
+        version: "0.2",
+        phases: {
+          build: {
+            commands: [
+              "test -f backend/node_modules/.bin/node-pg-migrate",
+              "DB_SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id \"$DB_SECRET_ARN\" --query SecretString --output text)",
+              "DB_USERNAME=$(echo \"$DB_SECRET_JSON\" | node -e \"let data='';process.stdin.on('data',chunk=>data+=chunk);process.stdin.on('end',()=>process.stdout.write(JSON.parse(data).username));\")",
+              "DB_PASSWORD=$(echo \"$DB_SECRET_JSON\" | node -e \"let data='';process.stdin.on('data',chunk=>data+=chunk);process.stdin.on('end',()=>process.stdout.write(JSON.parse(data).password));\")",
+              "export DATABASE_URL=\"postgresql://${DB_USERNAME}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=require\"",
+              "backend/node_modules/.bin/node-pg-migrate -m backend/migrations up"
+            ]
+          }
+        }
+      })
+    });
+
+    dbCredentials.grantRead(migrationProject);
+    migrationSourceBucket.grantRead(migrationProject);
+
     const amplifyApp = new amplify.CfnApp(this, "FrontendAmplifyApp", {
       name: "glossadocs",
       description: "GlossaDocs public frontend",
@@ -144,7 +270,7 @@ export class GlossaDocsStack extends cdk.Stack {
       appId: amplifyApp.attrAppId,
       branchName: "main",
       stage: "PRODUCTION",
-      enableAutoBuild: true
+      enableAutoBuild: false
     });
 
     const callbackUrl = cdk.Fn.join("", [
@@ -209,7 +335,7 @@ export class GlossaDocsStack extends cdk.Stack {
       ":",
       dbCredentials.secretValueFromJson("password").toString(),
       "@",
-      dbProxy.endpoint,
+      db.instanceEndpoint.hostname,
       ":5432/glossadocs?sslmode=require"
     ]);
 
@@ -230,9 +356,11 @@ export class GlossaDocsStack extends cdk.Stack {
       }),
       timeout: Duration.seconds(30),
       memorySize: 1024,
+      reservedConcurrentExecutions: 10,
+      logGroup: backendLambdaLogGroup,
       vpc,
       securityGroups: [lambdaSg],
-      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
       environment: {
         APP_ENV: config.appEnv,
         NODE_ENV: "production",
@@ -372,9 +500,14 @@ export class GlossaDocsStack extends cdk.Stack {
       exportName: "GlossaDocsCognitoHostedDomain"
     });
 
-    new cdk.CfnOutput(this, "RdsProxyEndpoint", {
-      value: dbProxy.endpoint,
-      exportName: "GlossaDocsRdsProxyEndpoint"
+    new cdk.CfnOutput(this, "MigrationProjectName", {
+      value: migrationProject.projectName,
+      exportName: "GlossaDocsMigrationProjectName"
+    });
+
+    new cdk.CfnOutput(this, "MigrationSourceBucketName", {
+      value: migrationSourceBucket.bucketName,
+      exportName: "GlossaDocsMigrationSourceBucketName"
     });
 
     new cdk.CfnOutput(this, "RedisEndpoint", {

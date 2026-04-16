@@ -62,13 +62,14 @@ All **application** relational state is in the database named in **`DATABASE_URL
 For the AWS deployment completion branch, the chosen production data path is:
 
 - **RDS PostgreSQL** as the primary relational database
-- **RDS Proxy** as the Lambda connection endpoint (`DATABASE_URL`)
+- **Direct TLS connection** from Lambda to the RDS instance endpoint (`DATABASE_URL`)
 - **ElastiCache Redis** for auth sessions (`AUTH_SESSION_STORE=redis`)
+- **VPC-attached CodeBuild** migration job for schema changes before app release
 
 Why this strategy:
 
 - keeps parity with the current PostgreSQL data model and migrations
-- reduces Lambda connection pressure via RDS Proxy
+- removes always-on proxy baseline cost for current low-traffic stage
 - avoids unnecessary platform churn while deployment is being stabilized
 
 Deployment completion steps are documented in:

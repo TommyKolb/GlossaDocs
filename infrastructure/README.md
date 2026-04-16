@@ -5,8 +5,10 @@ This directory contains AWS CDK infrastructure for public production deployment:
 - Amplify frontend hosting
 - API Gateway -> Lambda backend
 - Cognito user pool + app client + hosted domain
-- RDS PostgreSQL + RDS Proxy
+- RDS PostgreSQL (direct Lambda connection, TLS required)
 - ElastiCache Redis for session storage
+- VPC-attached CodeBuild migration runner + S3 source bundle
+- VPC endpoints for private AWS service access (no NAT Gateway)
 - CloudWatch alarms and optional WAF baseline
 
 ## Prerequisites

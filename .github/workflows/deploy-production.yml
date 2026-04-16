@@ -80,7 +80,6 @@ jobs:
           test -n "${{ vars.GLOSSADOCS_GITHUB_TOKEN_SECRET_ARN }}"
           test -n "${{ vars.GLOSSADOCS_BACKEND_CORS_ORIGIN }}"
           test -n "${{ secrets.DEPLOY_AWS_ROLE_ARN }}"
-          test -n "${{ secrets.PROD_DATABASE_URL }}"
 
       - uses: actions/setup-node@v4
         with:
@@ -104,9 +103,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: deploy-infrastructure
     environment: production
-    env:
-      DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
-      SKIP_DB_MIGRATIONS: ${{ vars.SKIP_DB_MIGRATIONS || 'false' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -119,21 +115,50 @@ jobs:
       - name: Install backend dependencies
         run: npm --prefix backend ci
 
-      # TEMPORARY UNBLOCK:
-      # GitHub-hosted runners cannot reach private RDS Proxy endpoints directly.
-      # Set production variable SKIP_DB_MIGRATIONS=true only as a short-lived workaround
-      # after manually running migrations from inside the VPC.
-      # TODO: Replace with a VPC-attached migration runner (e.g., CodeBuild in VPC)
-      # and remove this bypass.
-      - name: Migration bypass notice (temporary)
-        if: ${{ env.SKIP_DB_MIGRATIONS == 'true' }}
-        run: |
-          echo "WARNING: SKIP_DB_MIGRATIONS=true. Migration step is bypassed."
-          echo "This is temporary and must be removed once VPC migration runner exists."
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.DEPLOY_AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
 
-      - name: Run migrations (must succeed before release)
-        if: ${{ env.SKIP_DB_MIGRATIONS != 'true' }}
-        run: npm --prefix backend run migrate:up
+      - name: Resolve migration runner resources
+        run: |
+          STACK_NAME="GlossaDocsPublicStack"
+          MIGRATION_PROJECT_NAME=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --query "Stacks[0].Outputs[?OutputKey=='MigrationProjectName'].OutputValue | [0]" --output text)
+          MIGRATION_SOURCE_BUCKET_NAME=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --query "Stacks[0].Outputs[?OutputKey=='MigrationSourceBucketName'].OutputValue | [0]" --output text)
+          test "$MIGRATION_PROJECT_NAME" != "None"
+          test "$MIGRATION_SOURCE_BUCKET_NAME" != "None"
+          echo "MIGRATION_PROJECT_NAME=$MIGRATION_PROJECT_NAME" >> "$GITHUB_ENV"
+          echo "MIGRATION_SOURCE_BUCKET_NAME=$MIGRATION_SOURCE_BUCKET_NAME" >> "$GITHUB_ENV"
+
+      - name: Package migration source bundle
+        run: |
+          zip -qr migration-source.zip backend
+
+      - name: Upload migration source bundle to S3
+        run: |
+          BUNDLE_KEY="migrations/${GITHUB_SHA}.zip"
+          aws s3 cp migration-source.zip "s3://${MIGRATION_SOURCE_BUCKET_NAME}/${BUNDLE_KEY}"
+          echo "MIGRATION_SOURCE_KEY=$BUNDLE_KEY" >> "$GITHUB_ENV"
+
+      - name: Run migrations in VPC CodeBuild project
+        run: |
+          BUILD_ID=$(aws codebuild start-build --project-name "$MIGRATION_PROJECT_NAME" --source-type-override S3 --source-location-override "${MIGRATION_SOURCE_BUCKET_NAME}/${MIGRATION_SOURCE_KEY}" --query "build.id" --output text)
+          echo "Started migration build: $BUILD_ID"
+          LOG_URL=$(aws codebuild batch-get-builds --ids "$BUILD_ID" --query "builds[0].logs.deepLink" --output text)
+          echo "Migration build logs: $LOG_URL"
+          while true; do
+            STATUS=$(aws codebuild batch-get-builds --ids "$BUILD_ID" --query "builds[0].buildStatus" --output text)
+            echo "Migration build status: $STATUS"
+            if [ "$STATUS" = "SUCCEEDED" ]; then
+              break
+            fi
+            if [ "$STATUS" = "FAILED" ] || [ "$STATUS" = "FAULT" ] || [ "$STATUS" = "STOPPED" ] || [ "$STATUS" = "TIMED_OUT" ]; then
+              echo "Migration build failed with status $STATUS"
+              exit 1
+            fi
+            sleep 15
+          done
 
   deploy-application:
     runs-on: ubuntu-latest

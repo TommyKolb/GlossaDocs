@@ -22,13 +22,14 @@ Current branch foundation:
 ### Chosen strategy
 
 - **Primary DB:** Amazon RDS for PostgreSQL
-- **Lambda connection path:** **RDS Proxy** (required for Lambda runtime)
+- **Lambda connection path:** direct TLS connection to the RDS instance endpoint
 - **Session store:** ElastiCache Redis (`AUTH_SESSION_STORE=redis`)
+- **Migration execution:** VPC-attached CodeBuild project triggered by GitHub Actions
 
 ### Why this option
 
 - Minimal app changes from current PostgreSQL model
-- Strong operational fit for Lambda connection management
+- Removes always-on RDS Proxy baseline cost
 - Predictable migration path from existing local/Postgres workflows
 
 ### Options considered
@@ -36,7 +37,7 @@ Current branch foundation:
 
 | Option                          | Decision   | Notes                                             |
 | ------------------------------- | ---------- | ------------------------------------------------- |
-| RDS PostgreSQL + RDS Proxy      | **Chosen** | Best balance of risk, effort, and reliability     |
+| RDS PostgreSQL (direct TLS)     | **Chosen** | Lowest baseline cost for current traffic profile   |
 | Aurora PostgreSQL Serverless v2 | Deferred   | Viable later if autoscaling pressure justifies it |
 | Self-managed PostgreSQL         | Rejected   | High ops burden for this project stage            |
 
@@ -69,7 +70,7 @@ Backend (`backend/.env` or Lambda environment):
 - `AUTH_SESSION_SECURE_COOKIE=true`
 - `AUTH_SESSION_STORE=redis`
 - `REDIS_URL=<elasticache-connection-url>`
-- `DATABASE_URL=<rds-proxy-connection-string>`
+- `DATABASE_URL=<rds-connection-string-with-sslmode=require>`
 - `COGNITO_REGION=<region>`
 - `COGNITO_USER_POOL_ID=<user-pool-id>`
 - `COGNITO_CLIENT_ID=<app-client-id>`
@@ -97,7 +98,7 @@ Complete this checklist once per AWS account/region/repository before the first 
 2. **Configure GitHub Actions -> AWS trust (OIDC)**
   - Add GitHub OIDC identity provider in IAM.
   - Create deploy IAM role trusted by this repository/workflow.
-  - Grant least-privilege permissions required for CDK/CloudFormation, IAM pass-role, Lambda, API Gateway, Amplify, Cognito, RDS, RDS Proxy, ElastiCache, EC2 networking, and CloudWatch.
+  - Grant least-privilege permissions required for CDK/CloudFormation, IAM pass-role, Lambda, API Gateway, Amplify, Cognito, RDS, ElastiCache, CodeBuild, S3, EC2 networking, and CloudWatch.
 3. **Bootstrap CDK**
   - Run `cdk bootstrap aws://<account-id>/<region>` for the production target.
   - Confirm bootstrap stack/resources exist.
@@ -113,10 +114,10 @@ Complete this checklist once per AWS account/region/repository before the first 
   - Set Cognito callback and logout URLs to actual frontend domains.
   - Confirm callback path matches frontend behavior (for example `/auth/callback`).
 8. **Set production runtime configuration**
-  - Ensure backend receives required production variables (`APP_ENV=prod`, Cognito values, `DATABASE_URL` via RDS Proxy, `REDIS_URL`, strict CORS origin).
+  - Ensure backend receives required production variables (`APP_ENV=prod`, Cognito values, `DATABASE_URL` direct to RDS with TLS, `REDIS_URL`, strict CORS origin).
   - Ensure Amplify has `VITE_API_BASE_URL` set to production API.
 9. **Run first migrations and smoke checks**
-  - Run `npm --prefix backend run migrate:up` against production `DATABASE_URL`.
+  - Trigger the production workflow migration stage (VPC CodeBuild) and confirm it succeeds.
   - Verify `/health`, `/ready`, auth flow, and one authenticated CRUD route.
 10. **Enable alarms and rollback readiness**
   - Confirm CloudWatch alarms are active.
@@ -143,19 +144,19 @@ Execute in this order:
 
 1. **Infrastructure as code**
   - Provision Cognito (user pool, app client, hosted UI domain)
-  - Provision RDS PostgreSQL and RDS Proxy
+  - Provision RDS PostgreSQL (direct endpoint access from Lambda)
   - Provision ElastiCache Redis
   - Provision Lambda + API Gateway + IAM
   - Provision Amplify app/branch config
 2. **Backend production wiring**
-  - Point `DATABASE_URL` to RDS Proxy
+  - Point `DATABASE_URL` to the RDS endpoint with TLS required
   - Set production Redis and Cognito variables
   - Finalize cookie and CORS settings for real domains
 3. **Frontend production wiring**
   - Set Amplify `VITE_API_BASE_URL` to API Gateway/custom domain
   - Validate sign-in/sign-up/password-reset and authenticated CRUD
 4. **Migration and release workflow**
-  - Run `node-pg-migrate` in CI/release job before Lambda traffic shift
+  - Run `node-pg-migrate` in VPC-attached CodeBuild before Lambda traffic shift
   - Deploy Lambda only after successful migrations
 5. **Go-live hardening**
   - Add API Gateway throttling/WAF baseline
@@ -201,7 +202,7 @@ Do not run `node-pg-migrate` inside Lambda invocations.
 Use a dedicated migration step during release:
 
 1. Deploy database migration job (or CI step) using backend package.
-2. Run `npm --prefix backend run migrate:up` against production `DATABASE_URL` (RDS Proxy endpoint).
+2. Trigger the VPC CodeBuild migration project from CI using the uploaded backend source bundle.
 3. Deploy Lambda code after successful migrations.
 
 ## 10) Auth Endpoint Contract (Stable)
@@ -249,7 +250,7 @@ All items below must be true:
 - Amplify serves production frontend with correct API base URL
 - API Gateway routes to Lambda successfully for all `/auth/`*, `/me`, `/documents`, `/folders`, `/settings`
 - Cognito registration/login/password-reset flows work end-to-end
-- RDS PostgreSQL is reachable through RDS Proxy from Lambda
+- RDS PostgreSQL is reachable directly from Lambda with TLS
 - Redis session store is healthy in production mode
 - CI/CD migration step runs before Lambda release
 - Post-deploy smoke tests and alarms are in place

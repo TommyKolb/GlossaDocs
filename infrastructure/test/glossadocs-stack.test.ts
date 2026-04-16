@@ -1,6 +1,6 @@
 import * as cdk from "aws-cdk-lib";
 import { Match, Template } from "aws-cdk-lib/assertions";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { GlossaDocsStack } from "../lib/glossadocs-stack.js";
 import type { StackConfig } from "../lib/stack-config.js";
 
@@ -28,21 +28,34 @@ function createTemplate(): Template {
 }
 
 describe("GlossaDocsStack", () => {
-  it("provisions core AWS resources", () => {
-    const template = createTemplate();
+  let template: Template;
 
+  beforeAll(
+    () => {
+      template = createTemplate();
+    },
+    120000
+  );
+
+  it(
+    "provisions core AWS resources",
+    () => {
     template.resourceCountIs("AWS::Cognito::UserPool", 1);
     template.resourceCountIs("AWS::ApiGateway::RestApi", 1);
     template.resourceCountIs("AWS::Lambda::Function", 1);
     template.resourceCountIs("AWS::RDS::DBInstance", 1);
-    template.resourceCountIs("AWS::RDS::DBProxy", 1);
+    template.resourceCountIs("AWS::RDS::DBProxy", 0);
     template.resourceCountIs("AWS::ElastiCache::ReplicationGroup", 1);
+    template.resourceCountIs("AWS::CodeBuild::Project", 1);
+    template.resourceCountIs("AWS::EC2::NatGateway", 0);
     template.resourceCountIs("AWS::Amplify::App", 1);
-  });
+    },
+    30000
+  );
 
-  it("sets production security and runtime defaults", () => {
-    const template = createTemplate();
-
+  it(
+    "sets production security and runtime defaults",
+    () => {
     template.hasResourceProperties("AWS::ApiGateway::Stage", {
       MethodSettings: Match.arrayWith([
         Match.objectLike({
@@ -70,11 +83,13 @@ describe("GlossaDocsStack", () => {
       TransitEncryptionEnabled: true,
       AtRestEncryptionEnabled: true
     });
-  });
+    },
+    30000
+  );
 
-  it("attaches managed WAF rules when enabled", () => {
-    const template = createTemplate();
-
+  it(
+    "attaches managed WAF rules when enabled",
+    () => {
     template.hasResourceProperties("AWS::WAFv2::WebACL", {
       Scope: "REGIONAL",
       Rules: Match.arrayWith([
@@ -85,10 +100,13 @@ describe("GlossaDocsStack", () => {
     });
 
     template.resourceCountIs("AWS::WAFv2::WebACLAssociation", 1);
-  });
+    },
+    30000
+  );
 
-  it("exports machine-readable deployment outputs", () => {
-    const template = createTemplate();
+  it(
+    "exports machine-readable deployment outputs",
+    () => {
     const outputs = template.toJSON().Outputs;
     const outputKeys = Object.keys(outputs ?? {});
 
@@ -99,10 +117,13 @@ describe("GlossaDocsStack", () => {
         "CognitoUserPoolId",
         "CognitoClientId",
         "CognitoHostedDomain",
-        "RdsProxyEndpoint",
+        "MigrationProjectName",
+        "MigrationSourceBucketName",
         "RedisEndpoint",
         "DatabaseCredentialsSecretArn"
       ])
     );
-  });
+    },
+    30000
+  );
 });

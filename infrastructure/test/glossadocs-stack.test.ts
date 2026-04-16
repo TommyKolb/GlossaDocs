@@ -83,6 +83,15 @@ describe("GlossaDocsStack", () => {
       TransitEncryptionEnabled: true,
       AtRestEncryptionEnabled: true
     });
+
+    template.hasResourceProperties("AWS::CodeBuild::Project", {
+      Environment: {
+        EnvironmentVariables: Match.arrayWith([
+          Match.objectLike({ Name: "DB_USERNAME", Type: "SECRETS_MANAGER" }),
+          Match.objectLike({ Name: "DB_PASSWORD", Type: "SECRETS_MANAGER" })
+        ])
+      }
+    });
     },
     30000
   );
@@ -114,6 +123,7 @@ describe("GlossaDocsStack", () => {
       expect.arrayContaining([
         "ApiBaseUrl",
         "AmplifyDefaultDomain",
+        "AmplifyAppId",
         "CognitoUserPoolId",
         "CognitoClientId",
         "CognitoHostedDomain",
@@ -123,6 +133,33 @@ describe("GlossaDocsStack", () => {
         "DatabaseCredentialsSecretArn"
       ])
     );
+    },
+    30000
+  );
+
+  it(
+    "omits WAF resources when disabled",
+    () => {
+      const app = new cdk.App();
+      const config: StackConfig = {
+        account: "111111111111",
+        region: "us-east-1",
+        githubOwner: "example",
+        githubRepository: "glossadocs",
+        githubTokenSecretArn: "arn:aws:secretsmanager:us-east-1:111111111111:secret:github-token",
+        backendCorsOrigin: "https://main.example.amplifyapp.com",
+        frontendCallbackPath: "/auth/callback",
+        frontendLogoutPath: "/",
+        appEnv: "prod",
+        enableWaf: false
+      };
+      const stack = new GlossaDocsStack(app, "TestGlossaDocsStackNoWaf", {
+        env: { account: config.account, region: config.region },
+        config
+      });
+      const noWafTemplate = Template.fromStack(stack);
+      noWafTemplate.resourceCountIs("AWS::WAFv2::WebACL", 0);
+      noWafTemplate.resourceCountIs("AWS::WAFv2::WebACLAssociation", 0);
     },
     30000
   );

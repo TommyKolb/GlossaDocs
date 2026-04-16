@@ -1,4 +1,6 @@
 import * as path from "node:path";
+import { existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import * as cdk from "aws-cdk-lib";
 import { Duration, RemovalPolicy, SecretValue } from "aws-cdk-lib";
 import * as amplify from "aws-cdk-lib/aws-amplify";
@@ -24,12 +26,22 @@ type GlossaDocsStackProps = cdk.StackProps & {
 export class GlossaDocsStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: GlossaDocsStackProps) {
     super(scope, id, props);
-    const backendAssetPath = path.resolve(process.cwd(), "../backend");
+    const stackFilePath = fileURLToPath(import.meta.url);
+    const stackDirPath = path.dirname(stackFilePath);
+    const backendAssetCandidates = [
+      path.resolve(stackDirPath, "../../backend"),
+      path.resolve(stackDirPath, "../../../backend"),
+      path.resolve(process.cwd(), "../backend")
+    ];
+    const backendAssetPath = backendAssetCandidates.find((candidate) => existsSync(candidate));
+    if (!backendAssetPath) {
+      throw new Error("Unable to resolve backend asset path for Lambda packaging.");
+    }
 
     const { config } = props;
 
     const vpc = new ec2.Vpc(this, "AppVpc", {
-      availabilityZones: [`${config.region}a`, `${config.region}b`],
+      maxAzs: 2,
       natGateways: 1,
       subnetConfiguration: [
         {
@@ -105,6 +117,8 @@ export class GlossaDocsStack extends cdk.Stack {
 
     const redisAuthToken = new secretsmanager.Secret(this, "RedisAuthToken", {
       generateSecretString: {
+        secretStringTemplate: JSON.stringify({}),
+        generateStringKey: "authToken",
         excludePunctuation: true,
         passwordLength: 48
       }
@@ -128,7 +142,7 @@ export class GlossaDocsStack extends cdk.Stack {
       securityGroupIds: [redisSg.securityGroupId],
       transitEncryptionEnabled: true,
       atRestEncryptionEnabled: true,
-      authToken: redisAuthToken.secretValue.toString(),
+      authToken: redisAuthToken.secretValueFromJson("authToken").toString(),
       automaticFailoverEnabled: false
     });
 
@@ -172,9 +186,6 @@ export class GlossaDocsStack extends cdk.Stack {
         }
       },
       environmentVariables: {
-        DB_SECRET_ARN: {
-          value: dbCredentials.secretArn
-        },
         DB_HOST: {
           value: db.instanceEndpoint.hostname
         },
@@ -183,6 +194,14 @@ export class GlossaDocsStack extends cdk.Stack {
         },
         DB_NAME: {
           value: "glossadocs"
+        },
+        DB_USERNAME: {
+          value: `${dbCredentials.secretArn}:username`,
+          type: codebuild.BuildEnvironmentVariableType.SECRETS_MANAGER
+        },
+        DB_PASSWORD: {
+          value: `${dbCredentials.secretArn}:password`,
+          type: codebuild.BuildEnvironmentVariableType.SECRETS_MANAGER
         }
       },
       buildSpec: codebuild.BuildSpec.fromObject({
@@ -191,10 +210,12 @@ export class GlossaDocsStack extends cdk.Stack {
           build: {
             commands: [
               "test -f backend/node_modules/.bin/node-pg-migrate",
-              "DB_SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id \"$DB_SECRET_ARN\" --query SecretString --output text)",
-              "DB_USERNAME=$(echo \"$DB_SECRET_JSON\" | node -e \"let data='';process.stdin.on('data',chunk=>data+=chunk);process.stdin.on('end',()=>process.stdout.write(JSON.parse(data).username));\")",
-              "DB_PASSWORD=$(echo \"$DB_SECRET_JSON\" | node -e \"let data='';process.stdin.on('data',chunk=>data+=chunk);process.stdin.on('end',()=>process.stdout.write(JSON.parse(data).password));\")",
-              "export DATABASE_URL=\"postgresql://${DB_USERNAME}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=require\"",
+              "export PGHOST=\"$DB_HOST\"",
+              "export PGPORT=\"$DB_PORT\"",
+              "export PGDATABASE=\"$DB_NAME\"",
+              "export PGUSER=\"$DB_USERNAME\"",
+              "export PGPASSWORD=\"$DB_PASSWORD\"",
+              "export PGSSLMODE=require",
               "backend/node_modules/.bin/node-pg-migrate -m backend/migrations up"
             ]
           }
@@ -288,7 +309,7 @@ export class GlossaDocsStack extends cdk.Stack {
 
     const redisUrl = cdk.Fn.join("", [
       "rediss://:",
-      redisAuthToken.secretValue.toString(),
+      redisAuthToken.secretValueFromJson("authToken").toString(),
       "@",
       redis.attrPrimaryEndPointAddress,
       ":",
@@ -430,6 +451,11 @@ export class GlossaDocsStack extends cdk.Stack {
     new cdk.CfnOutput(this, "AmplifyDefaultDomain", {
       value: cdk.Fn.join("", ["https://", mainBranch.branchName, ".", amplifyApp.attrDefaultDomain]),
       exportName: "GlossaDocsAmplifyDefaultDomain"
+    });
+
+    new cdk.CfnOutput(this, "AmplifyAppId", {
+      value: amplifyApp.attrAppId,
+      exportName: "GlossaDocsAmplifyAppId"
     });
 
     new cdk.CfnOutput(this, "CognitoUserPoolId", {

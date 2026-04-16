@@ -79,6 +79,7 @@ jobs:
           test -n "${{ vars.GLOSSADOCS_GITHUB_REPOSITORY }}"
           test -n "${{ vars.GLOSSADOCS_GITHUB_TOKEN_SECRET_ARN }}"
           test -n "${{ vars.GLOSSADOCS_BACKEND_CORS_ORIGIN }}"
+          test -n "${{ vars.PROD_API_BASE_URL }}"
           test -n "${{ secrets.DEPLOY_AWS_ROLE_ARN }}"
 
       - uses: actions/setup-node@v4
@@ -126,10 +127,13 @@ jobs:
           STACK_NAME="GlossaDocsPublicStack"
           MIGRATION_PROJECT_NAME=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --query "Stacks[0].Outputs[?OutputKey=='MigrationProjectName'].OutputValue | [0]" --output text)
           MIGRATION_SOURCE_BUCKET_NAME=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --query "Stacks[0].Outputs[?OutputKey=='MigrationSourceBucketName'].OutputValue | [0]" --output text)
+          AMPLIFY_APP_ID=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --query "Stacks[0].Outputs[?OutputKey=='AmplifyAppId'].OutputValue | [0]" --output text)
           test "$MIGRATION_PROJECT_NAME" != "None"
           test "$MIGRATION_SOURCE_BUCKET_NAME" != "None"
+          test "$AMPLIFY_APP_ID" != "None"
           echo "MIGRATION_PROJECT_NAME=$MIGRATION_PROJECT_NAME" >> "$GITHUB_ENV"
           echo "MIGRATION_SOURCE_BUCKET_NAME=$MIGRATION_SOURCE_BUCKET_NAME" >> "$GITHUB_ENV"
+          echo "AMPLIFY_APP_ID=$AMPLIFY_APP_ID" >> "$GITHUB_ENV"
 
       - name: Package migration source bundle
         run: |
@@ -200,7 +204,9 @@ jobs:
 
       - name: Trigger Amplify production build
         run: |
-          APP_ID=$(aws amplify list-apps --query "apps[?name=='glossadocs'].appId | [0]" --output text)
+          STACK_NAME="GlossaDocsPublicStack"
+          APP_ID=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --query "Stacks[0].Outputs[?OutputKey=='AmplifyAppId'].OutputValue | [0]" --output text)
+          test "$APP_ID" != "None"
           aws amplify start-job --app-id "$APP_ID" --branch-name main --job-type RELEASE
 
   smoke-tests:

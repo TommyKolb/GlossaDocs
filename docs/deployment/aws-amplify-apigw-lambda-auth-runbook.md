@@ -1,10 +1,6 @@
-# AWS Deployment Completion Runbook (Next Branch)
+# AWS Deployment Runbook
 
-This runbook captures:
-
-- what has already been implemented in this branch (auth foundation),
-- the chosen AWS database strategy, and
-- the exact next-branch process to complete deployment to Amplify + API Gateway + Lambda + Cognito.
+This runbook captures the current production deployment process to Amplify + API Gateway + Lambda + Cognito.
 
 Companion setup for maintainers deploying from a fork:
 
@@ -19,12 +15,12 @@ Current branch foundation:
 
 ## 1) Database Strategy Decision
 
-### Chosen strategy
+### Current strategy
 
 - **Primary DB:** Amazon RDS for PostgreSQL
 - **Lambda connection path:** direct TLS connection to the RDS instance endpoint
 - **Session store:** ElastiCache Redis (`AUTH_SESSION_STORE=redis`)
-- **Migration execution:** VPC-attached CodeBuild project triggered by GitHub Actions
+- **Migration execution:** CodeBuild project in app private subnets triggered by GitHub Actions before app deployment
 
 ### Why this option
 
@@ -138,7 +134,7 @@ Use this order for safe rollout and pipeline validation:
 Important: do **not** wait to merge to `main` until after production is already live.  
 The `main` merge should be the event that triggers the first automated production deployment once bootstrap is done.
 
-## 6) Next-Branch Implementation Process (Required)
+## 6) Deployment Implementation Order
 
 Execute in this order:
 
@@ -162,9 +158,9 @@ Execute in this order:
   - Add API Gateway throttling/WAF baseline
   - Add CloudWatch alarms and post-deploy smoke tests
 
-## 7) CI/CD Automation Requirement (Next Branch)
+## 7) CI/CD Automation Requirement
 
-The next branch must implement **fully automatic deployment from GitHub Actions**:
+Deployment is fully automated from GitHub Actions:
 
 - Trigger: merge/push to `main`
 - Gate: required tests/typecheck must pass before deploy
@@ -241,9 +237,9 @@ Infrastructure deployment code checks:
   - Migration job succeeds before application deployment continues
   - Smoke checks pass after deploy
 
-The next deployment branch is not merge-ready unless this matrix is green.
+The deployment branch is not merge-ready unless this matrix is green.
 
-## 12) Done Criteria For AWS Deployment Branch
+## 12) Done Criteria For Deployment Branch
 
 All items below must be true:
 

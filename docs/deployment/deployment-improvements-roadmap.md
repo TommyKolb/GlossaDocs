@@ -30,7 +30,7 @@ It is intentionally high-level and intended as a practical checklist for follow-
 
 ## Cost and spend improvements
 
-Current architecture still has idle baseline cost due to always-on managed resources (RDS, Redis, etc.), but NAT Gateway and RDS Proxy have been removed.
+Current architecture still has idle baseline cost due to always-on managed resources (RDS, Redis, NAT, etc.), while RDS Proxy has been removed.
 
 ## Near-term cost controls
 
@@ -41,7 +41,7 @@ Current architecture still has idle baseline cost due to always-on managed resou
 
 ## Structural cost reductions (trade-offs)
 
-- NAT Gateway removed and replaced with VPC endpoints for private service access.
+- NAT Gateway retained as single-AZ egress to avoid the higher fixed cost of many interface endpoints.
 - RDS Proxy removed; Lambda now connects directly to RDS with TLS.
 - Consider replacing Redis session store with cheaper temporary option (accepting reliability trade-offs).
 - Tear down stack when not actively testing (`cdk destroy` + cleanup of retained resources).

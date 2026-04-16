@@ -8,7 +8,7 @@ This directory contains AWS CDK infrastructure for public production deployment:
 - RDS PostgreSQL (direct Lambda connection, TLS required)
 - ElastiCache Redis for session storage
 - VPC-attached CodeBuild migration runner + S3 source bundle
-- VPC endpoints for private AWS service access (no NAT Gateway)
+- Single NAT Gateway for outbound AWS/API access from private app subnets
 - CloudWatch alarms and optional WAF baseline
 
 ## Prerequisites

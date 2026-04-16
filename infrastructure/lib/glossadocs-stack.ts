@@ -30,7 +30,7 @@ export class GlossaDocsStack extends cdk.Stack {
 
     const vpc = new ec2.Vpc(this, "AppVpc", {
       availabilityZones: [`${config.region}a`, `${config.region}b`],
-      natGateways: 0,
+      natGateways: 1,
       subnetConfiguration: [
         {
           name: "public",
@@ -38,7 +38,7 @@ export class GlossaDocsStack extends cdk.Stack {
         },
         {
           name: "app",
-          subnetType: ec2.SubnetType.PRIVATE_ISOLATED
+          subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS
         },
         {
           name: "data",
@@ -49,7 +49,7 @@ export class GlossaDocsStack extends cdk.Stack {
 
     const lambdaSg = new ec2.SecurityGroup(this, "LambdaSg", {
       vpc,
-      description: "Lambda access to RDS proxy and Redis",
+      description: "Lambda access to PostgreSQL and Redis",
       allowAllOutbound: true
     });
 
@@ -71,62 +71,9 @@ export class GlossaDocsStack extends cdk.Stack {
       allowAllOutbound: true
     });
 
-    const vpcEndpointSg = new ec2.SecurityGroup(this, "VpcEndpointSg", {
-      vpc,
-      description: "Interface endpoint security group",
-      allowAllOutbound: false
-    });
-
     dbSg.addIngressRule(lambdaSg, ec2.Port.tcp(5432), "Lambda to PostgreSQL");
     dbSg.addIngressRule(migrationRunnerSg, ec2.Port.tcp(5432), "CodeBuild to PostgreSQL");
     redisSg.addIngressRule(lambdaSg, ec2.Port.tcp(6379), "Lambda to Redis");
-    vpcEndpointSg.addIngressRule(lambdaSg, ec2.Port.tcp(443), "Lambda to VPC interface endpoints");
-    vpcEndpointSg.addIngressRule(
-      migrationRunnerSg,
-      ec2.Port.tcp(443),
-      "CodeBuild to VPC interface endpoints"
-    );
-
-    vpc.addGatewayEndpoint("S3GatewayEndpoint", {
-      service: ec2.GatewayVpcEndpointAwsService.S3,
-      subnets: [{ subnetType: ec2.SubnetType.PRIVATE_ISOLATED }]
-    });
-
-    vpc.addInterfaceEndpoint("CloudWatchLogsEndpoint", {
-      service: ec2.InterfaceVpcEndpointAwsService.CLOUDWATCH_LOGS,
-      subnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
-      securityGroups: [vpcEndpointSg]
-    });
-
-    vpc.addInterfaceEndpoint("SecretsManagerEndpoint", {
-      service: ec2.InterfaceVpcEndpointAwsService.SECRETS_MANAGER,
-      subnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
-      securityGroups: [vpcEndpointSg]
-    });
-
-    vpc.addInterfaceEndpoint("CognitoIdpEndpoint", {
-      service: ec2.InterfaceVpcEndpointAwsService.COGNITO_IDP,
-      subnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
-      securityGroups: [vpcEndpointSg]
-    });
-
-    vpc.addInterfaceEndpoint("StsEndpoint", {
-      service: ec2.InterfaceVpcEndpointAwsService.STS,
-      subnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
-      securityGroups: [vpcEndpointSg]
-    });
-
-    vpc.addInterfaceEndpoint("EcrApiEndpoint", {
-      service: ec2.InterfaceVpcEndpointAwsService.ECR,
-      subnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
-      securityGroups: [vpcEndpointSg]
-    });
-
-    vpc.addInterfaceEndpoint("EcrDockerEndpoint", {
-      service: ec2.InterfaceVpcEndpointAwsService.ECR_DOCKER,
-      subnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
-      securityGroups: [vpcEndpointSg]
-    });
 
     const dbCredentials = new secretsmanager.Secret(this, "DbCredentialsSecret", {
       generateSecretString: {
@@ -209,7 +156,7 @@ export class GlossaDocsStack extends cdk.Stack {
       description: "Runs PostgreSQL migrations inside the VPC before application release.",
       vpc,
       securityGroups: [migrationRunnerSg],
-      subnetSelection: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
+      subnetSelection: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
       source: codebuild.Source.s3({
         bucket: migrationSourceBucket,
         path: "placeholder/migration-source.zip"
@@ -360,7 +307,7 @@ export class GlossaDocsStack extends cdk.Stack {
       logGroup: backendLambdaLogGroup,
       vpc,
       securityGroups: [lambdaSg],
-      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
+      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
       environment: {
         APP_ENV: config.appEnv,
         NODE_ENV: "production",

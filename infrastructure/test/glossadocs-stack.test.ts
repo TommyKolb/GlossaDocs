@@ -47,7 +47,7 @@ describe("GlossaDocsStack", () => {
     template.resourceCountIs("AWS::RDS::DBProxy", 0);
     template.resourceCountIs("AWS::ElastiCache::ReplicationGroup", 1);
     template.resourceCountIs("AWS::CodeBuild::Project", 1);
-    template.resourceCountIs("AWS::EC2::NatGateway", 0);
+    template.resourceCountIs("AWS::EC2::NatGateway", 1);
     template.resourceCountIs("AWS::Amplify::App", 1);
     },
     30000

@@ -46,6 +46,85 @@ export function findBlockElement(
 }
 
 /**
+ * Block-level elements that should receive line spacing for the current selection.
+ * For a multi-line selection (Google Docs–style), every intersected paragraph/block gets the new spacing.
+ * Uses the deepest intersecting blocks only (skips ancestors when a descendant block also intersects).
+ */
+export function findBlockElementsIntersectingRange(
+  range: Range,
+  editorRoot: HTMLElement
+): HTMLElement[] {
+  if (range.collapsed) {
+    const block = findBlockElement(range.startContainer, editorRoot);
+    return block ? [block] : [];
+  }
+
+  const candidates: HTMLElement[] = [];
+  const doc = editorRoot.ownerDocument;
+  const walker = doc.createTreeWalker(editorRoot, NodeFilter.SHOW_ELEMENT);
+
+  let node: Node | null = walker.nextNode();
+  while (node) {
+    if (node instanceof HTMLElement && isBlockLevelTag(node.tagName)) {
+      try {
+        if (range.intersectsNode(node)) {
+          candidates.push(node);
+        }
+      } catch {
+        // intersectsNode can throw for e.g. Document nodes in some environments
+      }
+    }
+    node = walker.nextNode();
+  }
+
+  if (candidates.length === 0) {
+    const startBlock = findBlockElement(range.startContainer, editorRoot);
+    const endBlock = findBlockElement(range.endContainer, editorRoot);
+    if (startBlock && endBlock) {
+      return startBlock === endBlock ? [startBlock] : collectBlocksBetween(startBlock, endBlock, editorRoot);
+    }
+    return startBlock ? [startBlock] : [];
+  }
+
+  return candidates.filter(
+    (el) => !candidates.some((other) => other !== el && el.contains(other))
+  );
+}
+
+/** When intersectsNode yields nothing, apply spacing to blocks from start to end in document order (inclusive). */
+function collectBlocksBetween(
+  startBlock: HTMLElement,
+  endBlock: HTMLElement,
+  editorRoot: HTMLElement
+): HTMLElement[] {
+  const ordered: HTMLElement[] = [];
+  const w = editorRoot.ownerDocument.createTreeWalker(editorRoot, NodeFilter.SHOW_ELEMENT);
+  let n: Node | null = w.nextNode();
+  while (n) {
+    if (n instanceof HTMLElement && isBlockLevelTag(n.tagName)) {
+      ordered.push(n);
+    }
+    n = w.nextNode();
+  }
+
+  let iStart = ordered.indexOf(startBlock);
+  let iEnd = ordered.indexOf(endBlock);
+  if (iStart === -1 || iEnd === -1) {
+    return [startBlock, endBlock].filter((b, j, a) => a.indexOf(b) === j);
+  }
+  if (iStart > iEnd) {
+    const t = iStart;
+    iStart = iEnd;
+    iEnd = t;
+  }
+
+  const slice = ordered.slice(iStart, iEnd + 1);
+  return slice.filter(
+    (el) => !slice.some((other) => other !== el && el.contains(other))
+  );
+}
+
+/**
  * Get line height from a block element or its computed style
  * @param element - HTMLElement to check
  * @returns Line height value as string

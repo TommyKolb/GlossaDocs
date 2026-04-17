@@ -1,5 +1,9 @@
-import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+
+afterEach(() => {
+  cleanup();
+});
 
 import { EditorToolbar } from "@/app/components/EditorToolbar";
 import { LANGUAGES } from "@/app/utils/languages";
@@ -64,5 +68,26 @@ describe("EditorToolbar font selector", () => {
 
     expect(screen.getByLabelText("Select document font")).toBeInTheDocument();
     expect(getFontsForLanguage("en").some((font) => font.family === "Inter")).toBe(true);
+  });
+});
+
+describe("EditorToolbar insert image", () => {
+  it("invokes pointer down before click so the parent can save editor selection", () => {
+    const onInsertImagePointerDown = vi.fn();
+    const onInsertImage = vi.fn();
+    render(
+      <EditorToolbar
+        {...toolbarProps}
+        onInsertImagePointerDown={onInsertImagePointerDown}
+        onInsertImage={onInsertImage}
+      />
+    );
+
+    const insertButton = screen.getByRole("button", { name: "Insert image" });
+    fireEvent.mouseDown(insertButton);
+    fireEvent.click(insertButton);
+
+    expect(onInsertImagePointerDown).toHaveBeenCalledTimes(1);
+    expect(onInsertImage).toHaveBeenCalledTimes(1);
   });
 });

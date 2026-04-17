@@ -125,14 +125,12 @@ export class GlossaDocsStack extends cdk.Stack {
     });
 
     const redisSubnetGroup = new elasticache.CfnSubnetGroup(this, "RedisSubnetGroup", {
-      cacheSubnetGroupName: "glossadocs-redis-subnets",
       description: "Private subnets for ElastiCache Redis",
       subnetIds: vpc.selectSubnets({ subnetType: ec2.SubnetType.PRIVATE_ISOLATED }).subnetIds
     });
 
     const redis = new elasticache.CfnReplicationGroup(this, "RedisReplicationGroup", {
       replicationGroupDescription: "GlossaDocs auth sessions",
-      replicationGroupId: "glossadocs-sessions",
       cacheNodeType: "cache.t4g.micro",
       engine: "redis",
       engineVersion: "7.1",
@@ -324,7 +322,6 @@ export class GlossaDocsStack extends cdk.Stack {
       }),
       timeout: Duration.seconds(30),
       memorySize: 1024,
-      reservedConcurrentExecutions: 10,
       logGroup: backendLambdaLogGroup,
       vpc,
       securityGroups: [lambdaSg],

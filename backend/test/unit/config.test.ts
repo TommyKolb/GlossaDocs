@@ -119,4 +119,21 @@ describe("getConfig", () => {
       } as unknown as NodeJS.ProcessEnv)
     ).toThrow(/CONFIG_AUTH_COOKIE_INSECURE/);
   });
+
+  it("throws when APP_ENV=prod sets DATABASE_TLS_INSECURE", () => {
+    expect(() =>
+      getConfig({
+        NODE_ENV: "production",
+        APP_ENV: "prod",
+        DATABASE_TLS_INSECURE: "true",
+        CORS_ALLOWED_ORIGINS: "https://app.example.com",
+        AUTH_SESSION_SECURE_COOKIE: "true",
+        AUTH_SESSION_STORE: "redis",
+        REDIS_URL: "redis://127.0.0.1:6379",
+        COGNITO_REGION: "us-east-1",
+        COGNITO_USER_POOL_ID: "us-east-1_abc123",
+        COGNITO_CLIENT_ID: "client123"
+      } as unknown as NodeJS.ProcessEnv)
+    ).toThrow(/CONFIG_DATABASE_TLS_INSECURE/);
+  });
 });

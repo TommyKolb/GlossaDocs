@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
+import type { PathLike } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ConnectionOptions } from "tls";
@@ -53,7 +54,11 @@ export type DatabaseSslContext = {
   databaseTlsInsecure: boolean;
 };
 
-export type DatabaseSslFileAccess = Pick<typeof import("node:fs"), "existsSync" | "readFileSync">;
+/** Narrow fs surface for TLS tests and injection (avoids readFileSync overload resolution issues). */
+export type DatabaseSslFileAccess = {
+  existsSync(path: PathLike): boolean;
+  readFileSync(path: PathLike, encoding: BufferEncoding): string;
+};
 
 /**
  * TLS for PostgreSQL on Amazon RDS: Node does not trust the RDS chain without the AWS CA bundle.

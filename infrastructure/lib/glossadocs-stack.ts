@@ -205,16 +205,21 @@ export class GlossaDocsStack extends cdk.Stack {
       buildSpec: codebuild.BuildSpec.fromObject({
         version: "0.2",
         phases: {
+          install: {
+            "runtime-versions": {
+              nodejs: 20
+            }
+          },
           build: {
             commands: [
-              "test -f backend/node_modules/.bin/node-pg-migrate",
+              "test -f backend/node_modules/node-pg-migrate/bin/node-pg-migrate.js",
               "export PGHOST=\"$DB_HOST\"",
               "export PGPORT=\"$DB_PORT\"",
               "export PGDATABASE=\"$DB_NAME\"",
               "export PGUSER=\"$DB_USERNAME\"",
               "export PGPASSWORD=\"$DB_PASSWORD\"",
               "export PGSSLMODE=require",
-              "npm --prefix backend exec -- node-pg-migrate -m migrations up"
+              "node backend/node_modules/node-pg-migrate/bin/node-pg-migrate.js -m backend/migrations up"
             ]
           }
         }

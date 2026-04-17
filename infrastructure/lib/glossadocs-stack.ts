@@ -218,8 +218,8 @@ export class GlossaDocsStack extends cdk.Stack {
               "export PGDATABASE=\"$DB_NAME\"",
               "export PGUSER=\"$DB_USERNAME\"",
               "export PGPASSWORD=\"$DB_PASSWORD\"",
-              "export PGSSLMODE=require",
-              "node backend/node_modules/node-pg-migrate/bin/node-pg-migrate.js -m backend/migrations up"
+              "export PGSSLMODE=no-verify",
+              "for attempt in $(seq 1 10); do node backend/node_modules/node-pg-migrate/bin/node-pg-migrate.js -m backend/migrations up && exit 0; echo \"Migration attempt ${attempt} failed; retrying in 15s\"; sleep 15; done; echo \"Migration failed after retries\"; exit 1"
             ]
           }
         }

@@ -214,7 +214,7 @@ export class GlossaDocsStack extends cdk.Stack {
               "export PGUSER=\"$DB_USERNAME\"",
               "export PGPASSWORD=\"$DB_PASSWORD\"",
               "export PGSSLMODE=require",
-              "backend/node_modules/.bin/node-pg-migrate -m backend/migrations up"
+              "npm --prefix backend exec -- node-pg-migrate -m migrations up"
             ]
           }
         }

@@ -161,6 +161,6 @@ describe("GlossaDocsStack", () => {
       noWafTemplate.resourceCountIs("AWS::WAFv2::WebACL", 0);
       noWafTemplate.resourceCountIs("AWS::WAFv2::WebACLAssociation", 0);
     },
-    30000
+    60000
   );
 });

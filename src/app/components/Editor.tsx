@@ -302,7 +302,9 @@ export function Editor({ documentId, onBack }: EditorProps) {
           range.surroundContents(wrapper);
           setHasUnsavedChanges(true);
         } catch {
-          // Non-contiguous range (e.g. table selections); ignore.
+          toast.warning(
+            'Line spacing could not be applied to this selection. Try a simpler selection or adjust spacing per paragraph.'
+          );
         }
       }
     } else {

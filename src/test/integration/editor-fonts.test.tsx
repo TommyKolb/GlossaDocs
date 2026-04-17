@@ -1,9 +1,5 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-
-afterEach(() => {
-  cleanup();
-});
+import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
 
 import { EditorToolbar } from "@/app/components/EditorToolbar";
 import { LANGUAGES } from "@/app/utils/languages";

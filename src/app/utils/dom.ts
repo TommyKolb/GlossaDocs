@@ -45,6 +45,27 @@ export function findBlockElement(
   return null;
 }
 
+function listBlockElementsInDocumentOrder(editorRoot: HTMLElement): HTMLElement[] {
+  const ordered: HTMLElement[] = [];
+  const w = editorRoot.ownerDocument.createTreeWalker(editorRoot, NodeFilter.SHOW_ELEMENT);
+  let n: Node | null = w.nextNode();
+  while (n) {
+    if (n instanceof HTMLElement && isBlockLevelTag(n.tagName)) {
+      ordered.push(n);
+    }
+    n = w.nextNode();
+  }
+  return ordered;
+}
+
+/** Drop block nodes that are ancestors of another block in the same list (keep deepest only). */
+function filterToDeepestBlocksOnly(blocks: HTMLElement[]): HTMLElement[] {
+  if (blocks.length <= 1) {
+    return [...blocks];
+  }
+  return blocks.filter((el) => !blocks.some((other) => other !== el && el.contains(other)));
+}
+
 /**
  * Block-level elements that should receive line spacing for the current selection.
  * For a multi-line selection (Google Docs–style), every intersected paragraph/block gets the new spacing.
@@ -60,8 +81,7 @@ export function findBlockElementsIntersectingRange(
   }
 
   const candidates: HTMLElement[] = [];
-  const doc = editorRoot.ownerDocument;
-  const walker = doc.createTreeWalker(editorRoot, NodeFilter.SHOW_ELEMENT);
+  const walker = editorRoot.ownerDocument.createTreeWalker(editorRoot, NodeFilter.SHOW_ELEMENT);
 
   let node: Node | null = walker.nextNode();
   while (node) {
@@ -86,9 +106,7 @@ export function findBlockElementsIntersectingRange(
     return startBlock ? [startBlock] : [];
   }
 
-  return candidates.filter(
-    (el) => !candidates.some((other) => other !== el && el.contains(other))
-  );
+  return filterToDeepestBlocksOnly(candidates);
 }
 
 /** When intersectsNode yields nothing, apply spacing to blocks from start to end in document order (inclusive). */
@@ -97,15 +115,7 @@ function collectBlocksBetween(
   endBlock: HTMLElement,
   editorRoot: HTMLElement
 ): HTMLElement[] {
-  const ordered: HTMLElement[] = [];
-  const w = editorRoot.ownerDocument.createTreeWalker(editorRoot, NodeFilter.SHOW_ELEMENT);
-  let n: Node | null = w.nextNode();
-  while (n) {
-    if (n instanceof HTMLElement && isBlockLevelTag(n.tagName)) {
-      ordered.push(n);
-    }
-    n = w.nextNode();
-  }
+  const ordered = listBlockElementsInDocumentOrder(editorRoot);
 
   let iStart = ordered.indexOf(startBlock);
   let iEnd = ordered.indexOf(endBlock);
@@ -119,9 +129,7 @@ function collectBlocksBetween(
   }
 
   const slice = ordered.slice(iStart, iEnd + 1);
-  return slice.filter(
-    (el) => !slice.some((other) => other !== el && el.contains(other))
-  );
+  return filterToDeepestBlocksOnly(slice);
 }
 
 /**

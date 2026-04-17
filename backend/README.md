@@ -66,6 +66,8 @@ For the AWS deployment completion branch, the chosen production data path is:
 - **ElastiCache Redis** for auth sessions (`AUTH_SESSION_STORE=redis`)
 - **VPC-attached CodeBuild** migration job for schema changes before app release
 
+**RDS TLS trust:** Node’s default trust store does not include Amazon RDS CAs. The API loads AWS’s public RDS CA bundle from [`backend/certs/rds-global-bundle.pem`](certs/rds-global-bundle.pem) (see [`certs/README.md`](certs/README.md)) so `pg` can verify the server certificate when using TLS. The Lambda artifact includes the whole `backend/` tree, so this file must remain present in deployable builds. Production (`APP_ENV=prod`) **fails startup** if TLS is required but the bundle cannot be loaded; there is no silent “insecure TLS” fallback. Optionally set **`RDS_CA_BUNDLE_PATH`** to an absolute PEM path. **`DATABASE_TLS_INSECURE`** is rejected when `APP_ENV=prod` and is only for local debugging when the bundle is missing.
+
 Why this strategy:
 
 - keeps parity with the current PostgreSQL data model and migrations

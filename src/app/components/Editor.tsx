@@ -9,7 +9,12 @@ import { exportDocument, type ExportFormat } from '../utils/export';
 import { getLanguageName, type Language } from '../utils/languages';
 import { getDefaultFontFamilyForLanguage, resolveDocumentFontFamily } from '../utils/language-fonts';
 import { EDITOR_CONFIG, UI_CONSTANTS } from '../utils/constants';
-import { findBlockElement, getLineHeight, getNextImageSize } from '../utils/dom';
+import {
+  findBlockElement,
+  findBlockElementsIntersectingRange,
+  getLineHeight,
+  getNextImageSize
+} from '../utils/dom';
 import { ensureSelectionInEditor } from '../utils/editor-selection';
 import type { KeyboardLayoutOverrides } from '../utils/keyboardLayouts';
 import { getRemappedCharacter } from '../utils/keyboardLayouts';
@@ -278,23 +283,29 @@ export function Editor({ documentId, onBack }: EditorProps) {
       setHasUnsavedChanges(true);
     } else if (command.startsWith('lineHeight:')) {
       const lineHeight = command.split(':')[1];
-      
+
       const selection = window.getSelection();
-      if (!selection || selection.rangeCount === 0) return;
-      
-      // Use utility function to find block element
-      const blockElement = findBlockElement(selection.anchorNode, editorRef.current);
-      
-      if (blockElement) {
-        blockElement.style.lineHeight = lineHeight;
+      if (!selection || selection.rangeCount === 0 || !editorRef.current) return;
+
+      const range = selection.getRangeAt(0);
+      const blocks = findBlockElementsIntersectingRange(range, editorRef.current);
+
+      if (blocks.length > 0) {
+        for (const block of blocks) {
+          block.style.lineHeight = lineHeight;
+        }
         setHasUnsavedChanges(true);
-      } else if (editorRef.current) {
-        // If no block element found, create a wrapper
-        const range = selection.getRangeAt(0);
+      } else {
         const wrapper = window.document.createElement('div');
         wrapper.style.lineHeight = lineHeight;
-        range.surroundContents(wrapper);
-        setHasUnsavedChanges(true);
+        try {
+          range.surroundContents(wrapper);
+          setHasUnsavedChanges(true);
+        } catch {
+          toast.warning(
+            'Line spacing could not be applied to this selection. Try a simpler selection or adjust spacing per paragraph.'
+          );
+        }
       }
     } else {
       window.document.execCommand(command, false);
@@ -384,10 +395,14 @@ export function Editor({ documentId, onBack }: EditorProps) {
           }
         });
 
-        // Restore the selection and insert the image
+        // Restore the selection and insert the image (never insert outside the editor surface).
+        editorRef.current?.focus();
         restoreSelection();
+        if (editorRef.current) {
+          ensureSelectionInEditor(editorRef.current);
+        }
         const selection = window.getSelection();
-        
+
         if (selection && selection.rangeCount > 0) {
           const range = selection.getRangeAt(0);
           range.deleteContents();
@@ -447,12 +462,15 @@ export function Editor({ documentId, onBack }: EditorProps) {
     event.target.value = '';
   }, [restoreSelection]);
 
-  const handleInsertImage = useCallback(() => {
-    // Save the current cursor position
+  const handleInsertImagePointerDown = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
+    // Keep focus/selection in the contenteditable; saving on "click" runs after focus moved to the toolbar.
+    event.preventDefault();
     saveSelection();
-    // Trigger the file input
-    imageInputRef.current?.click();
   }, [saveSelection]);
+
+  const handleInsertImageClick = useCallback(() => {
+    imageInputRef.current?.click();
+  }, []);
 
   const toggleKeyboardVisibility = useCallback(() => {
     setIsKeyboardVisible((prev) => {
@@ -766,7 +784,8 @@ export function Editor({ documentId, onBack }: EditorProps) {
         title={document.title}
         onTitleChange={handleTitleChange}
         hasUnsavedChanges={hasUnsavedChanges}
-        onInsertImage={handleInsertImage}
+        onInsertImagePointerDown={handleInsertImagePointerDown}
+        onInsertImage={handleInsertImageClick}
       />
 
       {/* Hidden file input for image insertion */}

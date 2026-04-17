@@ -52,6 +52,8 @@ interface EditorToolbarProps {
   title: string;
   onTitleChange: (title: string) => void;
   hasUnsavedChanges: boolean;
+  /** Call with preventDefault on mousedown so the editor selection is saved before focus leaves the contenteditable. */
+  onInsertImagePointerDown?: (event: React.MouseEvent<HTMLButtonElement>) => void;
   onInsertImage: () => void;
 }
 
@@ -69,6 +71,7 @@ export function EditorToolbar({
   title,
   onTitleChange,
   hasUnsavedChanges,
+  onInsertImagePointerDown,
   onInsertImage,
 }: EditorToolbarProps) {
   const languageFonts = getFontsForLanguage(language);
@@ -335,6 +338,7 @@ export function EditorToolbar({
             <Button
               variant="ghost"
               size="sm"
+              onMouseDown={onInsertImagePointerDown}
               onClick={onInsertImage}
               title="Insert Image"
               className="text-gray-600"

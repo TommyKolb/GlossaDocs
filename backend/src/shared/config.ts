@@ -82,7 +82,16 @@ const configSchema = z.object({
    * Max JSON request body size in bytes (Fastify `bodyLimit`).
    * Inline images are stored as data URLs in document HTML; the default 1 MiB limit is too small.
    */
-  API_BODY_LIMIT_BYTES: z.coerce.number().int().positive().default(15 * 1024 * 1024)
+  API_BODY_LIMIT_BYTES: z.coerce.number().int().positive().default(15 * 1024 * 1024),
+  /**
+   * Optional absolute path to the RDS global CA PEM (overrides the vendored file under backend/certs/).
+   */
+  RDS_CA_BUNDLE_PATH: z.string().optional(),
+  /**
+   * Dev-only escape hatch: allow PostgreSQL TLS without verifying the server cert when the CA bundle is missing.
+   * Never use in production; rejected when APP_ENV=prod.
+   */
+  DATABASE_TLS_INSECURE: booleanFromEnv.optional().default(false)
 });
 
 type RawAppConfig = z.infer<typeof configSchema>;
@@ -159,6 +168,11 @@ export function getConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       "REDIS_URL must be configured when APP_ENV=prod",
       true
     );
+    if (cfg.DATABASE_TLS_INSECURE === true) {
+      throw new Error(
+        "CONFIG_DATABASE_TLS_INSECURE: DATABASE_TLS_INSECURE cannot be true when APP_ENV=prod"
+      );
+    }
   }
 
   if (cfg.AUTH_PROVIDER === "cognito") {

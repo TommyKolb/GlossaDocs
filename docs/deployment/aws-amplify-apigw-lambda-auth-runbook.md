@@ -67,6 +67,7 @@ Backend (`backend/.env` or Lambda environment):
 - `AUTH_SESSION_STORE=redis`
 - `REDIS_URL=<elasticache-connection-url>`
 - `DATABASE_URL=<rds-connection-string-with-sslmode=require>`
+- **RDS CA bundle:** the backend ships AWS’s public RDS CA PEM at `backend/certs/rds-global-bundle.pem` and uses it for TLS verification to RDS. Do not omit it from Lambda packaging; production will not start verified TLS without it (or an explicit `RDS_CA_BUNDLE_PATH`). `DATABASE_TLS_INSECURE` is not valid in `APP_ENV=prod`.
 - `COGNITO_REGION=<region>`
 - `COGNITO_USER_POOL_ID=<user-pool-id>`
 - `COGNITO_CLIENT_ID=<app-client-id>`

@@ -134,7 +134,7 @@ export class GlossaDocsStack extends cdk.Stack {
       cacheNodeType: "cache.t4g.micro",
       engine: "redis",
       engineVersion: "7.1",
-      cacheSubnetGroupName: redisSubnetGroup.cacheSubnetGroupName,
+      cacheSubnetGroupName: redisSubnetGroup.ref,
       numNodeGroups: 1,
       replicasPerNodeGroup: 0,
       securityGroupIds: [redisSg.securityGroupId],

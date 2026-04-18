@@ -34,6 +34,42 @@ export function databaseUrlUsesTls(databaseUrl: string): boolean {
   );
 }
 
+/**
+ * Remove libpq SSL query params before passing a connection string to `pg` together with an explicit `ssl` object.
+ * Otherwise `pg-connection-string` sets `ssl: {}` when `sslmode` (etc.) is present, and ConnectionParameters
+ * merges parsed config *after* our options — wiping `ssl.ca` and causing "self-signed certificate in certificate chain" to RDS.
+ */
+export function connectionStringOmitLibpqSslParams(connectionString: string): string {
+  const s = connectionString.trim();
+  if (
+    !/\bsslmode=/i.test(s) &&
+    !/\bsslcert=/i.test(s) &&
+    !/\bsslkey=/i.test(s) &&
+    !/\bsslrootcert=/i.test(s) &&
+    !/[?&]ssl=/.test(s)
+  ) {
+    return s;
+  }
+
+  const isPostgresql = /^postgresql:/i.test(s);
+  const normalized = s.replace(/^postgresql:/i, "http:").replace(/^postgres:/i, "http:");
+  let u: URL;
+  try {
+    u = new URL(normalized);
+  } catch {
+    return s;
+  }
+
+  u.searchParams.delete("sslmode");
+  u.searchParams.delete("sslcert");
+  u.searchParams.delete("sslkey");
+  u.searchParams.delete("sslrootcert");
+  u.searchParams.delete("ssl");
+
+  const prefix = isPostgresql ? "postgresql://" : "postgres://";
+  return u.href.replace(/^http:\/\//i, prefix);
+}
+
 function resolveRdsCaFilePath(
   explicitPath: string | undefined,
   fsSync: Pick<typeof import("node:fs"), "existsSync"> = { existsSync }
@@ -115,8 +151,10 @@ export function getDbPool(databaseUrl: string): Pool {
     databaseTlsInsecure: cfg.DATABASE_TLS_INSECURE ?? false
   });
 
+  const connectionString = ssl ? connectionStringOmitLibpqSslParams(databaseUrl) : databaseUrl;
+
   pool = new Pool({
-    connectionString: databaseUrl,
+    connectionString,
     ...(ssl ? { ssl } : {})
   });
 

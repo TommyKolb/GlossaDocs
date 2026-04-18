@@ -85,7 +85,7 @@ describe("HttpCognitoAdminClient", () => {
   });
 
   it("accepts successful password reset", async () => {
-    const sendMock = vi.fn(async () => ({}));
+    const sendMock = vi.fn(async (_command: unknown) => ({}));
     const client = createClient(sendMock);
 
     await expect(client.sendPasswordResetEmail({ email: "user@example.com" })).resolves.toBeUndefined();

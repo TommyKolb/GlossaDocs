@@ -48,8 +48,7 @@ export function DocumentCard({
 
   return (
     <Card
-      role="button"
-      tabIndex={0}
+      role="group"
       aria-label={openDocLabel}
       className={`p-4 cursor-grab active:cursor-grabbing hover:shadow-md transition-all bg-white/90 backdrop-blur border border-gray-200 hover:border-blue-300 focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2 min-h-[138px] ${
         isDragging ? 'invisible' : ''

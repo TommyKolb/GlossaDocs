@@ -2,12 +2,13 @@ import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 
 import { ApiError } from "../../shared/api-error.js";
+import { cognitoRegisterPasswordSchema } from "../../shared/cognito-password-policy.js";
 import { getAuthProviderErrorCode } from "./auth-provider-errors.js";
 import type { AuthAdminClient } from "./auth-provider-clients.js";
 
 const registerSchema = z.object({
   email: z.email(),
-  password: z.string().min(8)
+  password: cognitoRegisterPasswordSchema
 });
 
 interface AuthRegisterRoutesOptions {
@@ -39,6 +40,10 @@ export const authRegisterRoutes: FastifyPluginAsync<AuthRegisterRoutesOptions> =
       const errorCode = getAuthProviderErrorCode(err);
       if (errorCode === "KEYCLOAK_USER_EXISTS" || errorCode === "COGNITO_USER_EXISTS") {
         throw new ApiError(409, "AUTH_EMAIL_TAKEN", "Email is already in use");
+      }
+      if (errorCode === "COGNITO_INVALID_PASSWORD" || errorCode === "COGNITO_INVALID_PARAMETER") {
+        const msg = err instanceof Error ? err.message : "Invalid sign-up data";
+        throw new ApiError(400, "AUTH_SIGNUP_REJECTED", msg);
       }
       throw new ApiError(502, "AUTH_IDP_UNAVAILABLE", "Unable to create account");
     }

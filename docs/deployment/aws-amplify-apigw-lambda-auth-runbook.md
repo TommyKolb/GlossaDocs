@@ -87,6 +87,8 @@ Frontend (Amplify env vars):
 
 **API Gateway console:** A Lambda proxy API often shows **`ANY`** and **`OPTIONS`** on `/{proxy+}` — that is normal: **`ANY`** forwards all HTTP methods (GET, POST, …) to Lambda. Login and sign-up are **`POST`** JSON requests from the SPA, not browser navigations to GET URLs. Opening `https://…/prod/auth/login` in a tab sends **GET**, which the API does not use for credentials (you should see **405 Method Not Allowed** with `Allow: POST` after the backend update that documents this).
 
+**Sign-up passwords (Cognito):** The CDK user pool enforces a **strong** password policy (minimum length 12, uppercase, lowercase, number, symbol). The app-hosted **Create account** form and API validation must match that policy; otherwise Cognito’s `SignUp` API fails and the API previously surfaced a generic **`AUTH_IDP_UNAVAILABLE`** (**502**). Prefer clear **400** responses and UI copy after aligning validation with the pool (see `cognito-password-policy` in the backend and `UserPool` `passwordPolicy` in `glossadocs-stack.ts`).
+
 ## 4) One-Time AWS Bootstrap (Before First Merge to `main`)
 
 Complete this checklist once per AWS account/region/repository before the first production merge:

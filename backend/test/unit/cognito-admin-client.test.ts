@@ -33,6 +33,25 @@ describe("HttpCognitoAdminClient", () => {
     });
   });
 
+  it("maps InvalidPasswordException for createUser", async () => {
+    const client = new HttpCognitoAdminClient({
+      region: "us-east-1",
+      userPoolId: "pool",
+      clientId: "client"
+    });
+    (client as any).client = {
+      send: vi.fn(async () => {
+        const err = new Error("Password did not conform with policy");
+        (err as Error & { name: string }).name = "InvalidPasswordException";
+        throw err;
+      })
+    };
+
+    await expect(client.createUser({ email: "u@example.com", password: "weak" })).rejects.toMatchObject({
+      code: "COGNITO_INVALID_PASSWORD"
+    });
+  });
+
   it("accepts successful password reset", async () => {
     const sendMock = vi.fn(async () => ({}));
     const client = new HttpCognitoAdminClient({

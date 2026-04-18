@@ -9,7 +9,7 @@ import { authApi } from "../api/endpoints";
 import {
   isSignupEmailValid,
   isSignupPasswordValid,
-  SIGNUP_PASSWORD_MIN_LENGTH
+  SIGNUP_PASSWORD_POLICY_HINT
 } from "../utils/signup-validation";
 
 interface SignUpProps {
@@ -41,7 +41,7 @@ export function SignUp({ onCancel, onAccountCreated }: SignUpProps) {
   const passwordHint = useMemo(() => {
     if (!password) return null;
     if (!passwordOk) {
-      return `Password must be at least ${SIGNUP_PASSWORD_MIN_LENGTH} characters.`;
+      return SIGNUP_PASSWORD_POLICY_HINT;
     }
     return null;
   }, [password, passwordOk]);
@@ -65,7 +65,7 @@ export function SignUp({ onCancel, onAccountCreated }: SignUpProps) {
     if (!password) {
       parts.push("enter a password");
     } else if (!passwordOk) {
-      parts.push(`use a password of at least ${SIGNUP_PASSWORD_MIN_LENGTH} characters`);
+      parts.push(`use a password that meets the strength rules (${SIGNUP_PASSWORD_POLICY_HINT})`);
     } else if (!passwordsMatch) {
       parts.push("make sure both passwords match");
     }
@@ -168,7 +168,7 @@ export function SignUp({ onCancel, onAccountCreated }: SignUpProps) {
                 }
               />
               <p id="signup-password-hint" className="text-xs text-gray-500 mt-1" role="note">
-                At least {SIGNUP_PASSWORD_MIN_LENGTH} characters.
+                {SIGNUP_PASSWORD_POLICY_HINT}
               </p>
               {passwordHint ? (
                 <p id="signup-password-error" className="text-sm text-red-600 mt-1" role="alert">

@@ -10,6 +10,8 @@ import { computeCognitoSecretHash } from "./cognito-secret-hash.js";
 export type CognitoAdminClientErrorCode =
   | "COGNITO_USER_EXISTS"
   | "COGNITO_USER_NOT_FOUND"
+  | "COGNITO_INVALID_PASSWORD"
+  | "COGNITO_INVALID_PARAMETER"
   | "COGNITO_ADMIN_UNAVAILABLE";
 
 export class CognitoAdminClientError extends Error {
@@ -50,13 +52,23 @@ export function requireCognitoAdminConfig(
 
 function mapCognitoAdminError(error: unknown): never {
   const name = (error as { name?: string })?.name;
+  const message =
+    typeof (error as { message?: unknown })?.message === "string"
+      ? (error as { message: string }).message
+      : "Cognito admin request failed";
   if (name === "UsernameExistsException") {
     throw new CognitoAdminClientError("COGNITO_USER_EXISTS", "User already exists");
   }
   if (name === "UserNotFoundException") {
     throw new CognitoAdminClientError("COGNITO_USER_NOT_FOUND", "User not found");
   }
-  throw new CognitoAdminClientError("COGNITO_ADMIN_UNAVAILABLE", "Cognito admin request failed");
+  if (name === "InvalidPasswordException") {
+    throw new CognitoAdminClientError("COGNITO_INVALID_PASSWORD", message);
+  }
+  if (name === "InvalidParameterException") {
+    throw new CognitoAdminClientError("COGNITO_INVALID_PARAMETER", message);
+  }
+  throw new CognitoAdminClientError("COGNITO_ADMIN_UNAVAILABLE", message);
 }
 
 export class HttpCognitoAdminClient implements CognitoAdminClient {

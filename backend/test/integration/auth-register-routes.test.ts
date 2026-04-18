@@ -19,6 +19,9 @@ const tokenVerifier: TokenVerifier = {
   })
 };
 
+/** Meets Cognito pool policy (see CDK UserPool) and backend zod schema. */
+const VALID_REGISTER_PASSWORD = "ValidPass123!Horse";
+
 describe("POST /auth/register", () => {
   const authAdminClient: AuthAdminClientMock = {
     createUser: vi.fn(async () => {})
@@ -70,14 +73,14 @@ describe("POST /auth/register", () => {
   it("creates a Keycloak user for valid email/password", async () => {
     const response = await request(app.server).post("/auth/register").send({
       email: "new.user@example.com",
-      password: "correct horse battery staple"
+      password: VALID_REGISTER_PASSWORD
     });
 
     expect(response.status).toBe(201);
     expect(response.body).toEqual({ message: "Account created." });
     expect(authAdminClient.createUser).toHaveBeenCalledWith({
       email: "new.user@example.com",
-      password: "correct horse battery staple"
+      password: VALID_REGISTER_PASSWORD
     });
   });
 
@@ -88,7 +91,7 @@ describe("POST /auth/register", () => {
 
     const response = await request(app.server).post("/auth/register").send({
       email: "taken@example.com",
-      password: "correct horse battery staple"
+      password: VALID_REGISTER_PASSWORD
     });
 
     expect(response.status).toBe(409);
@@ -102,7 +105,7 @@ describe("POST /auth/register", () => {
 
     const response = await request(app.server).post("/auth/register").send({
       email: "taken@example.com",
-      password: "correct horse battery staple"
+      password: VALID_REGISTER_PASSWORD
     });
 
     expect(response.status).toBe(409);
@@ -112,7 +115,7 @@ describe("POST /auth/register", () => {
   it("returns 400 for invalid email", async () => {
     const response = await request(app.server).post("/auth/register").send({
       email: "not-an-email",
-      password: "correct horse battery staple"
+      password: VALID_REGISTER_PASSWORD
     });
 
     expect(response.status).toBe(400);
@@ -122,7 +125,7 @@ describe("POST /auth/register", () => {
   it("returns 500 when auth admin configuration is incomplete", async () => {
     const response = await request(appWithoutAdmin.server).post("/auth/register").send({
       email: "new.user@example.com",
-      password: "correct horse battery staple"
+      password: VALID_REGISTER_PASSWORD
     });
 
     expect(response.status).toBe(500);
@@ -134,7 +137,7 @@ describe("POST /auth/register", () => {
 
     const response = await request(app.server).post("/auth/register").send({
       email: "new.user@example.com",
-      password: "correct horse battery staple"
+      password: VALID_REGISTER_PASSWORD
     });
 
     expect(response.status).toBe(502);

@@ -1,4 +1,4 @@
-import type { DragEvent, MouseEvent } from 'react';
+import type { DragEvent, KeyboardEvent, MouseEvent } from 'react';
 import { FileText, Trash2, Calendar } from 'lucide-react';
 import type { Document } from '../models/document';
 import { getLanguageInfo } from '../utils/languages';
@@ -35,6 +35,17 @@ export function DocumentCard({
     onSelect(document.id);
   }
 
+  function handleCardKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key !== 'Enter' && event.key !== ' ') {
+      return;
+    }
+    if ((event.target as HTMLElement).closest('button')) {
+      return;
+    }
+    event.preventDefault();
+    onSelect(document.id);
+  }
+
   return (
     <Card
       role="group"
@@ -44,6 +55,7 @@ export function DocumentCard({
       }`}
       draggable
       onClick={handleCardClick}
+      onKeyDown={handleCardKeyDown}
       onDragStart={(event) => onDragStartDocument(document.id, event)}
       onDrag={(event) => onDragDocument(document.id, event)}
       onDragEnd={onDragEndDocument}
@@ -86,34 +98,19 @@ export function DocumentCard({
             <span className="text-xs text-gray-500">Language: {document.language}</span>
           )}
 
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-7 px-2 text-xs"
-              onClick={(event) => {
-                event.stopPropagation();
-                onSelect(document.id);
-              }}
-              aria-label={`Open ${document.title || 'Untitled Document'}`}
-            >
-              Open
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-7 px-2 text-xs"
-              onClick={(event) => {
-                event.stopPropagation();
-                onRequestMove(document.id);
-              }}
-              aria-label={`Move ${document.title || 'Untitled Document'} to another folder`}
-            >
-              Move
-            </Button>
-          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-7 px-2 text-xs"
+            onClick={(event) => {
+              event.stopPropagation();
+              onRequestMove(document.id);
+            }}
+            aria-label={`Move ${document.title || 'Untitled Document'} to another folder`}
+          >
+            Move
+          </Button>
         </div>
       </div>
     </Card>

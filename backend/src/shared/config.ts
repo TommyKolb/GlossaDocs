@@ -174,12 +174,6 @@ export function getConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       "REDIS_URL must be configured when APP_ENV=prod",
       true
     );
-    requireConfigValue(
-      cfg.AUTH_SESSION_ENCRYPTION_KEY,
-      "CONFIG_SESSION_ENCRYPTION_KEY_MISSING",
-      "AUTH_SESSION_ENCRYPTION_KEY must be configured when APP_ENV=prod",
-      cfg.AUTH_SESSION_STORE === "redis"
-    );
     if (cfg.DATABASE_TLS_INSECURE === true) {
       throw new Error(
         "CONFIG_DATABASE_TLS_INSECURE: DATABASE_TLS_INSECURE cannot be true when APP_ENV=prod"

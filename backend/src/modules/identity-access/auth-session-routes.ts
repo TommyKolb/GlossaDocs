@@ -34,11 +34,14 @@ function getCookieOptions(
   cookieName: string;
   maxAgeSeconds: number;
   secure: boolean;
+  sameSite: "lax" | "none";
 } {
+  const secure = config.AUTH_SESSION_SECURE_COOKIE;
   return {
     cookieName: config.AUTH_SESSION_COOKIE_NAME,
     maxAgeSeconds: config.AUTH_SESSION_TTL_SECONDS,
-    secure: config.AUTH_SESSION_SECURE_COOKIE
+    secure,
+    sameSite: secure ? "none" : "lax"
   };
 }
 
@@ -84,7 +87,7 @@ export const authSessionRoutes: FastifyPluginAsync<AuthSessionRoutesOptions> = a
     }
 
     const { username, password } = loginSchema.parse(request.body);
-    const { cookieName, maxAgeSeconds, secure } = getCookieOptions(options.config);
+    const { cookieName, maxAgeSeconds, secure, sameSite } = getCookieOptions(options.config);
 
     try {
       const login = await options.passwordLoginClient.loginWithPassword({ username, password });
@@ -98,7 +101,7 @@ export const authSessionRoutes: FastifyPluginAsync<AuthSessionRoutesOptions> = a
       reply.setCookie(cookieName, session.id, {
         path: "/",
         httpOnly: true,
-        sameSite: "lax",
+        sameSite,
         secure,
         maxAge: sessionTtlSeconds
       });
@@ -140,7 +143,7 @@ export const authSessionRoutes: FastifyPluginAsync<AuthSessionRoutesOptions> = a
   });
 
   app.post("/auth/logout", async (request, reply) => {
-    const { cookieName, secure } = getCookieOptions(options.config);
+    const { cookieName, secure, sameSite } = getCookieOptions(options.config);
     const sessionId = request.cookies[cookieName];
     try {
       if (sessionId) {
@@ -152,7 +155,7 @@ export const authSessionRoutes: FastifyPluginAsync<AuthSessionRoutesOptions> = a
       reply.clearCookie(cookieName, {
         path: "/",
         httpOnly: true,
-        sameSite: "lax",
+        sameSite,
         secure
       });
     }

@@ -120,6 +120,7 @@ export function DocumentList({ user, onSelectDocument }: DocumentListProps) {
   async function handleFileSelect(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
+    let loadingToast: string | number | undefined;
 
     // Validate file type
     if (!isSupportedDocumentFile(file)) {
@@ -130,7 +131,7 @@ export function DocumentList({ user, onSelectDocument }: DocumentListProps) {
 
     try {
       // Show loading toast
-      const loadingToast = toast.loading(`Importing ${file.name}...`);
+      loadingToast = toast.loading(`Importing ${file.name}...`);
       
       // Import the document
       const newDoc = await importDocumentFile(file);
@@ -149,6 +150,9 @@ export function DocumentList({ user, onSelectDocument }: DocumentListProps) {
       // Open the newly imported document
       onSelectDocument(persistedDoc.id);
     } catch (error) {
+      if (loadingToast !== undefined) {
+        toast.dismiss(loadingToast);
+      }
       console.error('Error importing document:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to import document');
     } finally {

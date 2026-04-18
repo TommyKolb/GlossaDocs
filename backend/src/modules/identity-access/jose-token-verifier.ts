@@ -57,8 +57,14 @@ export class JoseTokenVerifier implements TokenVerifier {
       const usernameCandidate =
         typeof payload.preferred_username === "string"
           ? payload.preferred_username
+          : typeof payload["cognito:username"] === "string"
+            ? payload["cognito:username"]
+            : typeof payload.username === "string"
+              ? payload.username
           : typeof payload.name === "string"
             ? payload.name
+            : typeof payload.email === "string"
+              ? payload.email
             : typeof payload.sub === "string"
               ? payload.sub
               : "unknown";

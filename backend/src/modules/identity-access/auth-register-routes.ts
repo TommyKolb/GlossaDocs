@@ -15,6 +15,16 @@ interface AuthRegisterRoutesOptions {
 }
 
 export const authRegisterRoutes: FastifyPluginAsync<AuthRegisterRoutesOptions> = async (app, options) => {
+  app.get("/auth/register", async (_request, reply) =>
+    reply
+      .status(405)
+      .header("Allow", "POST")
+      .send({
+        message:
+          "Use POST /auth/register with JSON body { email, password }. Sign-up is not available via GET (for example opening this URL in a browser)."
+      })
+  );
+
   app.post("/auth/register", async (request, reply) => {
     if (!options.authAdminClient) {
       throw new ApiError(500, "CONFIG_AUTH_ADMIN_INCOMPLETE", "Auth admin provider is not configured");

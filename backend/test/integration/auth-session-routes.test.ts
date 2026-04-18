@@ -79,6 +79,12 @@ describe("auth session routes", () => {
     await appWithoutOidc.close();
   });
 
+  it("GET /auth/login returns 405 (login is POST-only; browsers open links as GET)", async () => {
+    const response = await request(app.server).get("/auth/login");
+    expect(response.status).toBe(405);
+    expect(response.headers.allow).toBe("POST");
+  });
+
   it("POST /auth/login sets session cookie and returns user profile", async () => {
     const response = await request(app.server).post("/auth/login").send({
       username: "alice@example.com",

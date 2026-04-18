@@ -42,7 +42,8 @@ interface ApiRequestOptions {
 export function getApiBaseUrl(): string {
   const configured = import.meta.env.VITE_API_BASE_URL;
   if (typeof configured === "string" && configured.trim().length > 0) {
-    return configured.trim();
+    // Avoid double slashes when joining paths like `${base}/auth/login` (Amplify env often has a trailing slash).
+    return configured.trim().replace(/\/+$/, "");
   }
   return DEFAULT_API_BASE_URL;
 }
@@ -57,7 +58,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
   }
 
   const response = await fetch(`${getApiBaseUrl()}${path}`, {
-    method: options.method ?? "GET",
+    method: options.method ?? (options.body !== undefined ? "POST" : "GET"),
     headers,
     body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
     credentials: "include",

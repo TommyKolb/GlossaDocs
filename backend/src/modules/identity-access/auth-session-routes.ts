@@ -41,6 +41,16 @@ function getCookieOptions(
 }
 
 export const authSessionRoutes: FastifyPluginAsync<AuthSessionRoutesOptions> = async (app, options) => {
+  app.get("/auth/login", async (_request, reply) =>
+    reply
+      .status(405)
+      .header("Allow", "POST")
+      .send({
+        message:
+          "Use POST /auth/login with JSON body { username, password }. Login is not available via GET (for example opening this URL in a browser)."
+      })
+  );
+
   app.post("/auth/login", async (request, reply) => {
     if (!options.passwordLoginClient) {
       throw new ApiError(500, "CONFIG_AUTH_LOGIN_INCOMPLETE", "Auth login provider is not configured");

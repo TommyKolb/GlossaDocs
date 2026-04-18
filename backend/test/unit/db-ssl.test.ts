@@ -4,7 +4,26 @@ import { tmpdir } from "node:os";
 import { describe, expect, it, vi } from "vitest";
 
 import type { DatabaseSslFileAccess } from "../../src/shared/db.js";
-import { databaseUrlUsesTls, resolveDatabaseSslOptions } from "../../src/shared/db.js";
+import {
+  connectionStringOmitLibpqSslParams,
+  databaseUrlUsesTls,
+  resolveDatabaseSslOptions
+} from "../../src/shared/db.js";
+
+describe("connectionStringOmitLibpqSslParams", () => {
+  it("removes sslmode while preserving host, db, and other query params", () => {
+    const input =
+      "postgresql://u:p@some.rds.amazonaws.com:5432/glossadocs?sslmode=require&application_name=test";
+    expect(connectionStringOmitLibpqSslParams(input)).toBe(
+      "postgresql://u:p@some.rds.amazonaws.com:5432/glossadocs?application_name=test"
+    );
+  });
+
+  it("returns the string unchanged when no SSL query params are present", () => {
+    const s = "postgres://localhost:5432/glossadocs";
+    expect(connectionStringOmitLibpqSslParams(s)).toBe(s);
+  });
+});
 
 describe("databaseUrlUsesTls", () => {
   it("is false for typical local Postgres URLs", () => {

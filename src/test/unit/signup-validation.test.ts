@@ -14,8 +14,9 @@ describe("signup-validation", () => {
     expect(isSignupEmailValid("  user@example.com  ")).toBe(true);
   });
 
-  it("enforces minimum password length", () => {
+  it("enforces Cognito-aligned password rules", () => {
     expect(isSignupPasswordValid("1234567")).toBe(false);
-    expect(isSignupPasswordValid("12345678")).toBe(true);
+    expect(isSignupPasswordValid("12345678")).toBe(false);
+    expect(isSignupPasswordValid("ValidPass123!Ok")).toBe(true);
   });
 });

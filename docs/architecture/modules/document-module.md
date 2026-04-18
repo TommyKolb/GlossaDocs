@@ -70,7 +70,7 @@ flowchart TB
 | Column | Type | Notes |
 |--------|------|--------|
 | `id` | `uuid` | PK, `gen_random_uuid()` |
-| `owner_id` | `text` | Keycloak `sub` |
+| `owner_id` | `text` | OIDC subject (`sub`) from authenticated principal |
 | `title` | `text` | Plain text after sanitization; may be ciphertext |
 | `content` | `text` | Sanitized HTML; may be ciphertext |
 | `language` | `text` | Check: `in ('en','de','ru')` |
@@ -86,7 +86,7 @@ flowchart TB
 | Column | Type | Notes |
 |--------|------|--------|
 | `id` | `uuid` | PK, `gen_random_uuid()` |
-| `owner_id` | `text` | Keycloak `sub` |
+| `owner_id` | `text` | OIDC subject (`sub`) from authenticated principal |
 | `name` | `text` | Plain text folder name |
 | `parent_folder_id` | `uuid` | Nullable FK to `folders.id` |
 | `created_at` | `timestamptz` | |

@@ -9,7 +9,7 @@ interface LoadingSpinnerProps {
 
 export function LoadingSpinner({ message = 'Loading...', className = '' }: LoadingSpinnerProps) {
   return (
-    <div className={`flex items-center justify-center h-screen ${className}`}>
+    <div className={`flex items-center justify-center h-screen ${className}`} role="status" aria-live="polite">
       <div className="text-gray-500">{message}</div>
     </div>
   );

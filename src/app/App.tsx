@@ -1,5 +1,4 @@
-import React from 'react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useLayoutEffect } from 'react';
 import { DocumentList } from './components/DocumentList';
 import { Editor } from './components/Editor';
 import { Login } from './components/Login';
@@ -7,7 +6,7 @@ import { SignUp } from './components/SignUp';
 import { ForgotPassword } from './components/ForgotPassword';
 import { LoadingSpinner } from './components/LoadingSpinner';
 import { Toaster } from './components/ui/sonner';
-import { getAuthenticatedUserFromBackend, type User } from './utils/auth';
+import { getAuthenticatedUserFromBackend, setSessionOverride, type User } from './utils/auth';
 import { UI_CONSTANTS } from './utils/constants';
 
 export default function App() {
@@ -37,6 +36,14 @@ export default function App() {
       cancelled = true;
     };
   }, []);
+
+  // Keep document/settings layers aligned with the active React session (must run before child useEffects).
+  useLayoutEffect(() => {
+    if (user === undefined) {
+      return;
+    }
+    setSessionOverride(user);
+  }, [user]);
 
   const handleLoginSuccess = (loggedInUser: User) => {
     setUser(loggedInUser);
@@ -91,7 +98,7 @@ export default function App() {
       
       <main id="main-content">
         {selectedDocumentId === undefined ? (
-          <DocumentList onSelectDocument={handleSelectDocument} />
+          <DocumentList user={user} onSelectDocument={handleSelectDocument} />
         ) : (
           <Editor documentId={selectedDocumentId} onBack={handleBackToList} />
         )}

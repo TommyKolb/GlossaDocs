@@ -1,25 +1,25 @@
 import { LogOut, Upload } from 'lucide-react';
 import { CreateDocumentButton } from './CreateDocumentButton';
 import { Button } from './ui/button';
-import { getCurrentUser, logout } from '../utils/auth';
+import { logout, type User } from '../utils/auth';
 import { toast } from 'sonner';
 
 interface DocumentListHeroProps {
+  user: User;
   onCreateDocument: () => void;
   onUploadDocument: () => void;
 }
 
-export function DocumentListHero({ onCreateDocument, onUploadDocument }: DocumentListHeroProps) {
-  const user = getCurrentUser();
-
-  const handleLogout = async () => {
+export function DocumentListHero({ user, onCreateDocument, onUploadDocument }: DocumentListHeroProps) {
+  const handleResetSession = async () => {
     try {
       await logout();
-      toast.success('Logged out successfully');
       // Reload the page to reset app state
-      window.location.reload();
+      setTimeout(() => {
+        window.location.reload();
+      }, 120);
     } catch (error) {
-      toast.error('Failed to logout');
+      toast.error('Failed to reset session');
       console.error('Logout error:', error);
     }
   };
@@ -64,21 +64,38 @@ export function DocumentListHero({ onCreateDocument, onUploadDocument }: Documen
         </Button>
       </div>
 
-      {/* User info and logout */}
-      {user && (
+      {/* Account session: show identity + sign out (guest uses local-only storage; no server session). */}
+      {!user.isGuest ? (
         <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row items-center justify-center gap-3 text-sm text-gray-600">
           <span className="font-medium">
-            Logged in as: <span className="text-blue-600">{user.username}</span>
+            Signed in as:{' '}
+            <span className="text-blue-600">{user.email?.trim() || user.username}</span>
           </span>
           <Button
             variant="ghost"
             size="sm"
-            onClick={handleLogout}
+            onClick={() => {
+              void handleResetSession();
+            }}
             className="gap-2"
             aria-label="Sign out of your account"
           >
             <LogOut className="size-4" aria-hidden="true" />
-            Logout
+            Sign out
+          </Button>
+        </div>
+      ) : (
+        <div className="mt-6 sm:mt-8 flex flex-col items-center gap-3 text-sm text-center text-gray-500 px-4">
+          <p>Guest mode — documents stay on this device only.</p>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              void handleResetSession();
+            }}
+            aria-label="Exit guest mode and return to sign-in"
+          >
+            Exit guest mode
           </Button>
         </div>
       )}

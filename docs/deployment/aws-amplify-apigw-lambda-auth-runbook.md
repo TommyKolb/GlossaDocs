@@ -66,6 +66,7 @@ Backend (`backend/.env` or Lambda environment):
 - `AUTH_SESSION_SECURE_COOKIE=true`
 - `AUTH_SESSION_STORE=redis`
 - `REDIS_URL=<elasticache-connection-url>`
+- `AUTH_SESSION_ENCRYPTION_KEY=<high-entropy secret used to encrypt Redis session token payloads>`
 - `DATABASE_URL=<rds-connection-string-with-sslmode=require>`
 - **RDS CA bundle:** the backend ships AWS’s public RDS CA PEM at `backend/certs/rds-global-bundle.pem` and uses it for TLS verification to RDS. Do not omit it from Lambda packaging; production will not start verified TLS without it (or an explicit `RDS_CA_BUNDLE_PATH`). `DATABASE_TLS_INSECURE` is not valid in `APP_ENV=prod`.
 - `COGNITO_REGION=<region>`
@@ -80,12 +81,17 @@ Optional and auto-derived when omitted in Cognito mode:
 - `OIDC_ISSUER_URL` (derived from region + user pool)
 - `OIDC_AUDIENCE` (derived from `COGNITO_CLIENT_ID`)
 - `OIDC_JWKS_URL` (derived as `${OIDC_ISSUER_URL}/.well-known/jwks.json`)
+- `AUTH_LOGIN_RATE_LIMIT_WINDOW_MS` / `AUTH_LOGIN_RATE_LIMIT_MAX_ATTEMPTS` (defaults: 60s / 20 attempts per IP)
 
 Frontend (Amplify env vars):
 
 - `VITE_API_BASE_URL=https://<api-id>.execute-api.<region>.amazonaws.com/<stage>` — **base URL only** (include the stage, e.g. `/prod`; no trailing slash; do **not** append `/auth/login` or other paths). The app calls `POST /auth/login`, `POST /auth/register`, etc. via `fetch`.
 
 **API Gateway console:** A Lambda proxy API often shows **`ANY`** and **`OPTIONS`** on `/{proxy+}` — that is normal: **`ANY`** forwards all HTTP methods (GET, POST, …) to Lambda. Login and sign-up are **`POST`** JSON requests from the SPA, not browser navigations to GET URLs. Opening `https://…/prod/auth/login` in a tab sends **GET**, which the API does not use for credentials (you should see **405 Method Not Allowed** with `Allow: POST` after the backend update that documents this).
+
+**Sign-up passwords (Cognito):** The CDK user pool enforces a **strong** password policy (minimum length 12, uppercase, lowercase, number, symbol). The app-hosted **Create account** form and API validation must match that policy; otherwise Cognito’s `SignUp` API fails and the API previously surfaced a generic **`AUTH_IDP_UNAVAILABLE`** (**502**). Prefer clear **400** responses and UI copy after aligning validation with the pool (see `cognito-password-policy` in the backend and `UserPool` `passwordPolicy` in `glossadocs-stack.ts`).
+
+**Sign-up without email verification:** By default, Cognito `SignUp` creates an **UNCONFIRMED** user until the user verifies email; **`USER_PASSWORD_AUTH` login then fails** (often surfaced as **`AUTH_IDP_UNAVAILABLE`** / **502**). The backend calls **`AdminConfirmSignUp`** immediately after a successful `SignUp`, and the API Lambda IAM role includes **`cognito-idp:AdminConfirmSignUp`** on the user pool so new accounts can sign in without a verification step. **Accounts created before this behavior** may still be UNCONFIRMED: confirm them in the Cognito console (**Users** → select user → **Confirm user**) or register again with a different email.
 
 ## 4) One-Time AWS Bootstrap (Before First Merge to `main`)
 

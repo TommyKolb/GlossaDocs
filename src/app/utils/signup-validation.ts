@@ -1,9 +1,15 @@
 /**
- * Keep frontend checks intentionally coarse and let the backend stay the source of truth.
- * This avoids drift with server-side zod validation.
+ * Email checks are coarse UX hints. Password rules mirror Cognito (see `cognito-password-policy.ts`)
+ * and backend zod validation.
  */
 
-export const SIGNUP_PASSWORD_MIN_LENGTH = 8;
+import {
+  SIGNUP_PASSWORD_MIN_LENGTH,
+  isCognitoCompliantPassword,
+  SIGNUP_PASSWORD_POLICY_HINT
+} from "./cognito-password-policy";
+
+export { SIGNUP_PASSWORD_MIN_LENGTH, SIGNUP_PASSWORD_POLICY_HINT };
 
 /** Basic UX check only. The backend performs full validation. */
 export function isSignupEmailValid(email: string): boolean {
@@ -13,5 +19,5 @@ export function isSignupEmailValid(email: string): boolean {
 }
 
 export function isSignupPasswordValid(password: string): boolean {
-  return password.length >= SIGNUP_PASSWORD_MIN_LENGTH;
+  return isCognitoCompliantPassword(password);
 }

@@ -3,14 +3,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   continueAsGuest,
   getCurrentUser,
+  getEffectiveUser,
   getAuthenticatedUserFromBackend,
   loginWithCredentials,
-  logout
+  logout,
+  setSessionOverride
 } from "@/app/utils/auth";
 
 describe("auth utilities", () => {
   beforeEach(() => {
     localStorage.clear();
+    setSessionOverride(undefined);
     vi.unstubAllGlobals();
     vi.clearAllMocks();
   });
@@ -103,6 +106,29 @@ describe("auth utilities", () => {
     expect(localStorage.getItem("glossadocs_user")).toBeNull();
   });
 
+  it("getEffectiveUser prefers the React session override over localStorage", () => {
+    localStorage.setItem(
+      "glossadocs_user",
+      JSON.stringify({
+        id: "guest_x",
+        username: "Guest",
+        isGuest: true
+      })
+    );
+    setSessionOverride({
+      id: "sub-1",
+      username: "alice",
+      email: "alice@example.com",
+      isGuest: false
+    });
+    expect(getEffectiveUser()).toEqual({
+      id: "sub-1",
+      username: "alice",
+      email: "alice@example.com",
+      isGuest: false
+    });
+  });
+
   it("continueAsGuest stores and returns guest profile", async () => {
     const user = await continueAsGuest();
     expect(user.isGuest).toBe(true);
@@ -169,7 +195,7 @@ describe("auth utilities", () => {
       expect(stored.email).toBe("new@example.com");
     });
 
-    it("keeps storage when fetch fails with a non-API error", async () => {
+    it("requires re-authentication when fetch fails with a non-API error", async () => {
       localStorage.setItem(
         "glossadocs_user",
         JSON.stringify({
@@ -183,16 +209,11 @@ describe("auth utilities", () => {
 
       const user = await getAuthenticatedUserFromBackend();
 
-      expect(user).toEqual({
-        id: "user-123",
-        username: "alice",
-        email: "alice@example.com",
-        isGuest: false
-      });
+      expect(user).toBeNull();
       expect(localStorage.getItem("glossadocs_user")).toContain("user-123");
     });
 
-    it("keeps storage when /auth/session fails with 5xx", async () => {
+    it("requires re-authentication when /auth/session fails with 5xx", async () => {
       localStorage.setItem(
         "glossadocs_user",
         JSON.stringify({
@@ -215,16 +236,11 @@ describe("auth utilities", () => {
 
       const user = await getAuthenticatedUserFromBackend();
 
-      expect(user).toEqual({
-        id: "user-123",
-        username: "alice",
-        email: "alice@example.com",
-        isGuest: false
-      });
+      expect(user).toBeNull();
       expect(localStorage.getItem("glossadocs_user")).toContain("user-123");
     });
 
-    it("keeps storage when /auth/session aborts (timeout)", async () => {
+    it("requires re-authentication when /auth/session aborts (timeout)", async () => {
       localStorage.setItem(
         "glossadocs_user",
         JSON.stringify({
@@ -245,12 +261,7 @@ describe("auth utilities", () => {
 
       const user = await getAuthenticatedUserFromBackend();
 
-      expect(user).toEqual({
-        id: "user-123",
-        username: "alice",
-        email: "alice@example.com",
-        isGuest: false
-      });
+      expect(user).toBeNull();
       expect(localStorage.getItem("glossadocs_user")).toContain("user-123");
     });
   });

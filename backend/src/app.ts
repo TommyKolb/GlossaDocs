@@ -171,7 +171,8 @@ function resolveAuthSessionStore(config: BuildAppConfig, injected?: AuthSessionS
 
     return new RedisAuthSessionStore({
       redisUrl: config.REDIS_URL,
-      keyPrefix: config.AUTH_REDIS_KEY_PREFIX
+      keyPrefix: config.AUTH_REDIS_KEY_PREFIX,
+      encryptionKey: config.AUTH_SESSION_ENCRYPTION_KEY
     });
   }
 
@@ -301,6 +302,8 @@ export function buildApp(config: BuildAppConfig, options: BuildAppOptions = {}):
       AUTH_SESSION_TTL_SECONDS: config.AUTH_SESSION_TTL_SECONDS ?? 3600,
       AUTH_SESSION_SECURE_COOKIE: config.AUTH_SESSION_SECURE_COOKIE ?? false
     },
+    loginRateLimitWindowMs: config.AUTH_LOGIN_RATE_LIMIT_WINDOW_MS ?? 60_000,
+    loginRateLimitMaxAttempts: config.AUTH_LOGIN_RATE_LIMIT_MAX_ATTEMPTS ?? 20,
     tokenVerifier,
     authSessionStore,
     passwordLoginClient
@@ -311,6 +314,11 @@ export function buildApp(config: BuildAppConfig, options: BuildAppOptions = {}):
   void app.register(documentRoutes, { tokenVerifier, service: documentService });
   void app.register(settingsRoutes, { tokenVerifier, service: settingsService });
   registerAuditHook(app, auditWriter);
+  app.addHook("onClose", async () => {
+    if (typeof authSessionStore.close === "function") {
+      await authSessionStore.close();
+    }
+  });
 
   return app;
 }

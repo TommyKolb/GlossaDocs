@@ -20,7 +20,8 @@ vi.mock("@/app/data/document-repository", () => ({
   updateFolder: vi.fn(),
   deleteFolder: vi.fn(),
   deleteDocument: vi.fn(),
-  saveDocument: vi.fn()
+  saveDocument: vi.fn(),
+  moveDocumentToFolder: vi.fn()
 }));
 
 import * as docRepo from "@/app/data/document-repository";
@@ -64,6 +65,12 @@ const sampleFolder = {
   updatedAt: 1
 };
 
+const guestListUser = {
+  id: "guest_test",
+  username: "Guest",
+  isGuest: true
+};
+
 describe("DocumentList folder dialogs", () => {
   const user = userEvent.setup();
 
@@ -83,7 +90,7 @@ describe("DocumentList folder dialogs", () => {
   });
 
   it("opens create-folder dialog and calls createFolder with trimmed name at root", async () => {
-    render(<DocumentList onSelectDocument={() => {}} />);
+    render(<DocumentList user={guestListUser} onSelectDocument={() => {}} />);
 
     await waitForDocumentListShell();
 
@@ -102,7 +109,7 @@ describe("DocumentList folder dialogs", () => {
   it("passes active folder id when creating a nested folder", async () => {
     vi.mocked(docRepo.getAllFolders).mockResolvedValue([sampleFolder]);
 
-    render(<DocumentList onSelectDocument={() => {}} />);
+    render(<DocumentList user={guestListUser} onSelectDocument={() => {}} />);
 
     await waitFor(() => {
       expect(screen.getAllByRole("button", { name: /open folder projects/i }).length).toBeGreaterThan(0);
@@ -128,7 +135,7 @@ describe("DocumentList folder dialogs", () => {
     vi.mocked(docRepo.getAllFolders).mockResolvedValue([sampleFolder]);
     vi.mocked(docRepo.getAllDocuments).mockResolvedValue([]);
 
-    render(<DocumentList onSelectDocument={() => {}} />);
+    render(<DocumentList user={guestListUser} onSelectDocument={() => {}} />);
 
     await waitForDocumentListShell();
     await waitFor(() => {
@@ -161,7 +168,7 @@ describe("DocumentList folder dialogs", () => {
     vi.mocked(docRepo.getAllFolders).mockResolvedValue([sampleFolder]);
     vi.mocked(docRepo.getAllDocuments).mockResolvedValue([]);
 
-    render(<DocumentList onSelectDocument={() => {}} />);
+    render(<DocumentList user={guestListUser} onSelectDocument={() => {}} />);
 
     await waitForDocumentListShell();
     await waitFor(() => {
@@ -180,5 +187,20 @@ describe("DocumentList folder dialogs", () => {
     await waitFor(() => {
       expect(docRepo.deleteFolder).toHaveBeenCalledWith(sampleFolder.id);
     });
+  });
+
+  it("shows load error with retry when initial document load fails", async () => {
+    vi.mocked(docRepo.getAllDocuments).mockRejectedValueOnce(new Error("network"));
+    vi.mocked(docRepo.getAllDocuments).mockResolvedValueOnce([sampleDoc]);
+    vi.mocked(docRepo.getAllFolders).mockRejectedValueOnce(new Error("network"));
+    vi.mocked(docRepo.getAllFolders).mockResolvedValueOnce([]);
+
+    render(<DocumentList user={guestListUser} onSelectDocument={() => {}} />);
+    const retryButton = await screen.findByRole("button", { name: /retry/i });
+    expect(screen.getByRole("alert")).toHaveTextContent(/failed to load documents/i);
+
+    await user.click(retryButton);
+    await waitForDocumentListShell();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });

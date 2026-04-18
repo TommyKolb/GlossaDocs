@@ -1,4 +1,4 @@
-import type { FastifyPluginAsync } from "fastify";
+import type { FastifyPluginAsync, FastifyRequest } from "fastify";
 import { z } from "zod";
 
 import { ApiError } from "../../shared/api-error.js";
@@ -21,6 +21,8 @@ interface AuthSessionRoutesOptions {
   tokenVerifier: TokenVerifier;
   authSessionStore: AuthSessionStore;
   passwordLoginClient: AuthPasswordLoginClient | null;
+  loginRateLimitWindowMs?: number;
+  loginRateLimitMaxAttempts?: number;
 }
 
 function getCookieOptions(
@@ -41,6 +43,29 @@ function getCookieOptions(
 }
 
 export const authSessionRoutes: FastifyPluginAsync<AuthSessionRoutesOptions> = async (app, options) => {
+  const loginAttemptsByKey = new Map<string, number[]>();
+  const loginRateLimitWindowMs = options.loginRateLimitWindowMs ?? 60_000;
+  const loginRateLimitMaxAttempts = options.loginRateLimitMaxAttempts ?? 20;
+
+  function enforceLoginRateLimit(request: FastifyRequest): void {
+    const key = request.ip || "unknown-ip";
+    const now = Date.now();
+    const cutoff = now - loginRateLimitWindowMs;
+    const recentAttempts = (loginAttemptsByKey.get(key) ?? []).filter((value) => value >= cutoff);
+
+    if (recentAttempts.length >= loginRateLimitMaxAttempts) {
+      loginAttemptsByKey.set(key, recentAttempts);
+      throw new ApiError(
+        429,
+        "AUTH_RATE_LIMITED",
+        "Too many login attempts. Please wait before trying again."
+      );
+    }
+
+    recentAttempts.push(now);
+    loginAttemptsByKey.set(key, recentAttempts);
+  }
+
   app.get("/auth/login", async (_request, reply) =>
     reply
       .status(405)
@@ -52,6 +77,8 @@ export const authSessionRoutes: FastifyPluginAsync<AuthSessionRoutesOptions> = a
   );
 
   app.post("/auth/login", async (request, reply) => {
+    enforceLoginRateLimit(request);
+
     if (!options.passwordLoginClient) {
       throw new ApiError(500, "CONFIG_AUTH_LOGIN_INCOMPLETE", "Auth login provider is not configured");
     }
@@ -91,6 +118,20 @@ export const authSessionRoutes: FastifyPluginAsync<AuthSessionRoutesOptions> = a
       ) {
         throw new ApiError(401, "AUTH_INVALID_CREDENTIALS", "Invalid username or password");
       }
+      if (errorCode === "COGNITO_OIDC_EMAIL_NOT_VERIFIED") {
+        throw new ApiError(
+          403,
+          "AUTH_EMAIL_NOT_VERIFIED",
+          "This account is not confirmed yet. If you registered before email-free sign-up was enabled, create a new account or ask an admin to confirm your user in Cognito."
+        );
+      }
+      if (errorCode === "COGNITO_OIDC_AUTH_CHALLENGE") {
+        throw new ApiError(
+          400,
+          "AUTH_CHALLENGE_UNSUPPORTED",
+          error instanceof Error ? error.message : "Additional login step is not supported."
+        );
+      }
       if (error instanceof ApiError) {
         throw error;
       }
@@ -101,15 +142,20 @@ export const authSessionRoutes: FastifyPluginAsync<AuthSessionRoutesOptions> = a
   app.post("/auth/logout", async (request, reply) => {
     const { cookieName, secure } = getCookieOptions(options.config);
     const sessionId = request.cookies[cookieName];
-    if (sessionId) {
-      await options.authSessionStore.delete(sessionId);
+    try {
+      if (sessionId) {
+        await options.authSessionStore.delete(sessionId);
+      }
+    } catch (error) {
+      request.log.warn({ error }, "Failed to delete auth session during logout");
+    } finally {
+      reply.clearCookie(cookieName, {
+        path: "/",
+        httpOnly: true,
+        sameSite: "lax",
+        secure
+      });
     }
-    reply.clearCookie(cookieName, {
-      path: "/",
-      httpOnly: true,
-      sameSite: "lax",
-      secure
-    });
     return reply.status(204).send();
   });
 
@@ -117,7 +163,8 @@ export const authSessionRoutes: FastifyPluginAsync<AuthSessionRoutesOptions> = a
     "/auth/session",
     {
       preHandler: async (request, reply) => {
-        const sessionId = request.cookies[options.config.AUTH_SESSION_COOKIE_NAME];
+        const { cookieName } = getCookieOptions(options.config);
+        const sessionId = request.cookies[cookieName];
         if (!sessionId) {
           throw new ApiError(401, "AUTH_MISSING_SESSION", "No active session");
         }

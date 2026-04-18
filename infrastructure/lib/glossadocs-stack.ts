@@ -8,6 +8,7 @@ import * as apigateway from "aws-cdk-lib/aws-apigateway";
 import * as codebuild from "aws-cdk-lib/aws-codebuild";
 import * as cloudwatch from "aws-cdk-lib/aws-cloudwatch";
 import * as cognito from "aws-cdk-lib/aws-cognito";
+import * as iam from "aws-cdk-lib/aws-iam";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
 import * as elasticache from "aws-cdk-lib/aws-elasticache";
 import * as lambda from "aws-cdk-lib/aws-lambda";
@@ -347,6 +348,13 @@ export class GlossaDocsStack extends cdk.Stack {
         OIDC_PUBLIC_REDIRECT_URI: callbackUrl
       }
     });
+
+    apiLambda.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["cognito-idp:AdminConfirmSignUp"],
+        resources: [userPool.userPoolArn]
+      })
+    );
 
     const api = new apigateway.LambdaRestApi(this, "RestApi", {
       restApiName: "glossadocs-api",

@@ -14,6 +14,8 @@ vi.mock("sonner", () => ({
   }
 }));
 
+const STRONG_PASSWORD = "ValidPass123!Flow";
+
 describe("SignUp validation UX", () => {
   beforeEach(() => {
     vi.stubGlobal("fetch", vi.fn());
@@ -24,7 +26,7 @@ describe("SignUp validation UX", () => {
     vi.unstubAllGlobals();
   });
 
-  it("keeps Create account disabled until email, password length, and confirm match", async () => {
+  it("keeps Create account disabled until email, password strength, and confirm match", async () => {
     const fetchMock = vi.mocked(globalThis.fetch);
     render(<SignUp onCancel={() => {}} onAccountCreated={() => {}} />);
     const user = userEvent.setup();
@@ -42,13 +44,13 @@ describe("SignUp validation UX", () => {
     await user.clear(screen.getByLabelText(/^Email$/i));
     await user.type(screen.getByLabelText(/^Email$/i), "user@example.com");
     await user.clear(screen.getByLabelText(/^Password$/i));
-    await user.type(screen.getByLabelText(/^Password$/i), "12345678");
+    await user.type(screen.getByLabelText(/^Password$/i), STRONG_PASSWORD);
     await user.clear(screen.getByLabelText(/^Confirm password$/i));
-    await user.type(screen.getByLabelText(/^Confirm password$/i), "87654321");
+    await user.type(screen.getByLabelText(/^Confirm password$/i), "ValidPass123!Other");
     expect(submitBtn()).toBeDisabled();
 
     await user.clear(screen.getByLabelText(/^Confirm password$/i));
-    await user.type(screen.getByLabelText(/^Confirm password$/i), "12345678");
+    await user.type(screen.getByLabelText(/^Confirm password$/i), STRONG_PASSWORD);
     expect(submitBtn()).not.toBeDisabled();
 
     fetchMock.mockResolvedValue({
@@ -81,8 +83,8 @@ describe("SignUp validation UX", () => {
     const user = userEvent.setup();
 
     await user.type(screen.getByLabelText(/^Email$/i), "taken@example.com");
-    await user.type(screen.getByLabelText(/^Password$/i), "12345678");
-    await user.type(screen.getByLabelText(/^Confirm password$/i), "12345678");
+    await user.type(screen.getByLabelText(/^Password$/i), STRONG_PASSWORD);
+    await user.type(screen.getByLabelText(/^Confirm password$/i), STRONG_PASSWORD);
 
     fetchMock.mockResolvedValue({
       ok: false,
@@ -111,8 +113,8 @@ describe("SignUp validation UX", () => {
     const user = userEvent.setup();
 
     await user.type(screen.getByLabelText(/^Email$/i), "user@example.com");
-    await user.type(screen.getByLabelText(/^Password$/i), "12345678");
-    await user.type(screen.getByLabelText(/^Confirm password$/i), "12345678");
+    await user.type(screen.getByLabelText(/^Password$/i), STRONG_PASSWORD);
+    await user.type(screen.getByLabelText(/^Confirm password$/i), STRONG_PASSWORD);
 
     fetchMock.mockResolvedValue({
       ok: false,

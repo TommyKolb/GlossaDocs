@@ -53,6 +53,11 @@ function clearClientAuthState(): void {
   setSessionOverride(null);
 }
 
+function markSessionUnknownState(): void {
+  resetRemoteDocumentCache();
+  setSessionOverride(null);
+}
+
 export async function loginWithCredentials(credentials: LoginCredentials): Promise<User> {
   const data = await authApi.login({
     username: credentials.username,
@@ -161,16 +166,16 @@ export async function getAuthenticatedUserFromBackend(): Promise<User | null> {
         return null;
       }
       if (isDevBuild) {
-        console.error("Session bootstrap failed with API error; keeping current user:", error);
+        console.error("Session bootstrap failed with API error; requiring re-authentication:", error);
       }
-      setSessionOverride(currentUser);
-      return currentUser;
+      markSessionUnknownState();
+      return null;
     }
     if (isDevBuild) {
-      console.error("Failed to bootstrap user from /auth/session:", error);
+      console.error("Failed to bootstrap user from /auth/session; requiring re-authentication:", error);
     }
-    setSessionOverride(currentUser);
-    return currentUser;
+    markSessionUnknownState();
+    return null;
   }
 }
 

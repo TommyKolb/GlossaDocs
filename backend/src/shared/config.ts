@@ -66,6 +66,12 @@ const configSchema = z.object({
   REDIS_URL: z.string().optional(),
   /** Prefix for Redis-backed session keys. */
   AUTH_REDIS_KEY_PREFIX: z.string().default("glossadocs:session:"),
+  /** Optional key used to encrypt Redis-stored session access tokens at rest. */
+  AUTH_SESSION_ENCRYPTION_KEY: z.string().optional(),
+  /** Per-IP login rate limit window in milliseconds. */
+  AUTH_LOGIN_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
+  /** Per-IP maximum login attempts within the configured window. */
+  AUTH_LOGIN_RATE_LIMIT_MAX_ATTEMPTS: z.coerce.number().int().positive().default(20),
   /** AWS region for Cognito resources. */
   COGNITO_REGION: z.string().optional(),
   /** Cognito User Pool id used for auth and admin APIs. */
@@ -167,6 +173,12 @@ export function getConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       "CONFIG_REDIS_MISSING",
       "REDIS_URL must be configured when APP_ENV=prod",
       true
+    );
+    requireConfigValue(
+      cfg.AUTH_SESSION_ENCRYPTION_KEY,
+      "CONFIG_SESSION_ENCRYPTION_KEY_MISSING",
+      "AUTH_SESSION_ENCRYPTION_KEY must be configured when APP_ENV=prod",
+      cfg.AUTH_SESSION_STORE === "redis"
     );
     if (cfg.DATABASE_TLS_INSECURE === true) {
       throw new Error(

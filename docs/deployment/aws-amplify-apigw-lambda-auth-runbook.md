@@ -66,6 +66,7 @@ Backend (`backend/.env` or Lambda environment):
 - `AUTH_SESSION_SECURE_COOKIE=true`
 - `AUTH_SESSION_STORE=redis`
 - `REDIS_URL=<elasticache-connection-url>`
+- `AUTH_SESSION_ENCRYPTION_KEY=<high-entropy secret used to encrypt Redis session token payloads>`
 - `DATABASE_URL=<rds-connection-string-with-sslmode=require>`
 - **RDS CA bundle:** the backend ships AWS’s public RDS CA PEM at `backend/certs/rds-global-bundle.pem` and uses it for TLS verification to RDS. Do not omit it from Lambda packaging; production will not start verified TLS without it (or an explicit `RDS_CA_BUNDLE_PATH`). `DATABASE_TLS_INSECURE` is not valid in `APP_ENV=prod`.
 - `COGNITO_REGION=<region>`
@@ -80,6 +81,7 @@ Optional and auto-derived when omitted in Cognito mode:
 - `OIDC_ISSUER_URL` (derived from region + user pool)
 - `OIDC_AUDIENCE` (derived from `COGNITO_CLIENT_ID`)
 - `OIDC_JWKS_URL` (derived as `${OIDC_ISSUER_URL}/.well-known/jwks.json`)
+- `AUTH_LOGIN_RATE_LIMIT_WINDOW_MS` / `AUTH_LOGIN_RATE_LIMIT_MAX_ATTEMPTS` (defaults: 60s / 20 attempts per IP)
 
 Frontend (Amplify env vars):
 

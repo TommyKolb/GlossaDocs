@@ -36,6 +36,7 @@ import { UI_CONSTANTS } from '../utils/constants';
 import { DOCUMENT_PAYLOAD_TOO_LARGE_MESSAGE, isPayloadTooLargeError } from '../api/client';
 import { toast } from 'sonner';
 import type { User } from '../utils/auth';
+import { NEW_DOCUMENT_FOLDER_ID_STORAGE_KEY } from '../data/storage-keys';
 
 interface DocumentListProps {
   user: User;
@@ -47,6 +48,7 @@ export function DocumentList({ user, onSelectDocument }: DocumentListProps) {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadErrorMessage, setLoadErrorMessage] = useState<string | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -63,6 +65,7 @@ export function DocumentList({ user, onSelectDocument }: DocumentListProps) {
   const [isFolderDeleteAlertOpen, setIsFolderDeleteAlertOpen] = useState(false);
   const [isFolderMutating, setIsFolderMutating] = useState(false);
   const uploadInputRef = useRef<HTMLInputElement>(null);
+  const latestLoadRequestRef = useRef(0);
 
   const {
     onDragStartDocument,
@@ -72,26 +75,40 @@ export function DocumentList({ user, onSelectDocument }: DocumentListProps) {
   } = useDocumentDragPreview(setDraggingDocumentId, setDropTargetFolderId);
 
   useEffect(() => {
-    void loadDocuments();
+    void loadDocuments({ showSpinner: true });
   }, [user.id, user.isGuest]);
 
-  async function loadDocuments() {
+  async function loadDocuments(options: { showSpinner?: boolean } = {}) {
+    const requestId = ++latestLoadRequestRef.current;
+    if (options.showSpinner !== false) {
+      setLoading(true);
+    }
+    setLoadErrorMessage(null);
     try {
       const [docs, allFolders] = await Promise.all([getAllDocuments(), getAllFolders()]);
+      if (latestLoadRequestRef.current !== requestId) {
+        return;
+      }
       setDocuments(docs);
       setFolders(allFolders);
     } catch (error) {
+      if (latestLoadRequestRef.current !== requestId) {
+        return;
+      }
       console.error('Error loading documents:', error);
+      setLoadErrorMessage('Failed to load documents. Check your connection and try again.');
     } finally {
-      setLoading(false);
+      if (latestLoadRequestRef.current === requestId) {
+        setLoading(false);
+      }
     }
   }
 
   function handleCreateNew() {
     if (activeFolderId) {
-      localStorage.setItem('glossadocs_new_document_folder_id', activeFolderId);
+      localStorage.setItem(NEW_DOCUMENT_FOLDER_ID_STORAGE_KEY, activeFolderId);
     } else {
-      localStorage.removeItem('glossadocs_new_document_folder_id');
+      localStorage.removeItem(NEW_DOCUMENT_FOLDER_ID_STORAGE_KEY);
     }
     onSelectDocument(null);
   }
@@ -123,7 +140,7 @@ export function DocumentList({ user, onSelectDocument }: DocumentListProps) {
       const persistedDoc = await saveDocument(newDoc);
       
       // Reload documents list
-      await loadDocuments();
+      await loadDocuments({ showSpinner: false });
       
       // Dismiss loading toast and show success
       toast.dismiss(loadingToast);
@@ -152,7 +169,7 @@ export function DocumentList({ user, onSelectDocument }: DocumentListProps) {
     setIsDeleting(true);
     try {
       await deleteDocument(pendingDeleteId);
-      await loadDocuments();
+      await loadDocuments({ showSpinner: false });
     } catch (error) {
       console.error('Error deleting document:', error);
       toast.error('Failed to delete document');
@@ -170,7 +187,7 @@ export function DocumentList({ user, onSelectDocument }: DocumentListProps) {
     }
     try {
       await moveDocumentToFolder(documentId, folderId);
-      await loadDocuments();
+      await loadDocuments({ showSpinner: false });
     } catch (error) {
       console.error('Error moving document:', error);
       if (isPayloadTooLargeError(error)) {
@@ -252,7 +269,7 @@ export function DocumentList({ user, onSelectDocument }: DocumentListProps) {
     setIsFolderMutating(true);
     try {
       await createFolder(name, activeFolderId);
-      await loadDocuments();
+      await loadDocuments({ showSpinner: false });
       setIsCreateFolderDialogOpen(false);
       setNewFolderNameInput('');
     } catch (error) {
@@ -288,7 +305,7 @@ export function DocumentList({ user, onSelectDocument }: DocumentListProps) {
     setIsFolderMutating(true);
     try {
       await updateFolder({ ...current, name });
-      await loadDocuments();
+      await loadDocuments({ showSpinner: false });
       setIsRenameFolderDialogOpen(false);
     } catch (error) {
       console.error('Error renaming folder:', error);
@@ -307,7 +324,7 @@ export function DocumentList({ user, onSelectDocument }: DocumentListProps) {
     try {
       await deleteFolder(activeFolderId);
       setActiveFolderId(current?.parentFolderId ?? null);
-      await loadDocuments();
+      await loadDocuments({ showSpinner: false });
       setIsFolderDeleteAlertOpen(false);
     } catch (error) {
       console.error('Error deleting folder:', error);
@@ -346,7 +363,21 @@ export function DocumentList({ user, onSelectDocument }: DocumentListProps) {
         <DocumentListHero user={user} onCreateDocument={handleCreateNew} onUploadDocument={handleUpload} />
 
         {/* Documents section */}
-        {documents.length === 0 && folders.length === 0 ? (
+        {loadErrorMessage && (
+          <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800" role="alert">
+            <div>{loadErrorMessage}</div>
+            <button
+              type="button"
+              onClick={() => {
+                void loadDocuments({ showSpinner: true });
+              }}
+              className="mt-2 inline-flex items-center rounded border border-red-300 bg-white px-2 py-1 text-xs font-medium hover:bg-red-100"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+        {documents.length === 0 && folders.length === 0 && !loadErrorMessage ? (
           <EmptyDocumentState onCreateDocument={handleCreateNew} />
         ) : (
           <div>

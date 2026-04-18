@@ -20,7 +20,8 @@ vi.mock("@/app/data/document-repository", () => ({
   updateFolder: vi.fn(),
   deleteFolder: vi.fn(),
   deleteDocument: vi.fn(),
-  saveDocument: vi.fn()
+  saveDocument: vi.fn(),
+  moveDocumentToFolder: vi.fn()
 }));
 
 import * as docRepo from "@/app/data/document-repository";
@@ -186,5 +187,20 @@ describe("DocumentList folder dialogs", () => {
     await waitFor(() => {
       expect(docRepo.deleteFolder).toHaveBeenCalledWith(sampleFolder.id);
     });
+  });
+
+  it("shows load error with retry when initial document load fails", async () => {
+    vi.mocked(docRepo.getAllDocuments).mockRejectedValueOnce(new Error("network"));
+    vi.mocked(docRepo.getAllDocuments).mockResolvedValueOnce([sampleDoc]);
+    vi.mocked(docRepo.getAllFolders).mockRejectedValueOnce(new Error("network"));
+    vi.mocked(docRepo.getAllFolders).mockResolvedValueOnce([]);
+
+    render(<DocumentList user={guestListUser} onSelectDocument={() => {}} />);
+    const retryButton = await screen.findByRole("button", { name: /retry/i });
+    expect(screen.getByRole("alert")).toHaveTextContent(/failed to load documents/i);
+
+    await user.click(retryButton);
+    await waitForDocumentListShell();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });

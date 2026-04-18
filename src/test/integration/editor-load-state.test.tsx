@@ -4,11 +4,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Editor } from "@/app/components/Editor";
 
-const { getUserSettingsMock, updateUserSettingsMock, getDocumentMock, saveDocumentMock } = vi.hoisted(() => ({
+const { getUserSettingsMock, updateUserSettingsMock, getDocumentMock, saveDocumentMock, getAllFoldersMock } = vi.hoisted(() => ({
   getUserSettingsMock: vi.fn(),
   updateUserSettingsMock: vi.fn(),
   getDocumentMock: vi.fn(),
-  saveDocumentMock: vi.fn()
+  saveDocumentMock: vi.fn(),
+  getAllFoldersMock: vi.fn()
 }));
 
 vi.mock("sonner", () => ({
@@ -36,7 +37,8 @@ vi.mock("@/app/data/document-repository", async () => {
   return {
     ...actual,
     getDocument: getDocumentMock,
-    saveDocument: saveDocumentMock
+    saveDocument: saveDocumentMock,
+    getAllFolders: getAllFoldersMock
   };
 });
 
@@ -90,6 +92,7 @@ describe("Editor load-state handling", () => {
       configurable: true
     });
     saveDocumentMock.mockImplementation(async (doc) => doc);
+    getAllFoldersMock.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -156,5 +159,22 @@ describe("Editor load-state handling", () => {
     await waitFor(() => {
       expect(editor.innerHTML).toContain("server-normalized content");
     });
+  });
+
+  it("cancels pending autosave when switching documents", async () => {
+    const firstDocId = "11111111-1111-4111-8111-000000000001";
+    const secondDocId = "22222222-2222-4222-8222-000000000002";
+    getDocumentMock.mockImplementation(async (id: string) =>
+      id === firstDocId ? buildApiDoc(firstDocId, "First") : buildApiDoc(secondDocId, "Second")
+    );
+
+    const { rerender } = render(<Editor documentId={firstDocId} onBack={() => {}} />);
+    const editor = await screen.findByRole("textbox", { name: /First/i });
+    await userEvent.setup().type(editor, "x");
+    expect(screen.getByLabelText(/document has unsaved changes/i)).toBeInTheDocument();
+
+    rerender(<Editor documentId={secondDocId} onBack={() => {}} />);
+    await screen.findByRole("textbox", { name: /Second/i });
+    expect(screen.queryByLabelText(/document has unsaved changes/i)).not.toBeInTheDocument();
   });
 });

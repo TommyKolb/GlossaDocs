@@ -11,6 +11,7 @@ export interface AuthSessionStore {
   get(sessionId: string): Promise<AuthSession | null>;
   delete(sessionId: string): Promise<void>;
   healthCheck?(): Promise<void>;
+  close?(): Promise<void>;
 }
 
 export class InMemoryAuthSessionStore implements AuthSessionStore {

@@ -6,6 +6,7 @@ import {
 
 import { ApiError } from "../../shared/api-error.js";
 import { computeCognitoSecretHash } from "./cognito-secret-hash.js";
+import { getCognitoErrorName } from "./cognito-sdk-errors.js";
 
 export type CognitoOidcClientErrorCode =
   | "COGNITO_OIDC_INVALID_CREDENTIALS"
@@ -52,15 +53,8 @@ export function requireCognitoOidcClientConfig(
   return { region, clientId, clientSecret };
 }
 
-function cognitoErrorName(error: unknown): string | undefined {
-  if (!error || typeof error !== "object") {
-    return undefined;
-  }
-  return (error as { name?: string }).name;
-}
-
 function isCognitoInvalidCredentialsError(error: unknown): boolean {
-  const name = cognitoErrorName(error);
+  const name = getCognitoErrorName(error);
   return name === "NotAuthorizedException" || name === "UserNotFoundException";
 }
 
@@ -68,9 +62,12 @@ export class HttpCognitoOidcClient implements CognitoOidcClient {
   private readonly config: CognitoOidcClientConfig;
   private readonly client: CognitoIdentityProviderClient;
 
-  public constructor(config: CognitoOidcClientConfig) {
+  public constructor(
+    config: CognitoOidcClientConfig,
+    deps: { cognitoClient?: CognitoIdentityProviderClient } = {}
+  ) {
     this.config = config;
-    this.client = new CognitoIdentityProviderClient({ region: config.region });
+    this.client = deps.cognitoClient ?? new CognitoIdentityProviderClient({ region: config.region });
   }
 
   public async loginWithPassword(args: {
@@ -105,7 +102,7 @@ export class HttpCognitoOidcClient implements CognitoOidcClient {
           "Invalid username or password"
         );
       }
-      if (cognitoErrorName(error) === "UserNotConfirmedException") {
+      if (getCognitoErrorName(error) === "UserNotConfirmedException") {
         throw new CognitoOidcClientError(
           "COGNITO_OIDC_EMAIL_NOT_VERIFIED",
           "This account is not confirmed yet. Complete email verification or sign up again."

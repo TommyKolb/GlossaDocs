@@ -48,7 +48,7 @@ Related cross-cutting types live outside this folder: `RequestContext` and `crea
 
 ## Stable storage mechanism
 
-**None.** This module does not own durable state. Readiness may later query PostgreSQL or external dependencies; today `/ready` returns a static payload.
+**None.** This module does not own durable state directly, but `/ready` now runs dependency checks against configured backends.
 
 ## Storage / wire schemas
 
@@ -72,7 +72,12 @@ Related cross-cutting types live outside this folder: `RequestContext` and `crea
 **Health**
 
 - `GET /health` → `{ "status": "ok" }`
-- `GET /ready` → `{ "status": "ready" }` (placeholder; no dependency checks yet)
+- `GET /ready` → `{ "status": "ready", "checks": [...] }` when dependency checks pass
+- `GET /ready` → `503` with `{ "status": "not_ready", "checks": [...] }` when any dependency fails
+
+Current readiness checks:
+- PostgreSQL (`select 1`) when `DATABASE_URL` is configured
+- Auth session store health via `authSessionStore.healthCheck()` when available
 
 ## External API (callers of this module)
 

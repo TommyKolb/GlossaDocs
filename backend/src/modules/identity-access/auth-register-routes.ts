@@ -45,6 +45,13 @@ export const authRegisterRoutes: FastifyPluginAsync<AuthRegisterRoutesOptions> =
         const msg = err instanceof Error ? err.message : "Invalid sign-up data";
         throw new ApiError(400, "AUTH_SIGNUP_REJECTED", msg);
       }
+      if (errorCode === "COGNITO_CONFIRMATION_FAILED") {
+        throw new ApiError(
+          502,
+          "AUTH_SIGNUP_CONFIRMATION_FAILED",
+          "Account creation reached Cognito but final confirmation failed. Please try again."
+        );
+      }
       throw new ApiError(502, "AUTH_IDP_UNAVAILABLE", "Unable to create account");
     }
   });

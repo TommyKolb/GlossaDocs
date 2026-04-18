@@ -4,7 +4,7 @@ import { EditorToolbar } from './EditorToolbar';
 import { LanguageKeyboard } from './LanguageKeyboard';
 import type { Document } from '../models/document';
 import { generateDocumentId } from '../models/document';
-import { getDocument, saveDocument } from '../data/document-repository';
+import { getAllFolders, getDocument, saveDocument } from '../data/document-repository';
 import { exportDocument, type ExportFormat } from '../utils/export';
 import { getLanguageName, type Language } from '../utils/languages';
 import { getDefaultFontFamilyForLanguage, resolveDocumentFontFamily } from '../utils/language-fonts';
@@ -24,6 +24,7 @@ import { useAutoSave } from '../hooks/useAutoSave';
 import { getUserSettings, languageToLocale, localeToLanguage, updateUserSettings } from '../data/settings-repository';
 import { DOCUMENT_PAYLOAD_TOO_LARGE_MESSAGE, isPayloadTooLargeError } from '../api/client';
 import { toast } from 'sonner';
+import { NEW_DOCUMENT_FOLDER_ID_STORAGE_KEY } from '../data/storage-keys';
 
 interface EditorProps {
   documentId: string | null;
@@ -36,6 +37,7 @@ export function Editor({ documentId, onBack }: EditorProps) {
   const [loadErrorMessage, setLoadErrorMessage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isDocumentReady, setIsDocumentReady] = useState(false);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(true);
   const [keyboardLayoutOverrides, setKeyboardLayoutOverrides] = useState<KeyboardLayoutOverrides>({});
   const keyboardLayoutSaveRequestRef = useRef(0);
@@ -619,7 +621,7 @@ export function Editor({ documentId, onBack }: EditorProps) {
   }, [handleSave, toggleKeyboardVisibility]);
 
   // Auto-save hook
-  useAutoSave(hasUnsavedChanges, handleSave);
+  useAutoSave(hasUnsavedChanges && isDocumentReady, handleSave);
 
   // Listen globally so Ctrl/Cmd + S works anywhere on the editor page.
   useEffect(() => {
@@ -651,6 +653,11 @@ export function Editor({ documentId, onBack }: EditorProps) {
     let cancelled = false;
     setLoadErrorMessage(null);
     setDocument(null);
+    setIsDocumentReady(false);
+    setHasUnsavedChanges(false);
+    setIsSaving(false);
+    saveRequestedWhileRunningRef.current = false;
+    isSaveRunningRef.current = false;
 
     const applyIfCurrent = (apply: () => void) => {
       if (cancelled || latestLoadRequestRef.current !== requestId || !isMountedRef.current) {
@@ -684,6 +691,7 @@ export function Editor({ documentId, onBack }: EditorProps) {
           }
           applyIfCurrent(() => {
             setDocument(doc);
+            setIsDocumentReady(true);
           });
         } catch (error) {
           console.error('Error loading document:', error);
@@ -698,7 +706,19 @@ export function Editor({ documentId, onBack }: EditorProps) {
         }
 
         // Create new document
-        const initialFolderId = localStorage.getItem('glossadocs_new_document_folder_id');
+        let initialFolderId = localStorage.getItem(NEW_DOCUMENT_FOLDER_ID_STORAGE_KEY);
+        if (initialFolderId) {
+          try {
+            const folders = await getAllFolders();
+            const folderExists = folders.some((folder) => folder.id === initialFolderId);
+            if (!folderExists) {
+              initialFolderId = null;
+              localStorage.removeItem(NEW_DOCUMENT_FOLDER_ID_STORAGE_KEY);
+            }
+          } catch {
+            initialFolderId = null;
+          }
+        }
         const newDoc: Document = {
           id: generateDocumentId(),
           title: EDITOR_CONFIG.DEFAULT_TITLE,
@@ -711,6 +731,7 @@ export function Editor({ documentId, onBack }: EditorProps) {
         };
         applyIfCurrent(() => {
           setDocument(newDoc);
+          setIsDocumentReady(true);
         });
       }
 
@@ -763,7 +784,9 @@ export function Editor({ documentId, onBack }: EditorProps) {
     }
     return (
       <div className="flex items-center justify-center h-screen">
-        <div className="text-gray-500">Loading...</div>
+        <div className="text-gray-500" role="status" aria-live="polite">
+          Loading...
+        </div>
       </div>
     );
   }

@@ -11,14 +11,15 @@ interface DocumentListHeroProps {
 }
 
 export function DocumentListHero({ user, onCreateDocument, onUploadDocument }: DocumentListHeroProps) {
-  const handleLogout = async () => {
+  const handleResetSession = async () => {
     try {
       await logout();
-      toast.success('Logged out successfully');
       // Reload the page to reset app state
-      window.location.reload();
+      setTimeout(() => {
+        window.location.reload();
+      }, 120);
     } catch (error) {
-      toast.error('Failed to logout');
+      toast.error('Failed to reset session');
       console.error('Logout error:', error);
     }
   };
@@ -74,7 +75,7 @@ export function DocumentListHero({ user, onCreateDocument, onUploadDocument }: D
             variant="ghost"
             size="sm"
             onClick={() => {
-              void handleLogout();
+              void handleResetSession();
             }}
             className="gap-2"
             aria-label="Sign out of your account"
@@ -84,9 +85,19 @@ export function DocumentListHero({ user, onCreateDocument, onUploadDocument }: D
           </Button>
         </div>
       ) : (
-        <p className="mt-6 sm:mt-8 text-sm text-center text-gray-500 px-4">
-          Guest mode — documents stay on this device only.
-        </p>
+        <div className="mt-6 sm:mt-8 flex flex-col items-center gap-3 text-sm text-center text-gray-500 px-4">
+          <p>Guest mode — documents stay on this device only.</p>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              void handleResetSession();
+            }}
+            aria-label="Exit guest mode and return to sign-in"
+          >
+            Exit guest mode
+          </Button>
+        </div>
       )}
     </div>
   );

@@ -84,6 +84,7 @@ describe("getConfig", () => {
       AUTH_SESSION_SECURE_COOKIE: "true",
       AUTH_SESSION_STORE: "redis",
       REDIS_URL: "redis://127.0.0.1:6379",
+      AUTH_SESSION_ENCRYPTION_KEY: "test-session-encryption-key",
       CORS_ALLOWED_ORIGINS: "https://app.example.com",
       COGNITO_REGION: "us-east-1",
       COGNITO_USER_POOL_ID: "us-east-1_abc123",
@@ -113,6 +114,7 @@ describe("getConfig", () => {
         AUTH_SESSION_SECURE_COOKIE: "false",
         AUTH_SESSION_STORE: "redis",
         REDIS_URL: "redis://127.0.0.1:6379",
+        AUTH_SESSION_ENCRYPTION_KEY: "test-session-encryption-key",
         COGNITO_REGION: "us-east-1",
         COGNITO_USER_POOL_ID: "us-east-1_abc123",
         COGNITO_CLIENT_ID: "client123"
@@ -130,6 +132,7 @@ describe("getConfig", () => {
         AUTH_SESSION_SECURE_COOKIE: "true",
         AUTH_SESSION_STORE: "redis",
         REDIS_URL: "redis://127.0.0.1:6379",
+        AUTH_SESSION_ENCRYPTION_KEY: "test-session-encryption-key",
         COGNITO_REGION: "us-east-1",
         COGNITO_USER_POOL_ID: "us-east-1_abc123",
         COGNITO_CLIENT_ID: "client123"

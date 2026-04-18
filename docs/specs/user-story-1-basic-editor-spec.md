@@ -4,7 +4,7 @@
 - **Story**: As a writer, I want a basic document editor where I can create, edit, and save a text document so that I can actually write and return to my work.
 - **Status**: **Implemented** for signed-in users (documents and settings via the Fastify API and PostgreSQL). **Guest mode** remains a local-first path using IndexedDB and does not call the documents API.
 - **Depends on**: [`docs/architecture/backend-architecture.md`](../architecture/backend-architecture.md)
-- **Single-backend assumption**: This story uses the same Fastify + Keycloak + PostgreSQL backend as the rest of the app.
+- **Single-backend assumption**: This story uses the same Fastify + PostgreSQL backend as the rest of the app, with Keycloak defaults in local dev and Cognito in production.
 
 ## Goal
 Provide reliable document persistence and ownership for authenticated users while keeping the existing editor UX (manual save + autosave, document list, open/delete, rich-text formatting, import/export). Guests can still use the app without any backend.
@@ -32,14 +32,14 @@ flowchart LR
   user[Writer] --> fe[ReactFrontend]
   fe -->|"Guest: local only"| idb[(IndexedDB)]
   fe -->|"Auth: login/register via API"| api[FastifyAPI]
-  api --> kc[Keycloak]
+  api --> idp[OIDCProvider]
   fe -->|"Auth: credentialed fetch"| api
   api --> docSvc[DocumentService]
   docSvc --> pg[(PostgreSQL)]
 ```
 
 ### Information flow (authenticated)
-1. User signs in through app-hosted screens; backend exchanges credentials with Keycloak and establishes a session (**httpOnly cookie**).
+1. User signs in through app-hosted screens; backend exchanges credentials with the configured OIDC provider and establishes a session (**httpOnly cookie**).
 2. The frontend calls protected routes with **cookie credentials** (see `apiRequest` in `src/app/api/client.ts`). The browser does not store passwords or access tokens for document calls.
 3. The API resolves the actor from the session, scopes documents by `owner_id`, and performs CRUD.
 4. `document-repository` uses create vs update based on document id and server state (including recovery if a stale id returns 404).
@@ -68,7 +68,7 @@ All routes require an authenticated session unless using guest mode locally.
 ## Data schema (backend)
 Table `documents`:
 - `id` uuid PK
-- `owner_id` text not null (Keycloak subject)
+- `owner_id` text not null (OIDC subject)
 - `title` text not null
 - `content` text not null (HTML; sanitized on write in the API)
 - `language` text not null, constrained to supported codes (see `backend/src/shared/document-languages.ts` and migrations)

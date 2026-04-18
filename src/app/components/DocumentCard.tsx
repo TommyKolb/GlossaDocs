@@ -86,19 +86,34 @@ export function DocumentCard({
             <span className="text-xs text-gray-500">Language: {document.language}</span>
           )}
 
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-7 px-2 text-xs"
-            onClick={(event) => {
-              event.stopPropagation();
-              onRequestMove(document.id);
-            }}
-            aria-label={`Move ${document.title || 'Untitled Document'} to another folder`}
-          >
-            Move
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={(event) => {
+                event.stopPropagation();
+                onSelect(document.id);
+              }}
+              aria-label={`Open ${document.title || 'Untitled Document'}`}
+            >
+              Open
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={(event) => {
+                event.stopPropagation();
+                onRequestMove(document.id);
+              }}
+              aria-label={`Move ${document.title || 'Untitled Document'} to another folder`}
+            >
+              Move
+            </Button>
+          </div>
         </div>
       </div>
     </Card>

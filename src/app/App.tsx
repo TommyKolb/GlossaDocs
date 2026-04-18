@@ -1,4 +1,3 @@
-import React from 'react';
 import { useState, useEffect, useLayoutEffect } from 'react';
 import { DocumentList } from './components/DocumentList';
 import { Editor } from './components/Editor';

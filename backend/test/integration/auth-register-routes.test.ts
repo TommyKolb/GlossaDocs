@@ -61,6 +61,12 @@ describe("POST /auth/register", () => {
     await appWithoutAdmin.close();
   });
 
+  it("GET /auth/register returns 405 (registration is POST-only)", async () => {
+    const response = await request(app.server).get("/auth/register");
+    expect(response.status).toBe(405);
+    expect(response.headers.allow).toBe("POST");
+  });
+
   it("creates a Keycloak user for valid email/password", async () => {
     const response = await request(app.server).post("/auth/register").send({
       email: "new.user@example.com",

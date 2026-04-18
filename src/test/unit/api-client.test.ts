@@ -31,6 +31,11 @@ describe("getApiBaseUrl", () => {
     expect(getApiBaseUrl()).toBe("http://trimmed");
   });
 
+  it("strips trailing slashes from VITE_API_BASE_URL", () => {
+    vi.stubEnv("VITE_API_BASE_URL", "https://api.example.com/prod/");
+    expect(getApiBaseUrl()).toBe("https://api.example.com/prod");
+  });
+
   it("falls back to localhost when env is empty", () => {
     vi.stubEnv("VITE_API_BASE_URL", "");
     expect(getApiBaseUrl()).toBe("http://localhost:4000");
@@ -58,6 +63,21 @@ describe("apiRequest", () => {
         method: "GET",
         credentials: "include",
         headers: expect.objectContaining({ Accept: "application/json" }),
+      })
+    );
+  });
+
+  it("defaults to POST when body is set but method is omitted", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({}, { ok: true, status: 200 }));
+    await apiRequest("/bar", { body: { a: 1 } });
+    expect(fetch).toHaveBeenCalledWith(
+      "http://localhost:4000/bar",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ a: 1 }),
+        headers: expect.objectContaining({
+          "Content-Type": "application/json",
+        }),
       })
     );
   });

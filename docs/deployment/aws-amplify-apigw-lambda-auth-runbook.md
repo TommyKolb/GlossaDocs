@@ -83,7 +83,9 @@ Optional and auto-derived when omitted in Cognito mode:
 
 Frontend (Amplify env vars):
 
-- `VITE_API_BASE_URL=https://<api-gateway-domain-or-custom-domain>`
+- `VITE_API_BASE_URL=https://<api-id>.execute-api.<region>.amazonaws.com/<stage>` — **base URL only** (include the stage, e.g. `/prod`; no trailing slash; do **not** append `/auth/login` or other paths). The app calls `POST /auth/login`, `POST /auth/register`, etc. via `fetch`.
+
+**API Gateway console:** A Lambda proxy API often shows **`ANY`** and **`OPTIONS`** on `/{proxy+}` — that is normal: **`ANY`** forwards all HTTP methods (GET, POST, …) to Lambda. Login and sign-up are **`POST`** JSON requests from the SPA, not browser navigations to GET URLs. Opening `https://…/prod/auth/login` in a tab sends **GET**, which the API does not use for credentials (you should see **405 Method Not Allowed** with `Allow: POST` after the backend update that documents this).
 
 ## 4) One-Time AWS Bootstrap (Before First Merge to `main`)
 

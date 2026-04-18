@@ -26,9 +26,13 @@ vi.mock("sonner", () => ({
   }
 }));
 
-vi.mock("@/app/utils/auth", () => ({
-  getAuthenticatedUserFromBackend: vi.fn(async () => null)
-}));
+vi.mock("@/app/utils/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/app/utils/auth")>();
+  return {
+    ...actual,
+    getAuthenticatedUserFromBackend: vi.fn(async () => null)
+  };
+});
 
 describe("App auth flow screens", () => {
   beforeEach(() => {

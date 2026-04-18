@@ -1,3 +1,4 @@
+import { AdminConfirmSignUpCommand, SignUpCommand } from "@aws-sdk/client-cognito-identity-provider";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -31,6 +32,39 @@ describe("HttpCognitoAdminClient", () => {
     await expect(client.createUser({ email: "taken@example.com", password: "secret123" })).rejects.toMatchObject({
       code: "COGNITO_USER_EXISTS"
     });
+  });
+
+  it("calls AdminConfirmSignUp after SignUp when UserConfirmed is false", async () => {
+    const send = vi
+      .fn()
+      .mockResolvedValueOnce({ UserConfirmed: false })
+      .mockResolvedValueOnce({});
+    const client = new HttpCognitoAdminClient({
+      region: "us-east-1",
+      userPoolId: "us-east-1_pool",
+      clientId: "client"
+    });
+    (client as any).client = { send };
+
+    await client.createUser({ email: "new@example.com", password: "ValidPass123!Aa" });
+
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(send.mock.calls[0]?.[0]).toBeInstanceOf(SignUpCommand);
+    expect(send.mock.calls[1]?.[0]).toBeInstanceOf(AdminConfirmSignUpCommand);
+  });
+
+  it("skips AdminConfirmSignUp when SignUp already confirms the user", async () => {
+    const send = vi.fn().mockResolvedValueOnce({ UserConfirmed: true });
+    const client = new HttpCognitoAdminClient({
+      region: "us-east-1",
+      userPoolId: "us-east-1_pool",
+      clientId: "client"
+    });
+    (client as any).client = { send };
+
+    await client.createUser({ email: "new@example.com", password: "ValidPass123!Aa" });
+
+    expect(send).toHaveBeenCalledTimes(1);
   });
 
   it("maps InvalidPasswordException for createUser", async () => {

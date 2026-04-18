@@ -9,6 +9,8 @@ import { computeCognitoSecretHash } from "./cognito-secret-hash.js";
 
 export type CognitoOidcClientErrorCode =
   | "COGNITO_OIDC_INVALID_CREDENTIALS"
+  | "COGNITO_OIDC_EMAIL_NOT_VERIFIED"
+  | "COGNITO_OIDC_AUTH_CHALLENGE"
   | "COGNITO_OIDC_UNAVAILABLE";
 
 export class CognitoOidcClientError extends Error {
@@ -50,11 +52,15 @@ export function requireCognitoOidcClientConfig(
   return { region, clientId, clientSecret };
 }
 
-function isCognitoInvalidCredentialsError(error: unknown): boolean {
+function cognitoErrorName(error: unknown): string | undefined {
   if (!error || typeof error !== "object") {
-    return false;
+    return undefined;
   }
-  const name = (error as { name?: string }).name;
+  return (error as { name?: string }).name;
+}
+
+function isCognitoInvalidCredentialsError(error: unknown): boolean {
+  const name = cognitoErrorName(error);
   return name === "NotAuthorizedException" || name === "UserNotFoundException";
 }
 
@@ -99,9 +105,22 @@ export class HttpCognitoOidcClient implements CognitoOidcClient {
           "Invalid username or password"
         );
       }
+      if (cognitoErrorName(error) === "UserNotConfirmedException") {
+        throw new CognitoOidcClientError(
+          "COGNITO_OIDC_EMAIL_NOT_VERIFIED",
+          "This account is not confirmed yet. Complete email verification or sign up again."
+        );
+      }
       throw new CognitoOidcClientError(
         "COGNITO_OIDC_UNAVAILABLE",
         "Cognito login request failed"
+      );
+    }
+
+    if (response.ChallengeName) {
+      throw new CognitoOidcClientError(
+        "COGNITO_OIDC_AUTH_CHALLENGE",
+        `Cognito returned an authentication challenge (${response.ChallengeName}) that this app does not handle.`
       );
     }
 

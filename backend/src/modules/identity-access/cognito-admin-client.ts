@@ -1,4 +1,5 @@
 import {
+  AdminConfirmSignUpCommand,
   CognitoIdentityProviderClient,
   ForgotPasswordCommand,
   SignUpCommand
@@ -86,7 +87,7 @@ export class HttpCognitoAdminClient implements CognitoAdminClient {
       : undefined;
 
     try {
-      await this.client.send(
+      const signUpResult = await this.client.send(
         new SignUpCommand({
           ClientId: this.config.clientId,
           Username: args.email,
@@ -95,6 +96,17 @@ export class HttpCognitoAdminClient implements CognitoAdminClient {
           UserAttributes: [{ Name: "email", Value: args.email }]
         })
       );
+
+      // App-hosted sign-up should not require email verification for login. Cognito leaves new users
+      // UNCONFIRMED after SignUp unless a trigger confirms them; USER_PASSWORD_AUTH then fails.
+      if (signUpResult.UserConfirmed !== true) {
+        await this.client.send(
+          new AdminConfirmSignUpCommand({
+            UserPoolId: this.config.userPoolId,
+            Username: args.email
+          })
+        );
+      }
     } catch (error) {
       mapCognitoAdminError(error);
     }

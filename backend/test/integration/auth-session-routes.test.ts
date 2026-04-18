@@ -176,6 +176,20 @@ describe("auth session routes", () => {
     expect(response.body.code).toBe("AUTH_INVALID_CREDENTIALS");
   });
 
+  it("POST /auth/login maps unconfirmed Cognito user to 403", async () => {
+    vi.mocked(passwordLoginClient.loginWithPassword).mockRejectedValueOnce({
+      code: "COGNITO_OIDC_EMAIL_NOT_VERIFIED"
+    });
+
+    const response = await request(app.server).post("/auth/login").send({
+      username: "alice@example.com",
+      password: "secret"
+    });
+
+    expect(response.status).toBe(403);
+    expect(response.body.code).toBe("AUTH_EMAIL_NOT_VERIFIED");
+  });
+
   it("POST /auth/login returns 500 when oidc login is not configured", async () => {
     const response = await request(appWithoutOidc.server).post("/auth/login").send({
       username: "alice@example.com",

@@ -27,6 +27,17 @@ const storedUserSchema = z.object({
   isGuest: z.boolean()
 });
 
+/**
+ * React session (App state) can briefly disagree with `localStorage` (e.g. child effects vs parent,
+ * or multi-tab storage events). Document and settings code must use `getEffectiveUser()` so the UI
+ * session is the source of truth once the shell has hydrated.
+ */
+let sessionReactOverride: User | null | undefined;
+
+export function setSessionOverride(next: User | null | undefined): void {
+  sessionReactOverride = next;
+}
+
 function toAppUser(user: AuthSessionUser): User {
   return {
     id: user.sub,
@@ -39,6 +50,7 @@ function toAppUser(user: AuthSessionUser): User {
 function clearClientAuthState(): void {
   localStorage.removeItem(USER_STORAGE_KEY);
   resetRemoteDocumentCache();
+  setSessionOverride(null);
 }
 
 export async function loginWithCredentials(credentials: LoginCredentials): Promise<User> {
@@ -50,6 +62,7 @@ export async function loginWithCredentials(credentials: LoginCredentials): Promi
   resetRemoteDocumentCache();
   const user = toAppUser(data.user);
   localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+  setSessionOverride(user);
   return user;
 }
 
@@ -69,6 +82,7 @@ export async function continueAsGuest(): Promise<User> {
   resetRemoteDocumentCache();
   // Store guest user in localStorage.
   localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(guestUser));
+  setSessionOverride(guestUser);
 
   return guestUser;
 }
@@ -100,6 +114,13 @@ export function getCurrentUser(): User | null {
   }
 }
 
+export function getEffectiveUser(): User | null {
+  if (sessionReactOverride !== undefined) {
+    return sessionReactOverride;
+  }
+  return getCurrentUser();
+}
+
 /** Max time to wait for `/auth/session` during startup so the UI never hangs on "Loading…" if the API is down. */
 const SESSION_BOOTSTRAP_TIMEOUT_MS = 12_000;
 
@@ -114,7 +135,12 @@ function createSessionBootstrapSignal(): AbortSignal {
 
 export async function getAuthenticatedUserFromBackend(): Promise<User | null> {
   const currentUser = getCurrentUser();
-  if (!currentUser || currentUser.isGuest) {
+  if (!currentUser) {
+    setSessionOverride(null);
+    return null;
+  }
+  if (currentUser.isGuest) {
+    setSessionOverride(currentUser);
     return currentUser;
   }
 
@@ -126,6 +152,7 @@ export async function getAuthenticatedUserFromBackend(): Promise<User | null> {
     }
     const backendUser = toAppUser(data.user);
     localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(backendUser));
+    setSessionOverride(backendUser);
     return backendUser;
   } catch (error) {
     if (error instanceof ApiClientError) {
@@ -136,11 +163,13 @@ export async function getAuthenticatedUserFromBackend(): Promise<User | null> {
       if (isDevBuild) {
         console.error("Session bootstrap failed with API error; keeping current user:", error);
       }
+      setSessionOverride(currentUser);
       return currentUser;
     }
     if (isDevBuild) {
       console.error("Failed to bootstrap user from /auth/session:", error);
     }
+    setSessionOverride(currentUser);
     return currentUser;
   }
 }

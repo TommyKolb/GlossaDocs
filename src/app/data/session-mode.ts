@@ -1,6 +1,6 @@
-import { getCurrentUser } from "../utils/auth";
+import { getEffectiveUser } from "../utils/auth";
 
 export function isAuthenticatedMode(): boolean {
-  const user = getCurrentUser();
+  const user = getEffectiveUser();
   return Boolean(user && !user.isGuest);
 }

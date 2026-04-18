@@ -3,14 +3,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   continueAsGuest,
   getCurrentUser,
+  getEffectiveUser,
   getAuthenticatedUserFromBackend,
   loginWithCredentials,
-  logout
+  logout,
+  setSessionOverride
 } from "@/app/utils/auth";
 
 describe("auth utilities", () => {
   beforeEach(() => {
     localStorage.clear();
+    setSessionOverride(undefined);
     vi.unstubAllGlobals();
     vi.clearAllMocks();
   });
@@ -101,6 +104,29 @@ describe("auth utilities", () => {
     const user = getCurrentUser();
     expect(user).toBeNull();
     expect(localStorage.getItem("glossadocs_user")).toBeNull();
+  });
+
+  it("getEffectiveUser prefers the React session override over localStorage", () => {
+    localStorage.setItem(
+      "glossadocs_user",
+      JSON.stringify({
+        id: "guest_x",
+        username: "Guest",
+        isGuest: true
+      })
+    );
+    setSessionOverride({
+      id: "sub-1",
+      username: "alice",
+      email: "alice@example.com",
+      isGuest: false
+    });
+    expect(getEffectiveUser()).toEqual({
+      id: "sub-1",
+      username: "alice",
+      email: "alice@example.com",
+      isGuest: false
+    });
   });
 
   it("continueAsGuest stores and returns guest profile", async () => {

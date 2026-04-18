@@ -35,12 +35,14 @@ import { useDocumentDragPreview } from './document-list/useDocumentDragPreview';
 import { UI_CONSTANTS } from '../utils/constants';
 import { DOCUMENT_PAYLOAD_TOO_LARGE_MESSAGE, isPayloadTooLargeError } from '../api/client';
 import { toast } from 'sonner';
+import type { User } from '../utils/auth';
 
 interface DocumentListProps {
+  user: User;
   onSelectDocument: (id: string | null) => void;
 }
 
-export function DocumentList({ onSelectDocument }: DocumentListProps) {
+export function DocumentList({ user, onSelectDocument }: DocumentListProps) {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
@@ -70,8 +72,8 @@ export function DocumentList({ onSelectDocument }: DocumentListProps) {
   } = useDocumentDragPreview(setDraggingDocumentId, setDropTargetFolderId);
 
   useEffect(() => {
-    loadDocuments();
-  }, []);
+    void loadDocuments();
+  }, [user.id, user.isGuest]);
 
   async function loadDocuments() {
     try {
@@ -341,7 +343,7 @@ export function DocumentList({ onSelectDocument }: DocumentListProps) {
         />
 
         {/* Hero Section */}
-        <DocumentListHero onCreateDocument={handleCreateNew} onUploadDocument={handleUpload} />
+        <DocumentListHero user={user} onCreateDocument={handleCreateNew} onUploadDocument={handleUpload} />
 
         {/* Documents section */}
         {documents.length === 0 && folders.length === 0 ? (

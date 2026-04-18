@@ -91,6 +91,20 @@ export const authSessionRoutes: FastifyPluginAsync<AuthSessionRoutesOptions> = a
       ) {
         throw new ApiError(401, "AUTH_INVALID_CREDENTIALS", "Invalid username or password");
       }
+      if (errorCode === "COGNITO_OIDC_EMAIL_NOT_VERIFIED") {
+        throw new ApiError(
+          403,
+          "AUTH_EMAIL_NOT_VERIFIED",
+          "This account is not confirmed yet. If you registered before email-free sign-up was enabled, create a new account or ask an admin to confirm your user in Cognito."
+        );
+      }
+      if (errorCode === "COGNITO_OIDC_AUTH_CHALLENGE") {
+        throw new ApiError(
+          400,
+          "AUTH_CHALLENGE_UNSUPPORTED",
+          error instanceof Error ? error.message : "Additional login step is not supported."
+        );
+      }
       if (error instanceof ApiError) {
         throw error;
       }

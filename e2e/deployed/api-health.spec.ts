@@ -19,6 +19,8 @@ test.describe("D-API-01 / D-API-02 — deployed API probes", () => {
     expect(response.ok()).toBeTruthy();
     const body = (await response.json()) as { status?: string; checks?: Array<{ ok: boolean }> };
     expect(body.status).toBe("ready");
-    expect(body.checks?.every((c) => c.ok)).toBeTruthy();
+    expect(Array.isArray(body.checks)).toBeTruthy();
+    expect(body.checks?.length ?? 0).toBeGreaterThan(0);
+    expect(body.checks?.every((c) => c.ok)).toBe(true);
   });
 });

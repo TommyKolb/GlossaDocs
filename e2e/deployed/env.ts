@@ -9,16 +9,15 @@ export function getProdApiBase(): string {
 
 /** Frontend origin for Playwright `baseURL` (no trailing slash). */
 export function getProdFrontendOrigin(): string {
-  const defaultAmplify = "https://main.d1on78tbp65odj.amplifyapp.com";
-  const raw =
-    process.env.PROD_FRONTEND_URL?.trim() ||
-    process.env.DEPLOYED_FRONTEND_URL?.trim() ||
-    defaultAmplify;
+  const raw = process.env.PROD_FRONTEND_URL?.trim() ?? "";
+  if (!raw) {
+    throw new Error("PROD_FRONTEND_URL must be set for deployed Playwright tests");
+  }
   return raw.replace(/\/+$/, "");
 }
 
 export function hasProdE2ECredentials(): boolean {
-  return Boolean(
-    process.env.E2E_PROD_EMAIL?.trim() && process.env.E2E_PROD_PASSWORD && process.env.E2E_PROD_PASSWORD.length > 0
-  );
+  const email = process.env.E2E_PROD_EMAIL?.trim() ?? "";
+  const password = process.env.E2E_PROD_PASSWORD?.trim() ?? "";
+  return Boolean(email && password);
 }

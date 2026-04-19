@@ -28,11 +28,11 @@ Requires **Node.js 20+** and dependencies (`npm run setup:dev` at the repo root,
 | Variable | Required | Purpose |
 |----------|----------|---------|
 | `PROD_API_BASE_URL` | For API probe tests | API Gateway base URL (trailing slash optional; normalized in tests). Example: `https://….execute-api.….amazonaws.com/prod`. |
-| `PROD_FRONTEND_URL` | Optional | Amplify origin; defaults to `https://main.d1on78tbp65odj.amplifyapp.com`. Use the **same** host you open in a browser (otherwise Playwright exercises a different build or API than your manual test). |
+| `PROD_FRONTEND_URL` | Yes | Amplify origin. Use the **same** host you open in a browser (otherwise Playwright exercises a different build or API than your manual test). |
 | `E2E_PROD_EMAIL` | For authenticated flows | Dedicated Cognito test user email (login form). |
 | `E2E_PROD_PASSWORD` | For authenticated flows | Password for that user. |
 
-If `E2E_PROD_EMAIL` / `E2E_PROD_PASSWORD` are unset, the authenticated serial suite is **skipped** so local runs can still execute health + SPA smoke tests. CI should define all variables and secrets so the full suite runs.
+If `E2E_PROD_EMAIL` / `E2E_PROD_PASSWORD` are unset, the authenticated serial suite is **skipped** so local runs can still execute health + SPA smoke tests. CI now validates required variables/secrets up front and fails fast when they are missing.
 
 The authenticated Playwright file [`e2e/deployed/authenticated.integration.spec.ts`](../e2e/deployed/authenticated.integration.spec.ts) runs [`cleanupE2EAccountData`](../e2e/deployed/cleanup-e2e-account.ts) in `afterAll`: it deletes every document and folder and clears `keyboardLayoutOverrides` via the REST API (using the browser session cookies), so the E2E user does not accumulate data across runs. Set `PROD_API_BASE_URL` so cleanup can reach the API.
 
@@ -63,4 +63,4 @@ Those YAML files use **`workflow_call`** so the **Tests** run can invoke them; t
 
 PRs that only touch unrelated paths skip frontend/backend calls while still running the font catalog check.
 
-On **push** and **pull_request**, [.github/workflows/deployed-integration-tests.yml](../.github/workflows/deployed-integration-tests.yml) runs the deployed Playwright suite against production URLs. Pull requests from repository forks skip this workflow by default (secrets are unavailable on fork workflows).
+On push and pull requests to **`main`** or **`develop`**, [.github/workflows/deployed-integration-tests.yml](../.github/workflows/deployed-integration-tests.yml) runs the deployed Playwright suite against production URLs. Pull requests from repository forks skip this workflow by default (secrets are unavailable on fork workflows). The workflow also serializes runs with a dedicated `concurrency` group to reduce collisions on the shared E2E account.

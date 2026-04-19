@@ -2,13 +2,25 @@ name: Deployed integration tests
 
 on:
   push:
+    branches: [main, develop]
   pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: deployed-integration-prod
+  cancel-in-progress: false
 
 jobs:
   deployed-integration-tests:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      CI: true
+      PROD_API_BASE_URL: ${{ vars.PROD_API_BASE_URL }}
+      PROD_FRONTEND_URL: ${{ vars.PROD_FRONTEND_URL }}
+      E2E_PROD_EMAIL: ${{ secrets.E2E_PROD_EMAIL }}
+      E2E_PROD_PASSWORD: ${{ secrets.E2E_PROD_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
 
@@ -24,11 +36,23 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
+      - name: Validate required deployed test inputs
+        shell: bash
+        run: |
+          required_vars=(PROD_API_BASE_URL PROD_FRONTEND_URL E2E_PROD_EMAIL E2E_PROD_PASSWORD)
+          missing=()
+
+          for name in "${required_vars[@]}"; do
+            value="$(printf '%s' "${!name}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+            if [ -z "$value" ]; then
+              missing+=("$name")
+            fi
+          done
+
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "Missing required variables/secrets: ${missing[*]}"
+            exit 1
+          fi
+
       - name: Run deployed integration tests
-        env:
-          CI: true
-          PROD_API_BASE_URL: ${{ vars.PROD_API_BASE_URL }}
-          PROD_FRONTEND_URL: ${{ vars.PROD_FRONTEND_URL }}
-          E2E_PROD_EMAIL: ${{ secrets.E2E_PROD_EMAIL }}
-          E2E_PROD_PASSWORD: ${{ secrets.E2E_PROD_PASSWORD }}
         run: npm run test:deployed

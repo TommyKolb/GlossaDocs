@@ -92,7 +92,13 @@ The local Docker flow in this README is for development only; it does not publis
 
 ## Tests
 
-**Node.js 20+** and `npm run setup:dev` (or install root + `backend/` packages yourself). Run everything: `npm test`. Tests are split into **unit**, **integration**, and **E2E** (Playwright). CI on push/PR to `main`/`develop` runs the **Tests** workflow (`.github/workflows/tests.yml`)—font catalogs plus path-filtered frontend and backend jobs. Details—commands, coverage, folders, CI: **[docs/testing.md](docs/testing.md)**.
+**Node.js 20+** and `npm run setup:dev` (or install root + `backend/` packages yourself).
+
+- `npm test` runs the local quality gate (font catalog check + frontend/backend Vitest).
+- `npm run test:e2e` runs local Playwright E2E.
+- `npm run test:deployed` runs deployed Playwright integration against configured production URLs.
+
+CI on push/PR to `main`/`develop` runs the **Tests** workflow (`.github/workflows/tests.yml`) and the deployed integration workflow (`.github/workflows/deployed-integration-tests.yml`) for same-repo branches/PRs. Details—commands, coverage, folders, CI: **[docs/testing.md](docs/testing.md)**.
 
 ## Further reading
 

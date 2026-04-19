@@ -3,6 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { clickCreateDocument, expectPostLoginDocumentListVisible, loginProdUser } from "./auth-helpers";
 import { cleanupE2EAccountData } from "./cleanup-e2e-account";
 import { hasProdE2ECredentials } from "./env";
+import { expectInsertQUsing, openKeyboardMappingsDialog, resetEnglishMappings, saveQMapping } from "../helpers/keyboard-mappings";
 
 const describeSerialOrSkip = hasProdE2ECredentials() ? test.describe.serial : test.describe.skip;
 
@@ -31,7 +32,19 @@ describeSerialOrSkip("D-AUTH / D-DOC / D-FLD / D-SET — authenticated deployed 
     await expect(page.getByText(/signed in as/i)).toBeVisible();
   });
 
-  test("D-AUTH-03: document list loads without error banner", async () => {
+  test("D-AUTH-03: logout clears session and returns to sign-in", async () => {
+    await page.getByRole("button", { name: /sign out/i }).click();
+    await expect(page.getByRole("heading", { name: /sign in to continue/i })).toBeVisible({
+      timeout: 20_000,
+    });
+  });
+
+  test("D-AUTH-04: login re-establishes session after logout", async () => {
+    await loginProdUser(page);
+    await expect(page.getByText(/signed in as/i)).toBeVisible();
+  });
+
+  test("D-AUTH-05: document list loads without error banner", async () => {
     await expect(page.getByText("Failed to load documents")).toHaveCount(0);
     await expect(page.getByRole("heading", { name: /welcome to glossadocs/i })).toBeVisible();
   });
@@ -95,34 +108,35 @@ describeSerialOrSkip("D-AUTH / D-DOC / D-FLD / D-SET — authenticated deployed 
   test("D-SET-01: keyboard mapping persists and resets", async () => {
     await clickCreateDocument(page);
     await expect(page.getByRole("textbox", { name: /document editor for/i })).toBeVisible();
-    await page.getByRole("button", { name: /customize english keyboard mappings/i }).click();
-    const dialog = page.getByRole("dialog", { name: /customize keyboard/i });
-    await dialog.getByLabel("Physical key for letter q").fill("9");
-    await dialog.getByRole("button", { name: "Save mappings" }).click();
-    await expect(page.getByRole("button", { name: /insert q using 9/i })).toBeVisible();
+    const dialog = await openKeyboardMappingsDialog(page);
+    await saveQMapping(dialog, "9");
+    await expectInsertQUsing(page, "9");
 
     await page.reload();
     await expectPostLoginDocumentListVisible(page);
 
     await clickCreateDocument(page);
-    await page.getByRole("button", { name: /customize english keyboard mappings/i }).click();
-    const dialog2 = page.getByRole("dialog", { name: /customize keyboard/i });
+    const dialog2 = await openKeyboardMappingsDialog(page);
     await expect(dialog2.getByLabel("Physical key for letter q")).toHaveValue("9");
 
-    await dialog2.getByRole("button", { name: /^Reset English$/ }).click();
-    await page.getByRole("alertdialog").getByRole("button", { name: "Reset" }).click();
+    await resetEnglishMappings(page, dialog2);
     // Reset confirm calls onSave + closes the dialog (no second "Save mappings" — see KeyboardMappingDialog.applyResetLanguage).
-    await expect(dialog2).toBeHidden({ timeout: 10_000 });
-    await expect(page.getByRole("button", { name: /insert q using q/i })).toBeVisible({ timeout: 15_000 });
+    await expectInsertQUsing(page, "q");
   });
 
   test.afterAll(async () => {
     try {
       if (page && hasProdE2ECredentials()) {
-        await cleanupE2EAccountData(page);
+        const cleanupWarnings = await cleanupE2EAccountData(page);
+        if (cleanupWarnings.length > 0) {
+          console.warn("Cleanup completed with warnings:");
+          for (const warning of cleanupWarnings) {
+            console.warn(`- ${warning}`);
+          }
+        }
       }
-    } catch {
-      /* ignore cleanup failures (e.g. expired session) */
+    } catch (error) {
+      console.warn("Cleanup failed unexpectedly:", error);
     }
     await page?.close();
   });

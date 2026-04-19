@@ -1,8 +1,7 @@
-
-  import { createRoot } from "react-dom/client";
-  import App from "./app/App.tsx";
+import { createRoot } from "react-dom/client";
+import App from "./app/App";
 import { getGoogleFontsStylesheetUrl } from "./app/utils/language-fonts";
-  import "./styles/index.css";
+import "./styles/index.css";
 
 const googleFontsHref = getGoogleFontsStylesheetUrl();
 const existingFontsLink = document.querySelector<HTMLLinkElement>(
@@ -16,5 +15,4 @@ if (!existingFontsLink) {
   document.head.appendChild(fontsLink);
 }
 
-  createRoot(document.getElementById("root")!).render(<App />);
-  
+createRoot(document.getElementById("root")!).render(<App />);

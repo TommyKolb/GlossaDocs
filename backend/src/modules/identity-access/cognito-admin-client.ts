@@ -58,7 +58,7 @@ function throwMappedCognitoError(args: {
 }): never {
   const name = getCognitoErrorName(args.error);
   const originalMessage = getErrorMessage(args.error, args.fallbackMessage);
-  const mapped = args.mappings[name];
+  const mapped = typeof name === "string" ? args.mappings[name] : undefined;
   if (mapped) {
     throw new CognitoAdminClientError(mapped.code, mapped.message ?? originalMessage);
   }

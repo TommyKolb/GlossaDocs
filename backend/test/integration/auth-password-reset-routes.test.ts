@@ -8,6 +8,7 @@ import { createTestDocumentService } from "../helpers/test-document-service.js";
 import { createTestSettingsService } from "../helpers/test-settings-service.js";
 
 type KeycloakAdminClient = {
+  createUser: (args: { email: string; password: string }) => Promise<void>;
   sendPasswordResetEmail: (args: { email: string }) => Promise<void>;
 };
 
@@ -28,6 +29,7 @@ const baseConfig: BuildAppConfig = {
 
 describe("POST /auth/password-reset", () => {
   const keycloakAdminClient: KeycloakAdminClient = {
+    createUser: vi.fn(async () => {}),
     sendPasswordResetEmail: vi.fn(async () => {})
   };
 
@@ -116,6 +118,7 @@ describe("POST /auth/password-reset", () => {
 
 describe("POST /auth/password-reset/confirm (Cognito)", () => {
   const cognitoAdminClient = {
+    createUser: vi.fn(async () => {}),
     sendPasswordResetEmail: vi.fn(async () => {}),
     confirmForgotPassword: vi.fn(async () => {})
   };
@@ -208,6 +211,7 @@ describe("POST /auth/password-reset/confirm (Cognito)", () => {
 
 describe("POST /auth/password-reset rate limiting", () => {
   const authAdminClient = {
+    createUser: vi.fn(async () => {}),
     sendPasswordResetEmail: vi.fn(async () => {})
   };
   const app = buildApp(

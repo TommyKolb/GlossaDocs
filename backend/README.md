@@ -31,7 +31,7 @@ This directory is the **Node.js API** for GlossaDocs: a **Fastify** application 
 | **PostgreSQL** | **Yes** for normal operation | Application database: documents, user settings, audit events. Migrations live in `migrations/`. |
 | **Identity provider (Keycloak/Cognito)** | **Yes** for authenticated flows | OIDC issuer + JWT verification, app-hosted login/register/password-reset through provider adapters. |
 | **Redis** | **Optional** | Server-side session storage when `AUTH_SESSION_STORE=redis`. If unset, **in-memory** sessions are used (dev-only; **disallowed in production** in `app.ts`). |
-| **SMTP / Mailpit** | **Optional for login** | Keycloak sends email for password reset; in Docker, **Mailpit** receives SMTP and exposes a web UI. Dev signup may bypass strict email verification depending on realm configuration. |
+| **SMTP / Mailpit** | **Optional for login** | Keycloak sends email for password reset; in Docker, **Mailpit** receives SMTP and exposes a web UI. Dev signup may bypass strict email verification depending on realm configuration. Cognito flows can use app-hosted request + confirm endpoints while Cognito sends mail. |
 
 **Identity storage:** user accounts and credentials live in the configured IdP. In local Docker dev that is Keycloak; production mode is designed for Cognito.
 

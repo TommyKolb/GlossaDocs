@@ -24,11 +24,11 @@ export function findBlockElement(
 ): HTMLElement | null {
   if (!node || !containerElement) return null;
 
-  let current = node;
+  let current: Node | null = node;
 
   // First, ensure we're working with an element node
   while (current && current.nodeType !== Node.ELEMENT_NODE) {
-    current = current.parentNode;
+    current = current.parentNode instanceof Node ? current.parentNode : null;
   }
 
   // Then, find the closest block-level element
@@ -39,7 +39,7 @@ export function findBlockElement(
         return current;
       }
     }
-    current = current.parentNode;
+    current = current.parentNode instanceof Node ? current.parentNode : null;
   }
 
   return null;

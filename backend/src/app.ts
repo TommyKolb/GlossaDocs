@@ -1,3 +1,4 @@
+import { CognitoIdentityProviderClient } from "@aws-sdk/client-cognito-identity-provider";
 import cors from "@fastify/cors";
 import cookie from "@fastify/cookie";
 import Fastify, { type FastifyInstance } from "fastify";
@@ -6,6 +7,7 @@ import { registerErrorHandler } from "./modules/api-edge/error-handler.js";
 import type { AppConfig } from "./shared/config.js";
 import { healthRoutes } from "./modules/api-edge/health-routes.js";
 import { createRequestContext } from "./shared/request-context.js";
+import { CognitoEmailEnrichingTokenVerifier } from "./modules/identity-access/cognito-email-enriching-token-verifier.js";
 import { JoseTokenVerifier } from "./modules/identity-access/jose-token-verifier.js";
 import { meRoutes } from "./modules/identity-access/me-routes.js";
 import type { TokenVerifier } from "./modules/identity-access/token-verifier.js";
@@ -126,6 +128,23 @@ function resolveTokenVerifier(config: BuildAppConfig, injected?: TokenVerifier):
   });
 }
 
+function wrapTokenVerifierWithCognitoEmailEnrichment(
+  config: BuildAppConfig,
+  verifier: TokenVerifier,
+  injectedVerifier?: TokenVerifier,
+  logger?: Pick<FastifyInstance["log"], "warn">
+): TokenVerifier {
+  if (injectedVerifier) {
+    return verifier;
+  }
+  const authProvider = config.AUTH_PROVIDER ?? "keycloak";
+  if (authProvider !== "cognito" || !config.COGNITO_REGION) {
+    return verifier;
+  }
+  const cognitoClient = new CognitoIdentityProviderClient({ region: config.COGNITO_REGION });
+  return new CognitoEmailEnrichingTokenVerifier(verifier, cognitoClient, logger);
+}
+
 function resolveCorsOrigin(config: BuildAppConfig): true | string[] {
   const configuredOrigins = config.CORS_ALLOWED_ORIGINS.trim();
   const isWildcard = configuredOrigins === "*";
@@ -214,7 +233,12 @@ export function buildApp(config: BuildAppConfig, options: BuildAppOptions = {}):
 
   registerErrorHandler(app);
 
-  const tokenVerifier = resolveTokenVerifier(config, options.tokenVerifier);
+  const tokenVerifier = wrapTokenVerifierWithCognitoEmailEnrichment(
+    config,
+    resolveTokenVerifier(config, options.tokenVerifier),
+    options.tokenVerifier,
+    app.log
+  );
   const databaseUrl = config.DATABASE_URL;
   if (!databaseUrl && (!options.documentService || !options.settingsService)) {
     throw new ApiError(
@@ -263,7 +287,9 @@ export function buildApp(config: BuildAppConfig, options: BuildAppOptions = {}):
               adminUrl: config.KEYCLOAK_ADMIN_URL,
               realm: config.KEYCLOAK_REALM,
               adminUsername: config.KEYCLOAK_ADMIN_USERNAME,
-              adminPassword: config.KEYCLOAK_ADMIN_PASSWORD
+              adminPassword: config.KEYCLOAK_ADMIN_PASSWORD,
+              executeActionsClientId: config.KEYCLOAK_CLIENT_ID ?? config.OIDC_PUBLIC_CLIENT_ID,
+              executeActionsRedirectUri: config.OIDC_PUBLIC_REDIRECT_URI
             })
           )
         : null);
@@ -309,7 +335,12 @@ export function buildApp(config: BuildAppConfig, options: BuildAppOptions = {}):
     passwordLoginClient
   });
   void app.register(authRegisterRoutes, { authAdminClient });
-  void app.register(authPasswordResetRoutes, { authAdminClient });
+  void app.register(authPasswordResetRoutes, {
+    authAdminClient,
+    authProvider,
+    resetRateLimitWindowMs: config.AUTH_PASSWORD_RESET_RATE_LIMIT_WINDOW_MS ?? 60_000,
+    resetRateLimitMaxAttempts: config.AUTH_PASSWORD_RESET_RATE_LIMIT_MAX_ATTEMPTS ?? 20
+  });
   void app.register(meRoutes, { tokenVerifier });
   void app.register(documentRoutes, { tokenVerifier, service: documentService });
   void app.register(settingsRoutes, { tokenVerifier, service: settingsService });

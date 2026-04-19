@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 import * as React from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import App from "@/app/App";
@@ -21,6 +21,7 @@ vi.mock("@/app/components/ui/sonner", () => ({
 
 vi.mock("sonner", () => ({
   toast: {
+    message: vi.fn(),
     success: vi.fn(),
     error: vi.fn()
   }
@@ -38,6 +39,11 @@ describe("App auth flow screens", () => {
   beforeEach(() => {
     vi.stubGlobal("fetch", vi.fn());
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
   });
 
   it("Create account switches to app-hosted signup screen (not Keycloak redirect)", async () => {
@@ -58,5 +64,28 @@ describe("App auth flow screens", () => {
     await user.click(forgotButtons.at(-1)!);
 
     expect(screen.getByRole("heading", { name: /Reset your password/i })).toBeInTheDocument();
+  });
+
+  it("Forgot password flow can open verification code screen after email is sent", async () => {
+    const fetchMock = vi.mocked(globalThis.fetch);
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ message: "ok" })
+    } as Response);
+
+    render(<App />);
+    const user = userEvent.setup();
+
+    const forgotButtons = await screen.findAllByTestId("forgot-password-button");
+    await user.click(forgotButtons.at(-1)!);
+
+    await user.type(screen.getByLabelText(/^Email$/i), "user@example.com");
+    await user.click(screen.getByRole("button", { name: /Send reset email/i }));
+
+    await screen.findByText(/If an account exists for that email/i);
+    await user.click(screen.getByRole("button", { name: /Enter verification code/i }));
+
+    expect(screen.getByRole("heading", { name: /Enter verification code/i })).toBeInTheDocument();
   });
 });

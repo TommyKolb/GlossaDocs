@@ -4,6 +4,7 @@ import { Editor } from './components/Editor';
 import { Login } from './components/Login';
 import { SignUp } from './components/SignUp';
 import { ForgotPassword } from './components/ForgotPassword';
+import { ResetPasswordConfirm } from './components/ResetPasswordConfirm';
 import { LoadingSpinner } from './components/LoadingSpinner';
 import { Toaster } from './components/ui/sonner';
 import { getAuthenticatedUserFromBackend, setSessionOverride, type User } from './utils/auth';
@@ -12,7 +13,8 @@ import { UI_CONSTANTS } from './utils/constants';
 export default function App() {
   const [user, setUser] = useState<User | null | undefined>(undefined);
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null | undefined>(undefined);
-  const [authView, setAuthView] = useState<'login' | 'signup' | 'forgot'>('login');
+  const [authView, setAuthView] = useState<'login' | 'signup' | 'forgot' | 'reset-confirm'>('login');
+  const [passwordResetEmail, setPasswordResetEmail] = useState('');
 
   // Check for existing user session on mount (never leave loading if hydrate throws or hangs)
   useEffect(() => {
@@ -69,16 +71,43 @@ export default function App() {
         {authView === 'login' ? (
           <Login
             onLoginSuccess={handleLoginSuccess}
-            onCreateAccount={() => setAuthView('signup')}
+            onCreateAccount={() => {
+              setPasswordResetEmail('');
+              setAuthView('signup');
+            }}
             onForgotPassword={() => setAuthView('forgot')}
           />
         ) : authView === 'signup' ? (
           <SignUp
-            onCancel={() => setAuthView('login')}
-            onAccountCreated={() => setAuthView('login')}
+            onCancel={() => {
+              setPasswordResetEmail('');
+              setAuthView('login');
+            }}
+            onAccountCreated={() => {
+              setPasswordResetEmail('');
+              setAuthView('login');
+            }}
+          />
+        ) : authView === 'forgot' ? (
+          <ForgotPassword
+            onCancel={() => {
+              setPasswordResetEmail('');
+              setAuthView('login');
+            }}
+            onProceedToEnterCode={(email) => {
+              setPasswordResetEmail(email);
+              setAuthView('reset-confirm');
+            }}
           />
         ) : (
-          <ForgotPassword onCancel={() => setAuthView('login')} />
+          <ResetPasswordConfirm
+            initialEmail={passwordResetEmail}
+            onBack={() => setAuthView('forgot')}
+            onSuccess={() => {
+              setPasswordResetEmail('');
+              setAuthView('login');
+            }}
+          />
         )}
         <Toaster />
       </div>

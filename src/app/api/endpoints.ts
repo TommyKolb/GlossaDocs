@@ -29,6 +29,10 @@ interface AuthPasswordResetResponse {
   message: string;
 }
 
+interface AuthPasswordResetConfirmResponse {
+  message: string;
+}
+
 export const meApi = {
   get: () => apiRequest<MeResponse>("/me")
 };
@@ -42,7 +46,12 @@ export const authApi = {
   register: (payload: { email: string; password: string }) =>
     apiRequest<AuthRegisterResponse>("/auth/register", { method: "POST", body: payload }),
   requestPasswordReset: (payload: { email: string }) =>
-    apiRequest<AuthPasswordResetResponse>("/auth/password-reset", { method: "POST", body: payload })
+    apiRequest<AuthPasswordResetResponse>("/auth/password-reset", { method: "POST", body: payload }),
+  confirmPasswordReset: (payload: { email: string; code: string; newPassword: string }) =>
+    apiRequest<AuthPasswordResetConfirmResponse>("/auth/password-reset/confirm", {
+      method: "POST",
+      body: payload
+    })
 };
 
 export const settingsApi = {

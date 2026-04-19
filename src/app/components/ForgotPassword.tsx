@@ -9,13 +9,17 @@ import { authApi } from "../api/endpoints";
 
 interface ForgotPasswordProps {
   onCancel: () => void;
+  /** After a reset email is requested, user can continue to enter the verification code (Cognito-style flow). */
+  onProceedToEnterCode?: (email: string) => void;
 }
 
-export function ForgotPassword({ onCancel }: ForgotPasswordProps) {
+export function ForgotPassword({ onCancel, onProceedToEnterCode }: ForgotPasswordProps) {
   const [email, setEmail] = useState("");
+  const [submittedEmail, setSubmittedEmail] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const errorId = "forgot-password-error";
 
   const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -24,6 +28,7 @@ export function ForgotPassword({ onCancel }: ForgotPasswordProps) {
 
     const trimmedEmail = email.trim();
     if (!trimmedEmail) {
+      setSubmittedEmail(null);
       setError("Email is required.");
       return;
     }
@@ -33,14 +38,15 @@ export function ForgotPassword({ onCancel }: ForgotPasswordProps) {
       await authApi.requestPasswordReset({ email: trimmedEmail });
       const msg = "If an account exists for that email, a reset message has been sent.";
       setStatus(msg);
+      setSubmittedEmail(trimmedEmail);
       toast.message(msg);
     } catch (err) {
-      const message =
-        err instanceof ApiClientError
+      const message = err instanceof ApiClientError
+        ? "Unable to send reset email right now. Please try again."
+        : err instanceof Error
           ? err.message
-          : err instanceof Error
-            ? err.message
-            : "Password reset request failed";
+          : "Password reset request failed";
+      setSubmittedEmail(null);
       setError(message);
       toast.error(message);
     } finally {
@@ -72,6 +78,8 @@ export function ForgotPassword({ onCancel }: ForgotPasswordProps) {
                 autoComplete="email"
                 required
                 disabled={isSubmitting}
+                aria-invalid={error ? "true" : "false"}
+                aria-describedby={error ? errorId : undefined}
               />
             </div>
 
@@ -81,9 +89,21 @@ export function ForgotPassword({ onCancel }: ForgotPasswordProps) {
               </p>
             ) : null}
             {error ? (
-              <p className="text-sm text-red-600" role="alert" aria-live="polite">
+              <p id={errorId} className="text-sm text-red-600" role="alert" aria-live="polite">
                 {error}
               </p>
+            ) : null}
+
+            {status && onProceedToEnterCode ? (
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full"
+                disabled={isSubmitting}
+                onClick={() => onProceedToEnterCode(submittedEmail ?? email.trim())}
+              >
+                Enter verification code
+              </Button>
             ) : null}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">

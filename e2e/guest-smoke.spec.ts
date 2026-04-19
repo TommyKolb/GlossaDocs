@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { expectInsertQUsing, openKeyboardMappingsDialog, saveQMapping } from "./helpers/keyboard-mappings";
+
 test.describe("guest mode", () => {
   test("continue as guest reaches the document list", async ({ page }) => {
     await page.goto("/");
@@ -21,12 +23,9 @@ test.describe("guest mode", () => {
     await page.getByRole("button", { name: /create a new document/i }).click();
     await expect(page.getByRole("textbox", { name: /document editor for/i })).toBeVisible();
 
-    await page.getByRole("button", { name: /customize english keyboard mappings/i }).click();
-    const dialog = page.getByRole("dialog", { name: /customize keyboard/i });
-    await dialog.getByLabel("Physical key for letter q").fill("9");
-    await dialog.getByRole("button", { name: /save mappings/i }).click();
-
-    await expect(page.getByRole("button", { name: /insert q using 9/i })).toBeVisible();
+    const dialog = await openKeyboardMappingsDialog(page);
+    await saveQMapping(dialog, "9");
+    await expectInsertQUsing(page, "9");
 
     // Persist the new document to IndexedDB before reload (autosave is 10s; reload sooner leaves the list empty).
     await page.keyboard.press("Control+s");
@@ -43,6 +42,6 @@ test.describe("guest mode", () => {
     await firstDocCard.click();
     await expect(page.getByRole("textbox", { name: /document editor for/i })).toBeVisible();
 
-    await expect(page.getByRole("button", { name: /insert q using 9/i })).toBeVisible();
+    await expectInsertQUsing(page, "9");
   });
 });

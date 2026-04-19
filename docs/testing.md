@@ -19,8 +19,26 @@ Requires **Node.js 20+** and dependencies (`npm run setup:dev` at the repo root,
 - Backend coverage: `npm run test:backend:coverage` → `coverage/backend/`
 - Infrastructure checks: `npm --prefix infrastructure run typecheck && npm --prefix infrastructure run lint && npm --prefix infrastructure run test && npm --prefix infrastructure run synth`
 - E2E: `npm run test:e2e` (first time: `npm run test:e2e:install` for Chromium)
+- **Deployed integration:** `npm run test:deployed` — Playwright against the live Amplify app and API (`playwright.deployed.config.ts`, specs in `e2e/deployed/`). Specification: [docs/specs/test/deployed-integration.test-spec.md](specs/test/deployed-integration.test-spec.md).
 
 `test:frontend` / `test:backend` alone do not run `check:font-catalogs`; use `npm test` for the full gate.
+
+### Deployed integration environment
+
+| Variable | Required | Purpose |
+|----------|----------|---------|
+| `PROD_API_BASE_URL` | For API probe tests | API Gateway base URL (trailing slash optional; normalized in tests). Example: `https://….execute-api.….amazonaws.com/prod`. |
+| `PROD_FRONTEND_URL` | Yes | Amplify origin. Use the **same** host you open in a browser (otherwise Playwright exercises a different build or API than your manual test). |
+| `E2E_PROD_EMAIL` | For authenticated flows | Dedicated Cognito test user email (login form). |
+| `E2E_PROD_PASSWORD` | For authenticated flows | Password for that user. |
+
+If `E2E_PROD_EMAIL` / `E2E_PROD_PASSWORD` are unset, the authenticated serial suite is **skipped** so local runs can still execute health + SPA smoke tests. CI now validates required variables/secrets up front and fails fast when they are missing.
+
+The authenticated Playwright file [`e2e/deployed/authenticated.integration.spec.ts`](../e2e/deployed/authenticated.integration.spec.ts) runs [`cleanupE2EAccountData`](../e2e/deployed/cleanup-e2e-account.ts) in `afterAll`: it ensures the browser is authenticated as the configured E2E user (re-authenticates when needed), then uses that browser context session to delete every document and folder and clear `keyboardLayoutOverrides` via the REST API so the E2E user does not accumulate data across runs. Set `PROD_API_BASE_URL` and E2E credentials so cleanup can reach and authenticate to the API.
+
+GitHub Actions: set `PROD_API_BASE_URL` and `PROD_FRONTEND_URL` as repository **variables** and the E2E credentials as **secrets** (see [.github/workflows/deployed-integration-tests.yml](../.github/workflows/deployed-integration-tests.yml)).
+
+**Persisting vars locally:** copy [`.env.example`](../.env.example) to **`.env`** (or **`.env.local`**) in the repo root and set `PROD_*` / `E2E_*` there. `playwright.deployed.config.ts` loads `.env` then `.env.local` (override) automatically for `npm run test:deployed`. Do **not** commit real secrets; `.env` is gitignored.
 
 ## Using coverage (signal, not a score)
 
@@ -44,3 +62,5 @@ On push and pull requests to **`main`** or **`develop`**, the **[Tests](../.gith
 Those YAML files use **`workflow_call`** so the **Tests** run can invoke them; they also expose **`workflow_dispatch`** so you can run each workflow alone from the Actions tab when debugging.
 
 PRs that only touch unrelated paths skip frontend/backend calls while still running the font catalog check.
+
+On push and pull requests to **`main`** or **`develop`**, [.github/workflows/deployed-integration-tests.yml](../.github/workflows/deployed-integration-tests.yml) runs the deployed Playwright suite against production URLs. Pull requests from repository forks skip this workflow by default (secrets are unavailable on fork workflows). The workflow also serializes runs with a dedicated `concurrency` group to reduce collisions on the shared E2E account.

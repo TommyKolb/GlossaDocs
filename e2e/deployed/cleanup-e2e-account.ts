@@ -1,4 +1,4 @@
-import { request, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
 
 import { getProdApiBase } from "./env";
 
@@ -29,7 +29,7 @@ async function deleteOrWarn(
 
 /**
  * Best-effort cleanup for the E2E Cognito user: delete all documents and folders and clear
- * keyboard layout overrides. Uses the same session cookies as `page` (requires PROD_API_BASE_URL).
+ * keyboard layout overrides using the current browser context's authenticated session.
  */
 export async function cleanupE2EAccountData(page: Page): Promise<string[]> {
   const warnings: string[] = [];
@@ -39,51 +39,57 @@ export async function cleanupE2EAccountData(page: Page): Promise<string[]> {
     return warnings;
   }
 
-  const storageState = await page.context().storageState();
-  const api = await request.newContext({
-    baseURL: base,
-    storageState,
-    extraHTTPHeaders: { Accept: "application/json" },
+  const api = page.context().request;
+
+  const sessionRes = await api.get(`${base}/auth/session`, {
+    headers: { Accept: "application/json" },
   });
+  if (!sessionRes.ok()) {
+    const preview = await getFailurePreview(sessionRes);
+    warnings.push(`GET /auth/session failed (${sessionRes.status()}): ${preview}`);
+    return warnings;
+  }
 
-  try {
-    const docsRes = await api.get("/documents");
-    if (docsRes.ok()) {
-      const docs = (await docsRes.json()) as IdRow[];
-      for (const doc of docs) {
-        await deleteOrWarn(warnings, `/documents/${doc.id}`, () => api.delete(`/documents/${doc.id}`));
-      }
-    } else {
-      const preview = await getFailurePreview(docsRes);
-      warnings.push(`GET /documents failed (${docsRes.status()}): ${preview}`);
-    }
-
-    for (let safety = 0; safety < 50; safety++) {
-      const foldersRes = await api.get("/folders");
-      if (!foldersRes.ok()) {
-        const preview = await getFailurePreview(foldersRes);
-        warnings.push(`GET /folders failed (${foldersRes.status()}): ${preview}`);
-        break;
-      }
-      const folders = (await foldersRes.json()) as IdRow[];
-      if (folders.length === 0) {
-        break;
-      }
-      await deleteOrWarn(warnings, `/folders/${folders[0].id}`, () =>
-        api.delete(`/folders/${folders[0].id}`),
+  const docsRes = await api.get(`${base}/documents`, {
+    headers: { Accept: "application/json" },
+  });
+  if (docsRes.ok()) {
+    const docs = (await docsRes.json()) as IdRow[];
+    for (const doc of docs) {
+      await deleteOrWarn(warnings, `/documents/${doc.id}`, () =>
+        api.delete(`${base}/documents/${doc.id}`, { headers: { Accept: "application/json" } }),
       );
     }
+  } else {
+    const preview = await getFailurePreview(docsRes);
+    warnings.push(`GET /documents failed (${docsRes.status()}): ${preview}`);
+  }
 
-    const settingsRes = await api.put("/settings", {
-      data: { keyboardLayoutOverrides: {} },
-      headers: { "Content-Type": "application/json" },
+  for (let safety = 0; safety < 50; safety++) {
+    const foldersRes = await api.get(`${base}/folders`, {
+      headers: { Accept: "application/json" },
     });
-    if (!settingsRes.ok()) {
-      const preview = await getFailurePreview(settingsRes);
-      warnings.push(`PUT /settings failed (${settingsRes.status()}): ${preview}`);
+    if (!foldersRes.ok()) {
+      const preview = await getFailurePreview(foldersRes);
+      warnings.push(`GET /folders failed (${foldersRes.status()}): ${preview}`);
+      break;
     }
-  } finally {
-    await api.dispose();
+    const folders = (await foldersRes.json()) as IdRow[];
+    if (folders.length === 0) {
+      break;
+    }
+    await deleteOrWarn(warnings, `/folders/${folders[0].id}`, () =>
+      api.delete(`${base}/folders/${folders[0].id}`, { headers: { Accept: "application/json" } }),
+    );
+  }
+
+  const settingsRes = await api.put(`${base}/settings`, {
+    data: { keyboardLayoutOverrides: {} },
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+  });
+  if (!settingsRes.ok()) {
+    const preview = await getFailurePreview(settingsRes);
+    warnings.push(`PUT /settings failed (${settingsRes.status()}): ${preview}`);
   }
 
   return warnings;

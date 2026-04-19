@@ -34,7 +34,7 @@ Requires **Node.js 20+** and dependencies (`npm run setup:dev` at the repo root,
 
 If `E2E_PROD_EMAIL` / `E2E_PROD_PASSWORD` are unset, the authenticated serial suite is **skipped** so local runs can still execute health + SPA smoke tests. CI now validates required variables/secrets up front and fails fast when they are missing.
 
-The authenticated Playwright file [`e2e/deployed/authenticated.integration.spec.ts`](../e2e/deployed/authenticated.integration.spec.ts) runs [`cleanupE2EAccountData`](../e2e/deployed/cleanup-e2e-account.ts) in `afterAll`: it deletes every document and folder and clears `keyboardLayoutOverrides` via the REST API (using the browser session cookies), so the E2E user does not accumulate data across runs. Set `PROD_API_BASE_URL` so cleanup can reach the API.
+The authenticated Playwright file [`e2e/deployed/authenticated.integration.spec.ts`](../e2e/deployed/authenticated.integration.spec.ts) runs [`cleanupE2EAccountData`](../e2e/deployed/cleanup-e2e-account.ts) in `afterAll`: it ensures the browser is authenticated as the configured E2E user (re-authenticates when needed), then uses that browser context session to delete every document and folder and clear `keyboardLayoutOverrides` via the REST API so the E2E user does not accumulate data across runs. Set `PROD_API_BASE_URL` and E2E credentials so cleanup can reach and authenticate to the API.
 
 GitHub Actions: set `PROD_API_BASE_URL` and `PROD_FRONTEND_URL` as repository **variables** and the E2E credentials as **secrets** (see [.github/workflows/deployed-integration-tests.yml](../.github/workflows/deployed-integration-tests.yml)).
 

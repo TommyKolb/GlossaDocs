@@ -127,6 +127,15 @@ describeSerialOrSkip("D-AUTH / D-DOC / D-FLD / D-SET — authenticated deployed 
   test.afterAll(async () => {
     try {
       if (page && hasProdE2ECredentials()) {
+        // Ensure cleanup uses the configured E2E user session.
+        await page.goto("/");
+        const signInHeading = page.getByRole("heading", { name: /sign in to continue/i });
+        const needsLogin = await signInHeading
+          .isVisible({ timeout: 3_000 })
+          .catch(() => false);
+        if (needsLogin) {
+          await loginProdUser(page);
+        }
         const cleanupWarnings = await cleanupE2EAccountData(page);
         if (cleanupWarnings.length > 0) {
           console.warn("Cleanup completed with warnings:");

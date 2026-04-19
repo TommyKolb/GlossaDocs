@@ -34,6 +34,9 @@ interface KeycloakAdminClientConfig {
   realm: string;
   adminUsername: string;
   adminPassword: string;
+  /** Optional: Keycloak includes these on execute-actions-email so the message links back to the SPA. */
+  executeActionsClientId?: string;
+  executeActionsRedirectUri?: string;
 }
 
 function normalizeBaseUrl(url: string): string {
@@ -90,6 +93,19 @@ export class HttpKeycloakAdminClient implements KeycloakAdminClient {
 
   public constructor(config: KeycloakAdminClientConfig) {
     this.config = config;
+  }
+
+  private static resolveSingleUserId(users: Array<{ id?: string }>): string | null {
+    const ids = users
+      .map((user) => user.id?.trim())
+      .filter((value): value is string => Boolean(value));
+    if (ids.length > 1) {
+      throw new KeycloakAdminClientError(
+        "KEYCLOAK_ADMIN_UNAVAILABLE",
+        "Ambiguous user lookup result for password reset"
+      );
+    }
+    return ids[0] ?? null;
   }
 
   public async createUser(args: { email: string; password: string }): Promise<void> {
@@ -158,21 +174,35 @@ export class HttpKeycloakAdminClient implements KeycloakAdminClient {
     if (!queryResponse.ok) {
       throw new KeycloakAdminClientError("KEYCLOAK_ADMIN_UNAVAILABLE", "User lookup failed");
     }
-    const users = (await queryResponse.json().catch(() => [])) as Array<{ id?: string }>;
-    const userId = users[0]?.id;
+    let users = (await queryResponse.json().catch(() => [])) as Array<{ id?: string }>;
+    let userId = HttpKeycloakAdminClient.resolveSingleUserId(users);
+    if (!userId) {
+      const usernameUrl = `${base}/users?username=${encodeURIComponent(args.email)}&max=2`;
+      const usernameResponse = await keycloakRequest(usernameUrl, token, { method: "GET" });
+      if (!usernameResponse.ok) {
+        throw new KeycloakAdminClientError("KEYCLOAK_ADMIN_UNAVAILABLE", "User lookup failed");
+      }
+      users = (await usernameResponse.json().catch(() => [])) as Array<{ id?: string }>;
+      userId = HttpKeycloakAdminClient.resolveSingleUserId(users);
+    }
     if (!userId) {
       throw new KeycloakAdminClientError("KEYCLOAK_USER_NOT_FOUND", "User not found");
     }
 
-    const execResponse = await keycloakRequest(
-      `${base}/users/${encodeURIComponent(userId)}/execute-actions-email`,
-      token,
-      {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(["UPDATE_PASSWORD"])
-      }
-    );
+    const execPath = `${base}/users/${encodeURIComponent(userId)}/execute-actions-email`;
+    const execUrl = new URL(execPath);
+    if (this.config.executeActionsClientId) {
+      execUrl.searchParams.set("client_id", this.config.executeActionsClientId);
+    }
+    if (this.config.executeActionsRedirectUri) {
+      execUrl.searchParams.set("redirect_uri", this.config.executeActionsRedirectUri);
+    }
+
+    const execResponse = await keycloakRequest(execUrl.toString(), token, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(["UPDATE_PASSWORD"])
+    });
     if (!execResponse.ok) {
       throw new KeycloakAdminClientError("KEYCLOAK_ADMIN_UNAVAILABLE", "Execute actions email failed");
     }
@@ -188,6 +218,13 @@ export function requireKeycloakAdminConfig(config: Partial<KeycloakAdminClientCo
       "Keycloak admin configuration is missing"
     );
   }
-  return { adminUrl, realm, adminUsername, adminPassword };
+  return {
+    adminUrl,
+    realm,
+    adminUsername,
+    adminPassword,
+    executeActionsClientId: config.executeActionsClientId,
+    executeActionsRedirectUri: config.executeActionsRedirectUri
+  };
 }
 

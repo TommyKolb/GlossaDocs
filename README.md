@@ -99,6 +99,7 @@ The local Docker flow in this README is for development only; it does not publis
 - [Document encryption at rest](docs/architecture/document-encryption.md) (`DOCUMENT_ENCRYPTION_KEY`)
 - Operational concerns (sessions, Postgres, Keycloak, reset procedures): **[backend/README.md](backend/README.md)**
 - AWS auth/deploy foundation runbook: [docs/deployment/aws-amplify-apigw-lambda-auth-runbook.md](docs/deployment/aws-amplify-apigw-lambda-auth-runbook.md)
+- Cognito **default email quota** vs **Amazon SES** (password reset / verification): [docs/deployment/cognito-email-and-ses.md](docs/deployment/cognito-email-and-ses.md)
 
 ## Adding a new language
 

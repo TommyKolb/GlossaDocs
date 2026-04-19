@@ -72,6 +72,10 @@ const configSchema = z.object({
   AUTH_LOGIN_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
   /** Per-IP maximum login attempts within the configured window. */
   AUTH_LOGIN_RATE_LIMIT_MAX_ATTEMPTS: z.coerce.number().int().positive().default(20),
+  /** Per-IP password reset attempt window in milliseconds (request and confirm endpoints). */
+  AUTH_PASSWORD_RESET_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
+  /** Per-IP maximum password reset attempts within the configured window. */
+  AUTH_PASSWORD_RESET_RATE_LIMIT_MAX_ATTEMPTS: z.coerce.number().int().positive().default(20),
   /** AWS region for Cognito resources. */
   COGNITO_REGION: z.string().optional(),
   /** Cognito User Pool id used for auth and admin APIs. */

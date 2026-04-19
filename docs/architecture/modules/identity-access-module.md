@@ -15,6 +15,7 @@ This module verifies **OIDC access tokens** (JWT), resolves an **`AuthenticatedP
 - **Provider-based app login** via `AuthPasswordLoginClient` adapters (`HttpKeycloakOidcClient` or `HttpCognitoOidcClient`).
 - **Registration** via `AuthAdminClient` adapters (`HttpKeycloakAdminClient` or `HttpCognitoAdminClient`).
 - **Password reset email** via provider admin APIs behind `AuthAdminClient`.
+- **Password reset confirm** (`POST /auth/password-reset/confirm`) when `AUTH_PROVIDER=cognito`.
 - **Public OIDC discovery helper:** `GET /auth/public` (optional URLs for alternate frontends).
 - **Profile:** `GET /me` (Bearer or session, same verifier).
 
@@ -65,7 +66,7 @@ flowchart TB
 
 | Abstraction | Role |
 |-------------|------|
-| `AuthenticatedPrincipal` | Runtime user identity after token verification. |
+| `AuthenticatedPrincipal` | Runtime user identity after token verification (Cognito mode may enrich missing `email` via `GetUser`). |
 | `TokenVerifier` | Contract: `verify(token) → AuthenticatedPrincipal`. |
 | `AuthSession` | Opaque `id`, `accessToken`, `expiresAt` (ms). |
 | `AuthSessionStore` | `create`, `get`, `delete` for sessions. |
@@ -104,7 +105,10 @@ No GlossaDocs-owned `user_profiles` table exists in this module; identity source
 | `GET` | `/auth/session` | Cookie | Returns `{ user }` if session valid. |
 | `POST` | `/auth/register` | Public | Body `{ email, password }`; requires `AuthAdminClient`. |
 | `POST` | `/auth/password-reset` | Public | Body `{ email }`; generic success message (no account enumeration). |
+| `POST` | `/auth/password-reset/confirm` | Public | Cognito-only: body `{ email, code, newPassword }`; returns generic `400 AUTH_PASSWORD_RESET_FAILED` for client-correctable failures, `501` on non-Cognito deployments. |
 | `GET` | `/me` | Session or Bearer | Returns `{ sub, username, email, scopes }`. |
+
+For Cognito enrichment behavior: `email` may be fetched from Cognito `GetUser` when omitted from access-token claims, while `username` remains the JWT-derived username for stable identity semantics.
 
 **Programmatic API for other modules:** `requireAuth(request, reply, tokenVerifier)` as `preHandler`, then `requireActorSub(request)` inside handlers.
 

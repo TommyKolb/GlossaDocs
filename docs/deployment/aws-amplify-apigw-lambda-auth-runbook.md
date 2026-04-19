@@ -93,6 +93,8 @@ Frontend (Amplify env vars):
 
 **Sign-up without email verification:** By default, Cognito `SignUp` creates an **UNCONFIRMED** user until the user verifies email; **`USER_PASSWORD_AUTH` login then fails** (often surfaced as **`AUTH_IDP_UNAVAILABLE`** / **502**). The backend calls **`AdminConfirmSignUp`** immediately after a successful `SignUp`, and the API Lambda IAM role includes **`cognito-idp:AdminConfirmSignUp`** on the user pool so new accounts can sign in without a verification step. **Accounts created before this behavior** may still be UNCONFIRMED: confirm them in the Cognito console (**Users** → select user → **Confirm user**) or register again with a different email.
 
+**Cognito email vs SES:** Cognito’s **built-in** email uses a **small daily quota per AWS account** (see AWS docs; currently **50 messages/day** with a daily reset, only when using the default email option). For low traffic that is often enough. When you need higher volume or a custom sending domain, configure **Amazon SES** for the user pool. See **[cognito-email-and-ses.md](./cognito-email-and-ses.md)** for exact quota references and a high-level SES wiring checklist.
+
 ## 4) One-Time AWS Bootstrap (Before First Merge to `main`)
 
 Complete this checklist once per AWS account/region/repository before the first production merge:

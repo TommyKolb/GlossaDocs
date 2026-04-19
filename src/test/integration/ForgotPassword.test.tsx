@@ -58,4 +58,28 @@ describe("ForgotPassword", () => {
     await waitFor(() => expect(screen.getByText(/Network down/i)).toBeInTheDocument());
     expect(vi.mocked(toast.error)).toHaveBeenCalledWith("Network down");
   });
+
+  it("calls onProceedToEnterCode after success when the continue button is used", async () => {
+    const fetchMock = vi.mocked(globalThis.fetch);
+    const onProceedToEnterCode = vi.fn();
+    render(<ForgotPassword onCancel={() => {}} onProceedToEnterCode={onProceedToEnterCode} />);
+    const user = userEvent.setup();
+
+    await user.type(screen.getByLabelText(/^Email$/i), "user@example.com");
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ message: "ok" })
+    } as Response);
+
+    await user.click(screen.getByRole("button", { name: /Send reset email/i }));
+    await waitFor(() =>
+      expect(
+        screen.getByText(/If an account exists for that email, a reset message has been sent\./i)
+      ).toBeInTheDocument()
+    );
+
+    await user.click(screen.getByRole("button", { name: /Enter verification code/i }));
+    expect(onProceedToEnterCode).toHaveBeenCalledWith("user@example.com");
+  });
 });

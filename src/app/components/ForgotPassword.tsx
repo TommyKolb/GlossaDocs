@@ -9,9 +9,11 @@ import { authApi } from "../api/endpoints";
 
 interface ForgotPasswordProps {
   onCancel: () => void;
+  /** After a reset email is requested, user can continue to enter the verification code (Cognito-style flow). */
+  onProceedToEnterCode?: (email: string) => void;
 }
 
-export function ForgotPassword({ onCancel }: ForgotPasswordProps) {
+export function ForgotPassword({ onCancel, onProceedToEnterCode }: ForgotPasswordProps) {
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
@@ -84,6 +86,18 @@ export function ForgotPassword({ onCancel }: ForgotPasswordProps) {
               <p className="text-sm text-red-600" role="alert" aria-live="polite">
                 {error}
               </p>
+            ) : null}
+
+            {status && onProceedToEnterCode ? (
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full"
+                disabled={isSubmitting}
+                onClick={() => onProceedToEnterCode(email.trim())}
+              >
+                Enter verification code
+              </Button>
             ) : null}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">

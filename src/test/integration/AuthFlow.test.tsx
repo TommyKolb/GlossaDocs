@@ -59,4 +59,27 @@ describe("App auth flow screens", () => {
 
     expect(screen.getByRole("heading", { name: /Reset your password/i })).toBeInTheDocument();
   });
+
+  it("Forgot password flow can open verification code screen after email is sent", async () => {
+    const fetchMock = vi.mocked(globalThis.fetch);
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ message: "ok" })
+    } as Response);
+
+    render(<App />);
+    const user = userEvent.setup();
+
+    const forgotButtons = await screen.findAllByTestId("forgot-password-button");
+    await user.click(forgotButtons.at(-1)!);
+
+    await user.type(screen.getByLabelText(/^Email$/i), "user@example.com");
+    await user.click(screen.getByRole("button", { name: /Send reset email/i }));
+
+    await screen.findByText(/If an account exists for that email/i);
+    await user.click(screen.getByRole("button", { name: /Enter verification code/i }));
+
+    expect(screen.getByRole("heading", { name: /Enter verification code/i })).toBeInTheDocument();
+  });
 });

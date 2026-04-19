@@ -8,4 +8,5 @@ export interface AuthPasswordLoginClient {
 export interface AuthAdminClient {
   createUser(args: { email: string; password: string }): Promise<void>;
   sendPasswordResetEmail(args: { email: string }): Promise<void>;
+  confirmForgotPassword?(args: { email: string; code: string; newPassword: string }): Promise<void>;
 }

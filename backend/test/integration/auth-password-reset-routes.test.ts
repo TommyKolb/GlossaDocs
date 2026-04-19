@@ -98,5 +98,82 @@ describe("POST /auth/password-reset", () => {
     expect(response.status).toBe(400);
     expect(response.body.code).toBe("VALIDATION_ERROR");
   });
+
+  it("returns 501 for password-reset confirm when auth provider is Keycloak", async () => {
+    const response = await request(app.server).post("/auth/password-reset/confirm").send({
+      email: "user@example.com",
+      code: "123456",
+      newPassword: "ValidPass123!Aa"
+    });
+
+    expect(response.status).toBe(501);
+    expect(response.body.code).toBe("AUTH_PASSWORD_RESET_CONFIRM_UNSUPPORTED");
+  });
+});
+
+describe("POST /auth/password-reset/confirm (Cognito)", () => {
+  const cognitoAdminClient = {
+    sendPasswordResetEmail: vi.fn(async () => {}),
+    confirmForgotPassword: vi.fn(async () => {})
+  };
+
+  const app = buildApp(
+    {
+      NODE_ENV: "test",
+      API_PORT: 4000,
+      CORS_ALLOWED_ORIGINS: "*",
+      AUTH_PROVIDER: "cognito"
+    } as any,
+    {
+      tokenVerifier,
+      documentService: createTestDocumentService(),
+      settingsService: createTestSettingsService(),
+      authAdminClient: cognitoAdminClient
+    } as any
+  );
+
+  beforeAll(async () => {
+    await app.ready();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  const validPassword = "ValidPass123!Aa";
+
+  it("completes reset when Cognito accepts the confirmation", async () => {
+    const response = await request(app.server).post("/auth/password-reset/confirm").send({
+      email: "user@example.com",
+      code: "123456",
+      newPassword: validPassword
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.body.message).toMatch(/password has been reset/i);
+    expect(cognitoAdminClient.confirmForgotPassword).toHaveBeenCalledWith({
+      email: "user@example.com",
+      code: "123456",
+      newPassword: validPassword
+    });
+  });
+
+  it("returns 400 when verification code is invalid", async () => {
+    const { CognitoAdminClientError } = await import(
+      "../../src/modules/identity-access/cognito-admin-client.js"
+    );
+    vi.mocked(cognitoAdminClient.confirmForgotPassword).mockRejectedValueOnce(
+      new CognitoAdminClientError("COGNITO_RESET_CODE_INVALID", "Invalid verification code.")
+    );
+
+    const response = await request(app.server).post("/auth/password-reset/confirm").send({
+      email: "user@example.com",
+      code: "wrong",
+      newPassword: validPassword
+    });
+
+    expect(response.status).toBe(400);
+    expect(response.body.code).toBe("COGNITO_RESET_CODE_INVALID");
+  });
 });
 

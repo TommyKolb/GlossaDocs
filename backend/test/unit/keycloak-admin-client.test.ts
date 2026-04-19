@@ -68,7 +68,9 @@ describe("requireKeycloakAdminConfig", () => {
       adminUrl: "http://k",
       realm: "r",
       adminUsername: "u",
-      adminPassword: "p"
+      adminPassword: "p",
+      executeActionsClientId: undefined,
+      executeActionsRedirectUri: undefined
     });
   });
 });
@@ -139,6 +141,7 @@ describe("HttpKeycloakAdminClient", () => {
   it("maps empty user search to KEYCLOAK_USER_NOT_FOUND for password reset", async () => {
     vi.mocked(fetch)
       .mockResolvedValueOnce(jsonResponse({ access_token: "admin-token" }, { ok: true }))
+      .mockResolvedValueOnce(jsonResponse([], { ok: true }))
       .mockResolvedValueOnce(jsonResponse([], { ok: true }));
 
     const client = new HttpKeycloakAdminClient(adminConfig);
@@ -224,6 +227,38 @@ describe("HttpKeycloakAdminClient", () => {
 
     const client = new HttpKeycloakAdminClient(adminConfig);
     await expect(client.sendPasswordResetEmail({ email: "exists@example.com" })).resolves.toBeUndefined();
+  });
+
+  it("falls back to username lookup when email search returns no users", async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(jsonResponse({ access_token: "admin-token" }, { ok: true }))
+      .mockResolvedValueOnce(jsonResponse([], { ok: true }))
+      .mockResolvedValueOnce(jsonResponse([{ id: "user-uuid" }], { ok: true }))
+      .mockResolvedValueOnce(jsonResponse({}, { ok: true }));
+
+    const client = new HttpKeycloakAdminClient(adminConfig);
+    await expect(client.sendPasswordResetEmail({ email: "exists@example.com" })).resolves.toBeUndefined();
+  });
+
+  it("adds client_id and redirect_uri to execute-actions when configured", async () => {
+    const fetchMock = vi
+      .mocked(fetch)
+      .mockResolvedValueOnce(jsonResponse({ access_token: "admin-token" }, { ok: true }))
+      .mockResolvedValueOnce(jsonResponse([{ id: "user-uuid" }], { ok: true }))
+      .mockImplementationOnce(async (url) => {
+        expect(String(url)).toContain("execute-actions-email");
+        expect(String(url)).toContain("client_id=glossadocs-api");
+        expect(String(url)).toContain(encodeURIComponent("http://localhost:5173/"));
+        return jsonResponse({}, { ok: true });
+      });
+
+    const client = new HttpKeycloakAdminClient({
+      ...adminConfig,
+      executeActionsClientId: "glossadocs-api",
+      executeActionsRedirectUri: "http://localhost:5173/"
+    });
+    await client.sendPasswordResetEmail({ email: "exists@example.com" });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
   it("throws when user lookup HTTP response is not ok", async () => {

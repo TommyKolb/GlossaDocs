@@ -351,7 +351,7 @@ export class GlossaDocsStack extends cdk.Stack {
 
     apiLambda.addToRolePolicy(
       new iam.PolicyStatement({
-        actions: ["cognito-idp:AdminConfirmSignUp"],
+        actions: ["cognito-idp:AdminConfirmSignUp", "cognito-idp:ListUsers"],
         resources: [userPool.userPoolArn]
       })
     );

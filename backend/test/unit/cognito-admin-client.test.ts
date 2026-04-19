@@ -1,6 +1,8 @@
 import {
   AdminConfirmSignUpCommand,
+  ConfirmForgotPasswordCommand,
   ForgotPasswordCommand,
+  ListUsersCommand,
   SignUpCommand
 } from "@aws-sdk/client-cognito-identity-provider";
 import { describe, expect, it, vi } from "vitest";
@@ -137,5 +139,60 @@ describe("HttpCognitoAdminClient", () => {
     const forgotInput = (send.mock.calls[1]?.[0] as ForgotPasswordCommand).input;
     expect(signUpInput.SecretHash).toBeTypeOf("string");
     expect(forgotInput.SecretHash).toBeTypeOf("string");
+  });
+
+  it("confirms forgot password with SecretHash when client secret is configured", async () => {
+    const send = vi.fn().mockResolvedValue({});
+    const client = createClient(send, true);
+
+    await client.confirmForgotPassword({
+      email: "user@example.com",
+      code: "123456",
+      newPassword: "ValidPass123!Aa"
+    });
+
+    expect(send.mock.calls[0]?.[0]).toBeInstanceOf(ConfirmForgotPasswordCommand);
+    const input = (send.mock.calls[0]?.[0] as ConfirmForgotPasswordCommand).input;
+    expect(input?.Username).toBe("user@example.com");
+    expect(input?.ConfirmationCode).toBe("123456");
+    expect(input?.SecretHash).toBeTypeOf("string");
+  });
+
+  it("maps CodeMismatchException for confirmForgotPassword", async () => {
+    const send = vi.fn().mockImplementation(async () => {
+      const err = new Error("bad code");
+      (err as Error & { name: string }).name = "CodeMismatchException";
+      throw err;
+    });
+    const client = createClient(send);
+
+    await expect(
+      client.confirmForgotPassword({
+        email: "user@example.com",
+        code: "bad",
+        newPassword: "ValidPass123!Aa"
+      })
+    ).rejects.toMatchObject({ code: "COGNITO_RESET_CODE_INVALID" });
+  });
+
+  it("retries ForgotPassword with resolved username when email is not the Cognito username", async () => {
+    const send = vi
+      .fn()
+      .mockImplementationOnce(async () => {
+        const err = new Error("not found");
+        (err as Error & { name: string }).name = "UserNotFoundException";
+        throw err;
+      })
+      .mockResolvedValueOnce({
+        Users: [{ Username: "uuid-username-1" }]
+      })
+      .mockResolvedValueOnce({});
+
+    const client = createClient(send);
+
+    await client.sendPasswordResetEmail({ email: "user@example.com" });
+
+    expect(send.mock.calls[1]?.[0]).toBeInstanceOf(ListUsersCommand);
+    expect((send.mock.calls[2]?.[0] as ForgotPasswordCommand).input?.Username).toBe("uuid-username-1");
   });
 });

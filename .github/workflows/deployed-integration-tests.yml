@@ -18,10 +18,10 @@ jobs:
     timeout-minutes: 30
     env:
       CI: true
-      PROD_API_BASE_URL: ${{ vars.PROD_API_BASE_URL }}
-      PROD_FRONTEND_URL: ${{ vars.PROD_FRONTEND_URL }}
-      E2E_PROD_EMAIL: ${{ secrets.E2E_PROD_EMAIL }}
-      E2E_PROD_PASSWORD: ${{ secrets.E2E_PROD_PASSWORD }}
+      PROD_API_BASE_URL: ${{ vars.PROD_API_BASE_URL || secrets.PROD_API_BASE_URL }}
+      PROD_FRONTEND_URL: ${{ vars.PROD_FRONTEND_URL || secrets.PROD_FRONTEND_URL }}
+      E2E_PROD_EMAIL: ${{ secrets.E2E_PROD_EMAIL || vars.E2E_PROD_EMAIL }}
+      E2E_PROD_PASSWORD: ${{ secrets.E2E_PROD_PASSWORD || vars.E2E_PROD_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
 
@@ -52,6 +52,7 @@ jobs:
 
           if [ "${#missing[@]}" -gt 0 ]; then
             echo "Missing required variables/secrets: ${missing[*]}"
+            echo "Expected in the selected GitHub environment (Production) as vars or secrets."
             exit 1
           fi
 

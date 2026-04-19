@@ -19,8 +19,22 @@ Requires **Node.js 20+** and dependencies (`npm run setup:dev` at the repo root,
 - Backend coverage: `npm run test:backend:coverage` → `coverage/backend/`
 - Infrastructure checks: `npm --prefix infrastructure run typecheck && npm --prefix infrastructure run lint && npm --prefix infrastructure run test && npm --prefix infrastructure run synth`
 - E2E: `npm run test:e2e` (first time: `npm run test:e2e:install` for Chromium)
+- **Deployed integration:** `npm run test:deployed` — Playwright against the live Amplify app and API (`playwright.deployed.config.ts`, specs in `e2e/deployed/`). Specification: [docs/specs/test/deployed-integration.test-spec.md](specs/test/deployed-integration.test-spec.md).
 
 `test:frontend` / `test:backend` alone do not run `check:font-catalogs`; use `npm test` for the full gate.
+
+### Deployed integration environment
+
+| Variable | Required | Purpose |
+|----------|----------|---------|
+| `PROD_API_BASE_URL` | For API probe tests | API Gateway base URL (trailing slash optional; normalized in tests). Example: `https://….execute-api.….amazonaws.com/prod`. |
+| `PROD_FRONTEND_URL` | Optional | Amplify origin; defaults to `https://main.d1on78tbp65odj.amplifyapp.com`. Use the **same** host you open in a browser (otherwise Playwright exercises a different build or API than your manual test). |
+| `E2E_PROD_EMAIL` | For authenticated flows | Dedicated Cognito test user email (login form). |
+| `E2E_PROD_PASSWORD` | For authenticated flows | Password for that user. |
+
+If `E2E_PROD_EMAIL` / `E2E_PROD_PASSWORD` are unset, the authenticated serial suite is **skipped** so local runs can still execute health + SPA smoke tests. CI should define all variables and secrets so the full suite runs.
+
+GitHub Actions: set `PROD_API_BASE_URL` and `PROD_FRONTEND_URL` as repository **variables** and the E2E credentials as **secrets** (see [.github/workflows/deployed-integration-tests.yml](../.github/workflows/deployed-integration-tests.yml)).
 
 ## Using coverage (signal, not a score)
 
@@ -44,3 +58,5 @@ On push and pull requests to **`main`** or **`develop`**, the **[Tests](../.gith
 Those YAML files use **`workflow_call`** so the **Tests** run can invoke them; they also expose **`workflow_dispatch`** so you can run each workflow alone from the Actions tab when debugging.
 
 PRs that only touch unrelated paths skip frontend/backend calls while still running the font catalog check.
+
+On **push** and **pull_request**, [.github/workflows/deployed-integration-tests.yml](../.github/workflows/deployed-integration-tests.yml) runs the deployed Playwright suite against production URLs. Pull requests from repository forks skip this workflow by default (secrets are unavailable on fork workflows).

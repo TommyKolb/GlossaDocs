@@ -131,7 +131,8 @@ function resolveTokenVerifier(config: BuildAppConfig, injected?: TokenVerifier):
 function wrapTokenVerifierWithCognitoEmailEnrichment(
   config: BuildAppConfig,
   verifier: TokenVerifier,
-  injectedVerifier?: TokenVerifier
+  injectedVerifier?: TokenVerifier,
+  logger?: Pick<FastifyInstance["log"], "warn">
 ): TokenVerifier {
   if (injectedVerifier) {
     return verifier;
@@ -141,7 +142,7 @@ function wrapTokenVerifierWithCognitoEmailEnrichment(
     return verifier;
   }
   const cognitoClient = new CognitoIdentityProviderClient({ region: config.COGNITO_REGION });
-  return new CognitoEmailEnrichingTokenVerifier(verifier, cognitoClient);
+  return new CognitoEmailEnrichingTokenVerifier(verifier, cognitoClient, logger);
 }
 
 function resolveCorsOrigin(config: BuildAppConfig): true | string[] {
@@ -235,7 +236,8 @@ export function buildApp(config: BuildAppConfig, options: BuildAppOptions = {}):
   const tokenVerifier = wrapTokenVerifierWithCognitoEmailEnrichment(
     config,
     resolveTokenVerifier(config, options.tokenVerifier),
-    options.tokenVerifier
+    options.tokenVerifier,
+    app.log
   );
   const databaseUrl = config.DATABASE_URL;
   if (!databaseUrl && (!options.documentService || !options.settingsService)) {
@@ -333,7 +335,12 @@ export function buildApp(config: BuildAppConfig, options: BuildAppOptions = {}):
     passwordLoginClient
   });
   void app.register(authRegisterRoutes, { authAdminClient });
-  void app.register(authPasswordResetRoutes, { authAdminClient, authProvider });
+  void app.register(authPasswordResetRoutes, {
+    authAdminClient,
+    authProvider,
+    resetRateLimitWindowMs: config.AUTH_PASSWORD_RESET_RATE_LIMIT_WINDOW_MS ?? 60_000,
+    resetRateLimitMaxAttempts: config.AUTH_PASSWORD_RESET_RATE_LIMIT_MAX_ATTEMPTS ?? 20
+  });
   void app.register(meRoutes, { tokenVerifier });
   void app.register(documentRoutes, { tokenVerifier, service: documentService });
   void app.register(settingsRoutes, { tokenVerifier, service: settingsService });

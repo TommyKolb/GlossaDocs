@@ -28,7 +28,7 @@ describe("CognitoEmailEnrichingTokenVerifier", () => {
     expect(send).not.toHaveBeenCalled();
   });
 
-  it("enriches email and username from GetUser when JWT had no email", async () => {
+  it("enriches email from GetUser while preserving JWT username", async () => {
     const inner: TokenVerifier = {
       verify: vi.fn(async () => ({ ...basePrincipal }))
     };
@@ -41,21 +41,26 @@ describe("CognitoEmailEnrichingTokenVerifier", () => {
     const result = await verifier.verify("access-token");
 
     expect(result.email).toBe("user@example.com");
-    expect(result.username).toBe("user@example.com");
+    expect(result.username).toBe(basePrincipal.username);
     expect(send).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps inner principal when GetUser fails", async () => {
+  it("keeps inner principal and logs when GetUser fails", async () => {
     const inner: TokenVerifier = {
       verify: vi.fn(async () => ({ ...basePrincipal }))
     };
     const send = vi.fn().mockRejectedValue(new Error("network"));
     const cognitoClient = { send } as any;
+    const logger = { warn: vi.fn() };
 
-    const verifier = new CognitoEmailEnrichingTokenVerifier(inner, cognitoClient);
+    const verifier = new CognitoEmailEnrichingTokenVerifier(inner, cognitoClient, logger);
     const result = await verifier.verify("access-token");
 
     expect(result).toEqual(basePrincipal);
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ reason: "cognito_get_user_failed" }),
+      expect.stringMatching(/email enrichment failed/i)
+    );
   });
 
   it("keeps inner principal when GetUser returns no email attribute", async () => {

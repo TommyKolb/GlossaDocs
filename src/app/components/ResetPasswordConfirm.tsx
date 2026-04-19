@@ -21,6 +21,7 @@ export function ResetPasswordConfirm({ initialEmail, onBack, onSuccess }: ResetP
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const errorId = "reset-password-confirm-error";
 
   const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -55,12 +56,11 @@ export function ResetPasswordConfirm({ initialEmail, onBack, onSuccess }: ResetP
       toast.message(data.message);
       onSuccess();
     } catch (err) {
-      const message =
-        err instanceof ApiClientError
+      const message = err instanceof ApiClientError
+        ? "Unable to complete password reset. Check your verification code and password, then try again."
+        : err instanceof Error
           ? err.message
-          : err instanceof Error
-            ? err.message
-            : "Could not reset password";
+          : "Could not reset password";
       setError(message);
       toast.error(message);
     } finally {
@@ -93,6 +93,8 @@ export function ResetPasswordConfirm({ initialEmail, onBack, onSuccess }: ResetP
                 autoComplete="email"
                 required
                 disabled={isSubmitting}
+                aria-invalid={error ? "true" : "false"}
+                aria-describedby={error ? errorId : undefined}
               />
             </div>
             <div>
@@ -108,6 +110,8 @@ export function ResetPasswordConfirm({ initialEmail, onBack, onSuccess }: ResetP
                 onChange={(e) => setCode(e.target.value)}
                 required
                 disabled={isSubmitting}
+                aria-invalid={error ? "true" : "false"}
+                aria-describedby={error ? errorId : undefined}
               />
             </div>
             <div>
@@ -122,6 +126,8 @@ export function ResetPasswordConfirm({ initialEmail, onBack, onSuccess }: ResetP
                 onChange={(e) => setNewPassword(e.target.value)}
                 required
                 disabled={isSubmitting}
+                aria-invalid={error ? "true" : "false"}
+                aria-describedby={error ? errorId : undefined}
               />
               <p className="text-xs text-gray-500 mt-1">{SIGNUP_PASSWORD_POLICY_HINT}</p>
             </div>
@@ -132,16 +138,18 @@ export function ResetPasswordConfirm({ initialEmail, onBack, onSuccess }: ResetP
               <Input
                 id="confirm-repeat-password"
                 type="password"
-                autoComplete="new-password"
+                autoComplete="off"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
                 disabled={isSubmitting}
+                aria-invalid={error ? "true" : "false"}
+                aria-describedby={error ? errorId : undefined}
               />
             </div>
 
             {error ? (
-              <p className="text-sm text-red-600" role="alert" aria-live="polite">
+              <p id={errorId} className="text-sm text-red-600" role="alert" aria-live="polite">
                 {error}
               </p>
             ) : null}

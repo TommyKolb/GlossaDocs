@@ -175,6 +175,38 @@ describe("HttpCognitoAdminClient", () => {
     ).rejects.toMatchObject({ code: "COGNITO_RESET_CODE_INVALID" });
   });
 
+  it("retries confirm with resolved username when email is not the Cognito username", async () => {
+    const send = vi
+      .fn()
+      .mockImplementationOnce(async () => {
+        const err = new Error("not found");
+        (err as Error & { name: string }).name = "UserNotFoundException";
+        throw err;
+      })
+      .mockResolvedValueOnce({
+        Users: [{ Username: "uuid-username-1" }]
+      })
+      .mockResolvedValueOnce({});
+    const client = createClient(send, true);
+
+    await client.confirmForgotPassword({
+      email: "user@example.com",
+      code: "123456",
+      newPassword: "ValidPass123!Aa"
+    });
+
+    expect(send.mock.calls[0]?.[0]).toBeInstanceOf(ConfirmForgotPasswordCommand);
+    expect(send.mock.calls[1]?.[0]).toBeInstanceOf(ListUsersCommand);
+    expect(send.mock.calls[2]?.[0]).toBeInstanceOf(ConfirmForgotPasswordCommand);
+    const firstInput = (send.mock.calls[0]?.[0] as ConfirmForgotPasswordCommand).input;
+    const retryInput = (send.mock.calls[2]?.[0] as ConfirmForgotPasswordCommand).input;
+    expect(firstInput?.Username).toBe("user@example.com");
+    expect(retryInput?.Username).toBe("uuid-username-1");
+    expect(firstInput?.SecretHash).toBeTypeOf("string");
+    expect(retryInput?.SecretHash).toBeTypeOf("string");
+    expect(firstInput?.SecretHash).not.toEqual(retryInput?.SecretHash);
+  });
+
   it("retries ForgotPassword with resolved username when email is not the Cognito username", async () => {
     const send = vi
       .fn()

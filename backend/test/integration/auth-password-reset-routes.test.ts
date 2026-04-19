@@ -1,7 +1,8 @@
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
-import { buildApp } from "../../src/app.js";
+import { buildApp, type BuildAppConfig } from "../../src/app.js";
+import { CognitoAdminClientError } from "../../src/modules/identity-access/cognito-admin-client.js";
 import type { TokenVerifier } from "../../src/modules/identity-access/token-verifier.js";
 import { createTestDocumentService } from "../helpers/test-document-service.js";
 import { createTestSettingsService } from "../helpers/test-settings-service.js";
@@ -19,23 +20,25 @@ const tokenVerifier: TokenVerifier = {
   })
 };
 
+const baseConfig: BuildAppConfig = {
+  NODE_ENV: "test",
+  API_PORT: 4000,
+  CORS_ALLOWED_ORIGINS: "*"
+};
+
 describe("POST /auth/password-reset", () => {
   const keycloakAdminClient: KeycloakAdminClient = {
     sendPasswordResetEmail: vi.fn(async () => {})
   };
 
   const app = buildApp(
-    {
-      NODE_ENV: "test",
-      API_PORT: 4000,
-      CORS_ALLOWED_ORIGINS: "*"
-    } as any,
+    baseConfig,
     {
       tokenVerifier,
       documentService: createTestDocumentService(),
       settingsService: createTestSettingsService(),
       keycloakAdminClient
-    } as any
+    }
   );
 
   beforeAll(async () => {
@@ -119,17 +122,15 @@ describe("POST /auth/password-reset/confirm (Cognito)", () => {
 
   const app = buildApp(
     {
-      NODE_ENV: "test",
-      API_PORT: 4000,
-      CORS_ALLOWED_ORIGINS: "*",
+      ...baseConfig,
       AUTH_PROVIDER: "cognito"
-    } as any,
+    },
     {
       tokenVerifier,
       documentService: createTestDocumentService(),
       settingsService: createTestSettingsService(),
       authAdminClient: cognitoAdminClient
-    } as any
+    }
   );
 
   beforeAll(async () => {
@@ -159,9 +160,6 @@ describe("POST /auth/password-reset/confirm (Cognito)", () => {
   });
 
   it("returns 400 when verification code is invalid", async () => {
-    const { CognitoAdminClientError } = await import(
-      "../../src/modules/identity-access/cognito-admin-client.js"
-    );
     vi.mocked(cognitoAdminClient.confirmForgotPassword).mockRejectedValueOnce(
       new CognitoAdminClientError("COGNITO_RESET_CODE_INVALID", "Invalid verification code.")
     );
@@ -173,7 +171,78 @@ describe("POST /auth/password-reset/confirm (Cognito)", () => {
     });
 
     expect(response.status).toBe(400);
-    expect(response.body.code).toBe("COGNITO_RESET_CODE_INVALID");
+    expect(response.body.code).toBe("AUTH_PASSWORD_RESET_FAILED");
+    expect(response.body.message).toMatch(/unable to complete password reset/i);
+  });
+
+  it("returns generic 400 when user is not found", async () => {
+    vi.mocked(cognitoAdminClient.confirmForgotPassword).mockRejectedValueOnce(
+      new CognitoAdminClientError("COGNITO_USER_NOT_FOUND", "User not found")
+    );
+
+    const response = await request(app.server).post("/auth/password-reset/confirm").send({
+      email: "missing@example.com",
+      code: "123456",
+      newPassword: validPassword
+    });
+
+    expect(response.status).toBe(400);
+    expect(response.body.code).toBe("AUTH_PASSWORD_RESET_FAILED");
+  });
+
+  it("returns 502 for Cognito admin outages", async () => {
+    vi.mocked(cognitoAdminClient.confirmForgotPassword).mockRejectedValueOnce(
+      new CognitoAdminClientError("COGNITO_ADMIN_UNAVAILABLE", "service unavailable")
+    );
+
+    const response = await request(app.server).post("/auth/password-reset/confirm").send({
+      email: "user@example.com",
+      code: "123456",
+      newPassword: validPassword
+    });
+
+    expect(response.status).toBe(502);
+    expect(response.body.code).toBe("AUTH_IDP_UNAVAILABLE");
+  });
+});
+
+describe("POST /auth/password-reset rate limiting", () => {
+  const authAdminClient = {
+    sendPasswordResetEmail: vi.fn(async () => {})
+  };
+  const app = buildApp(
+    {
+      ...baseConfig,
+      AUTH_PASSWORD_RESET_RATE_LIMIT_WINDOW_MS: 60_000,
+      AUTH_PASSWORD_RESET_RATE_LIMIT_MAX_ATTEMPTS: 1
+    },
+    {
+      tokenVerifier,
+      documentService: createTestDocumentService(),
+      settingsService: createTestSettingsService(),
+      authAdminClient
+    }
+  );
+
+  beforeAll(async () => {
+    await app.ready();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  it("returns 429 after exceeding reset request limit", async () => {
+    const first = await request(app.server).post("/auth/password-reset").send({
+      email: "user@example.com"
+    });
+    expect(first.status).toBe(200);
+
+    const second = await request(app.server).post("/auth/password-reset").send({
+      email: "user@example.com"
+    });
+    expect(second.status).toBe(429);
+    expect(second.body.code).toBe("AUTH_RATE_LIMITED");
   });
 });
 

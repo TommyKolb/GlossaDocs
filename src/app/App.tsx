@@ -71,17 +71,29 @@ export default function App() {
         {authView === 'login' ? (
           <Login
             onLoginSuccess={handleLoginSuccess}
-            onCreateAccount={() => setAuthView('signup')}
+            onCreateAccount={() => {
+              setPasswordResetEmail('');
+              setAuthView('signup');
+            }}
             onForgotPassword={() => setAuthView('forgot')}
           />
         ) : authView === 'signup' ? (
           <SignUp
-            onCancel={() => setAuthView('login')}
-            onAccountCreated={() => setAuthView('login')}
+            onCancel={() => {
+              setPasswordResetEmail('');
+              setAuthView('login');
+            }}
+            onAccountCreated={() => {
+              setPasswordResetEmail('');
+              setAuthView('login');
+            }}
           />
         ) : authView === 'forgot' ? (
           <ForgotPassword
-            onCancel={() => setAuthView('login')}
+            onCancel={() => {
+              setPasswordResetEmail('');
+              setAuthView('login');
+            }}
             onProceedToEnterCode={(email) => {
               setPasswordResetEmail(email);
               setAuthView('reset-confirm');
@@ -91,7 +103,10 @@ export default function App() {
           <ResetPasswordConfirm
             initialEmail={passwordResetEmail}
             onBack={() => setAuthView('forgot')}
-            onSuccess={() => setAuthView('login')}
+            onSuccess={() => {
+              setPasswordResetEmail('');
+              setAuthView('login');
+            }}
           />
         )}
         <Toaster />

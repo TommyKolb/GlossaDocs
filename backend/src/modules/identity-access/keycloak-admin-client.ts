@@ -95,6 +95,19 @@ export class HttpKeycloakAdminClient implements KeycloakAdminClient {
     this.config = config;
   }
 
+  private static resolveSingleUserId(users: Array<{ id?: string }>): string | null {
+    const ids = users
+      .map((user) => user.id?.trim())
+      .filter((value): value is string => Boolean(value));
+    if (ids.length > 1) {
+      throw new KeycloakAdminClientError(
+        "KEYCLOAK_ADMIN_UNAVAILABLE",
+        "Ambiguous user lookup result for password reset"
+      );
+    }
+    return ids[0] ?? null;
+  }
+
   public async createUser(args: { email: string; password: string }): Promise<void> {
     const token = await getAdminAccessToken(this.config);
     const base = `${normalizeBaseUrl(this.config.adminUrl)}/admin/realms/${encodeURIComponent(
@@ -162,7 +175,7 @@ export class HttpKeycloakAdminClient implements KeycloakAdminClient {
       throw new KeycloakAdminClientError("KEYCLOAK_ADMIN_UNAVAILABLE", "User lookup failed");
     }
     let users = (await queryResponse.json().catch(() => [])) as Array<{ id?: string }>;
-    let userId = users[0]?.id;
+    let userId = HttpKeycloakAdminClient.resolveSingleUserId(users);
     if (!userId) {
       const usernameUrl = `${base}/users?username=${encodeURIComponent(args.email)}&max=2`;
       const usernameResponse = await keycloakRequest(usernameUrl, token, { method: "GET" });
@@ -170,7 +183,7 @@ export class HttpKeycloakAdminClient implements KeycloakAdminClient {
         throw new KeycloakAdminClientError("KEYCLOAK_ADMIN_UNAVAILABLE", "User lookup failed");
       }
       users = (await usernameResponse.json().catch(() => [])) as Array<{ id?: string }>;
-      userId = users[0]?.id;
+      userId = HttpKeycloakAdminClient.resolveSingleUserId(users);
     }
     if (!userId) {
       throw new KeycloakAdminClientError("KEYCLOAK_USER_NOT_FOUND", "User not found");

@@ -82,6 +82,7 @@ Optional and auto-derived when omitted in Cognito mode:
 - `OIDC_AUDIENCE` (derived from `COGNITO_CLIENT_ID`)
 - `OIDC_JWKS_URL` (derived as `${OIDC_ISSUER_URL}/.well-known/jwks.json`)
 - `AUTH_LOGIN_RATE_LIMIT_WINDOW_MS` / `AUTH_LOGIN_RATE_LIMIT_MAX_ATTEMPTS` (defaults: 60s / 20 attempts per IP)
+- `AUTH_PASSWORD_RESET_RATE_LIMIT_WINDOW_MS` / `AUTH_PASSWORD_RESET_RATE_LIMIT_MAX_ATTEMPTS` (defaults: 60s / 20 attempts per IP across reset request + confirm endpoints)
 
 Frontend (Amplify env vars):
 
@@ -92,6 +93,8 @@ Frontend (Amplify env vars):
 **Sign-up passwords (Cognito):** The CDK user pool enforces a **strong** password policy (minimum length 12, uppercase, lowercase, number, symbol). The app-hosted **Create account** form and API validation must match that policy; otherwise Cognito’s `SignUp` API fails and the API previously surfaced a generic **`AUTH_IDP_UNAVAILABLE`** (**502**). Prefer clear **400** responses and UI copy after aligning validation with the pool (see `cognito-password-policy` in the backend and `UserPool` `passwordPolicy` in `glossadocs-stack.ts`).
 
 **Sign-up without email verification:** By default, Cognito `SignUp` creates an **UNCONFIRMED** user until the user verifies email; **`USER_PASSWORD_AUTH` login then fails** (often surfaced as **`AUTH_IDP_UNAVAILABLE`** / **502**). The backend calls **`AdminConfirmSignUp`** immediately after a successful `SignUp`, and the API Lambda IAM role includes **`cognito-idp:AdminConfirmSignUp`** on the user pool so new accounts can sign in without a verification step. **Accounts created before this behavior** may still be UNCONFIRMED: confirm them in the Cognito console (**Users** → select user → **Confirm user**) or register again with a different email.
+
+**Password reset username resolution:** The backend may call **`ListUsers`** during forgot/confirm reset to resolve Cognito username from email in pools where username differs from email. Ensure API IAM also allows **`cognito-idp:ListUsers`** scoped to the user pool.
 
 **Cognito email vs SES:** Cognito’s **built-in** email uses a **small daily quota per AWS account** (see AWS docs; currently **50 messages/day** with a daily reset, only when using the default email option). For low traffic that is often enough. When you need higher volume or a custom sending domain, configure **Amazon SES** for the user pool. See **[cognito-email-and-ses.md](./cognito-email-and-ses.md)** for exact quota references and a high-level SES wiring checklist.
 
@@ -221,9 +224,10 @@ The frontend continues to use the same API contract:
 - `GET /auth/session`
 - `POST /auth/register`
 - `POST /auth/password-reset`
+- `POST /auth/password-reset/confirm`
 - `GET /auth/public`
 
-Provider-specific logic is now behind backend auth provider clients, allowing Cognito in production and local-friendly dev mode without changing frontend endpoint usage.
+Provider-specific logic is now behind backend auth provider clients, allowing Cognito in production and local-friendly dev mode without changing frontend endpoint usage. `POST /auth/password-reset/confirm` is Cognito-only and returns `501 AUTH_PASSWORD_RESET_CONFIRM_UNSUPPORTED` when unavailable (for example Keycloak reset-link deployments).
 
 ## 11) Deployment Test Gate (Required)
 

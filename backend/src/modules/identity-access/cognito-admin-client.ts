@@ -44,6 +44,27 @@ interface CognitoAdminClientConfig {
   clientSecret?: string;
 }
 
+function buildSecretHash(config: CognitoAdminClientConfig, username: string): string | undefined {
+  return config.clientSecret
+    ? computeCognitoSecretHash(username, config.clientId, config.clientSecret)
+    : undefined;
+}
+
+function throwMappedCognitoError(args: {
+  error: unknown;
+  fallbackMessage: string;
+  mappings: Record<string, { code: CognitoAdminClientErrorCode; message?: string }>;
+  defaultCode: CognitoAdminClientErrorCode;
+}): never {
+  const name = getCognitoErrorName(args.error);
+  const originalMessage = getErrorMessage(args.error, args.fallbackMessage);
+  const mapped = args.mappings[name];
+  if (mapped) {
+    throw new CognitoAdminClientError(mapped.code, mapped.message ?? originalMessage);
+  }
+  throw new CognitoAdminClientError(args.defaultCode, originalMessage);
+}
+
 export function requireCognitoAdminConfig(
   config: Partial<CognitoAdminClientConfig>
 ): CognitoAdminClientConfig {
@@ -59,45 +80,38 @@ export function requireCognitoAdminConfig(
 }
 
 function mapCognitoAdminError(error: unknown): never {
-  const name = getCognitoErrorName(error);
-  const message = getErrorMessage(error, "Cognito admin request failed");
-  if (name === "UsernameExistsException") {
-    throw new CognitoAdminClientError("COGNITO_USER_EXISTS", "User already exists");
-  }
-  if (name === "UserNotFoundException") {
-    throw new CognitoAdminClientError("COGNITO_USER_NOT_FOUND", "User not found");
-  }
-  if (name === "InvalidPasswordException") {
-    throw new CognitoAdminClientError("COGNITO_INVALID_PASSWORD", message);
-  }
-  if (name === "InvalidParameterException") {
-    throw new CognitoAdminClientError("COGNITO_INVALID_PARAMETER", message);
-  }
-  throw new CognitoAdminClientError("COGNITO_ADMIN_UNAVAILABLE", message);
+  throwMappedCognitoError({
+    error,
+    fallbackMessage: "Cognito admin request failed",
+    defaultCode: "COGNITO_ADMIN_UNAVAILABLE",
+    mappings: {
+      UsernameExistsException: { code: "COGNITO_USER_EXISTS", message: "User already exists" },
+      UserNotFoundException: { code: "COGNITO_USER_NOT_FOUND", message: "User not found" },
+      InvalidPasswordException: { code: "COGNITO_INVALID_PASSWORD" },
+      InvalidParameterException: { code: "COGNITO_INVALID_PARAMETER" }
+    }
+  });
 }
 
 function mapCognitoConfirmForgotPasswordError(error: unknown): never {
-  const name = getCognitoErrorName(error);
-  const message = getErrorMessage(error, "Unable to reset password");
-  if (name === "CodeMismatchException") {
-    throw new CognitoAdminClientError("COGNITO_RESET_CODE_INVALID", "Invalid verification code.");
-  }
-  if (name === "ExpiredCodeException") {
-    throw new CognitoAdminClientError(
-      "COGNITO_RESET_CODE_EXPIRED",
-      "Verification code has expired. Request a new reset email."
-    );
-  }
-  if (name === "InvalidPasswordException") {
-    throw new CognitoAdminClientError("COGNITO_INVALID_PASSWORD", message);
-  }
-  if (name === "InvalidParameterException") {
-    throw new CognitoAdminClientError("COGNITO_INVALID_PARAMETER", message);
-  }
-  if (name === "UserNotFoundException") {
-    throw new CognitoAdminClientError("COGNITO_USER_NOT_FOUND", "User not found");
-  }
-  throw new CognitoAdminClientError("COGNITO_ADMIN_UNAVAILABLE", message);
+  throwMappedCognitoError({
+    error,
+    fallbackMessage: "Unable to reset password",
+    defaultCode: "COGNITO_ADMIN_UNAVAILABLE",
+    mappings: {
+      CodeMismatchException: {
+        code: "COGNITO_RESET_CODE_INVALID",
+        message: "Invalid verification code."
+      },
+      ExpiredCodeException: {
+        code: "COGNITO_RESET_CODE_EXPIRED",
+        message: "Verification code has expired. Request a new reset email."
+      },
+      InvalidPasswordException: { code: "COGNITO_INVALID_PASSWORD" },
+      InvalidParameterException: { code: "COGNITO_INVALID_PARAMETER" },
+      UserNotFoundException: { code: "COGNITO_USER_NOT_FOUND", message: "User not found" }
+    }
+  });
 }
 
 async function findCognitoUsernameByEmail(
@@ -130,6 +144,32 @@ export class HttpCognitoAdminClient implements CognitoAdminClient {
   ) {
     this.config = config;
     this.client = deps.cognitoClient ?? new CognitoIdentityProviderClient({ region: config.region });
+  }
+
+  private async tryForgotPasswordWithUsername(username: string): Promise<void> {
+    await this.client.send(
+      new ForgotPasswordCommand({
+        ClientId: this.config.clientId,
+        Username: username,
+        SecretHash: buildSecretHash(this.config, username)
+      })
+    );
+  }
+
+  private async tryConfirmForgotPasswordWithUsername(args: {
+    username: string;
+    code: string;
+    newPassword: string;
+  }): Promise<void> {
+    await this.client.send(
+      new ConfirmForgotPasswordCommand({
+        ClientId: this.config.clientId,
+        Username: args.username,
+        ConfirmationCode: args.code.trim(),
+        Password: args.newPassword,
+        SecretHash: buildSecretHash(this.config, args.username)
+      })
+    );
   }
 
   private async confirmUserWithRetry(username: string): Promise<void> {
@@ -183,21 +223,9 @@ export class HttpCognitoAdminClient implements CognitoAdminClient {
 
   public async sendPasswordResetEmail(args: { email: string }): Promise<void> {
     const trimmedEmail = args.email.trim();
-    const tryForgot = async (username: string): Promise<void> => {
-      const secretHash = this.config.clientSecret
-        ? computeCognitoSecretHash(username, this.config.clientId, this.config.clientSecret)
-        : undefined;
-      await this.client.send(
-        new ForgotPasswordCommand({
-          ClientId: this.config.clientId,
-          Username: username,
-          SecretHash: secretHash
-        })
-      );
-    };
 
     try {
-      await tryForgot(trimmedEmail);
+      await this.tryForgotPasswordWithUsername(trimmedEmail);
     } catch (error) {
       if (getCognitoErrorName(error) !== "UserNotFoundException") {
         mapCognitoAdminError(error);
@@ -211,7 +239,7 @@ export class HttpCognitoAdminClient implements CognitoAdminClient {
         mapCognitoAdminError(error);
       }
       try {
-        await tryForgot(resolved);
+        await this.tryForgotPasswordWithUsername(resolved);
       } catch (retryError) {
         mapCognitoAdminError(retryError);
       }
@@ -223,21 +251,36 @@ export class HttpCognitoAdminClient implements CognitoAdminClient {
     code: string;
     newPassword: string;
   }): Promise<void> {
-    const secretHash = this.config.clientSecret
-      ? computeCognitoSecretHash(args.email, this.config.clientId, this.config.clientSecret)
-      : undefined;
+    const trimmedEmail = args.email.trim();
 
     try {
-      await this.client.send(
-        new ConfirmForgotPasswordCommand({
-          ClientId: this.config.clientId,
-          Username: args.email.trim(),
-          ConfirmationCode: args.code.trim(),
-          Password: args.newPassword,
-          SecretHash: secretHash
-        })
-      );
+      await this.tryConfirmForgotPasswordWithUsername({
+        username: trimmedEmail,
+        code: args.code,
+        newPassword: args.newPassword
+      });
     } catch (error) {
+      if (getCognitoErrorName(error) !== "UserNotFoundException") {
+        mapCognitoConfirmForgotPasswordError(error);
+      }
+      const resolved = await findCognitoUsernameByEmail(
+        this.client,
+        this.config.userPoolId,
+        trimmedEmail
+      );
+      if (!resolved) {
+        mapCognitoConfirmForgotPasswordError(error);
+      }
+      try {
+        await this.tryConfirmForgotPasswordWithUsername({
+          username: resolved,
+          code: args.code,
+          newPassword: args.newPassword
+        });
+        return;
+      } catch (retryError) {
+        mapCognitoConfirmForgotPasswordError(retryError);
+      }
       mapCognitoConfirmForgotPasswordError(error);
     }
   }

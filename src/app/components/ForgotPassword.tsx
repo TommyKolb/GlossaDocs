@@ -15,9 +15,11 @@ interface ForgotPasswordProps {
 
 export function ForgotPassword({ onCancel, onProceedToEnterCode }: ForgotPasswordProps) {
   const [email, setEmail] = useState("");
+  const [submittedEmail, setSubmittedEmail] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const errorId = "forgot-password-error";
 
   const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -26,6 +28,7 @@ export function ForgotPassword({ onCancel, onProceedToEnterCode }: ForgotPasswor
 
     const trimmedEmail = email.trim();
     if (!trimmedEmail) {
+      setSubmittedEmail(null);
       setError("Email is required.");
       return;
     }
@@ -35,14 +38,15 @@ export function ForgotPassword({ onCancel, onProceedToEnterCode }: ForgotPasswor
       await authApi.requestPasswordReset({ email: trimmedEmail });
       const msg = "If an account exists for that email, a reset message has been sent.";
       setStatus(msg);
+      setSubmittedEmail(trimmedEmail);
       toast.message(msg);
     } catch (err) {
-      const message =
-        err instanceof ApiClientError
+      const message = err instanceof ApiClientError
+        ? "Unable to send reset email right now. Please try again."
+        : err instanceof Error
           ? err.message
-          : err instanceof Error
-            ? err.message
-            : "Password reset request failed";
+          : "Password reset request failed";
+      setSubmittedEmail(null);
       setError(message);
       toast.error(message);
     } finally {
@@ -74,6 +78,8 @@ export function ForgotPassword({ onCancel, onProceedToEnterCode }: ForgotPasswor
                 autoComplete="email"
                 required
                 disabled={isSubmitting}
+                aria-invalid={error ? "true" : "false"}
+                aria-describedby={error ? errorId : undefined}
               />
             </div>
 
@@ -83,7 +89,7 @@ export function ForgotPassword({ onCancel, onProceedToEnterCode }: ForgotPasswor
               </p>
             ) : null}
             {error ? (
-              <p className="text-sm text-red-600" role="alert" aria-live="polite">
+              <p id={errorId} className="text-sm text-red-600" role="alert" aria-live="polite">
                 {error}
               </p>
             ) : null}
@@ -94,7 +100,7 @@ export function ForgotPassword({ onCancel, onProceedToEnterCode }: ForgotPasswor
                 variant="secondary"
                 className="w-full"
                 disabled={isSubmitting}
-                onClick={() => onProceedToEnterCode(email.trim())}
+                onClick={() => onProceedToEnterCode(submittedEmail ?? email.trim())}
               >
                 Enter verification code
               </Button>

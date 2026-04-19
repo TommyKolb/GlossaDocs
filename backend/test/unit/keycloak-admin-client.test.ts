@@ -240,6 +240,17 @@ describe("HttpKeycloakAdminClient", () => {
     await expect(client.sendPasswordResetEmail({ email: "exists@example.com" })).resolves.toBeUndefined();
   });
 
+  it("fails closed when user lookup returns multiple matches", async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(jsonResponse({ access_token: "admin-token" }, { ok: true }))
+      .mockResolvedValueOnce(jsonResponse([{ id: "a" }, { id: "b" }], { ok: true }));
+
+    const client = new HttpKeycloakAdminClient(adminConfig);
+    await expect(client.sendPasswordResetEmail({ email: "exists@example.com" })).rejects.toMatchObject({
+      code: "KEYCLOAK_ADMIN_UNAVAILABLE"
+    });
+  });
+
   it("adds client_id and redirect_uri to execute-actions when configured", async () => {
     const fetchMock = vi
       .mocked(fetch)

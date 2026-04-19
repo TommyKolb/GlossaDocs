@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 import * as React from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import App from "@/app/App";
@@ -21,6 +21,7 @@ vi.mock("@/app/components/ui/sonner", () => ({
 
 vi.mock("sonner", () => ({
   toast: {
+    message: vi.fn(),
     success: vi.fn(),
     error: vi.fn()
   }
@@ -38,6 +39,11 @@ describe("App auth flow screens", () => {
   beforeEach(() => {
     vi.stubGlobal("fetch", vi.fn());
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
   });
 
   it("Create account switches to app-hosted signup screen (not Keycloak redirect)", async () => {

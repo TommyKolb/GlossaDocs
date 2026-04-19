@@ -1,6 +1,7 @@
 # Cognito email delivery: default limits vs Amazon SES
 
 GlossaDocs triggers password reset and related flows through the **Cognito User Pool** APIs (`ForgotPassword`, `ConfirmForgotPassword`, etc.). Cognito is responsible for **sending** the actual email messages; the application does not call SES directly for those messages.
+The GlossaDocs UI may show an in-app “enter verification code + new password” step, but that still ends in backend calls to Cognito `ConfirmForgotPassword`.
 
 This note explains **when the built-in Cognito email is enough**, the **exact default quota** (as documented by AWS), and a **high-level path** to wire **Amazon SES** when you outgrow the default or want a custom sending domain.
 

@@ -38,6 +38,8 @@ The authenticated Playwright file [`e2e/deployed/authenticated.integration.spec.
 
 GitHub Actions: set `PROD_API_BASE_URL` and `PROD_FRONTEND_URL` as repository **variables** and the E2E credentials as **secrets** (see [.github/workflows/deployed-integration-tests.yml](../.github/workflows/deployed-integration-tests.yml)).
 
+**Persisting vars locally:** copy [`.env.example`](../.env.example) to **`.env`** (or **`.env.local`**) in the repo root and set `PROD_*` / `E2E_*` there. `playwright.deployed.config.ts` loads `.env` then `.env.local` (override) automatically for `npm run test:deployed`. Do **not** commit real secrets; `.env` is gitignored.
+
 ## Using coverage (signal, not a score)
 
 Run `npm run test:frontend:coverage` and `npm run test:backend:coverage`, then open the HTML reports under `coverage/frontend/lcov-report/index.html` and `coverage/backend/lcov-report/index.html` (or read `coverage-summary.json` for a quick pass/fail view). Use reports to find **hotspots and branches** in risky areas (auth, persistence, API clients), not to chase 100% on thin UI code. Watch for **drops** in critical modules after refactors; raw percentages alone are misleading.

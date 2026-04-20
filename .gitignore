@@ -1,6 +1,7 @@
 # --- Project-specific ---
 .specstory/
 .cursorindexingignore
+logs/
 
 # --- Node / TypeScript (common for web apps) ---
 node_modules/

@@ -5,6 +5,13 @@ The GlossaDocs UI may show an in-app “enter verification code + new password�
 
 This note explains **when the built-in Cognito email is enough**, the **exact default quota** (as documented by AWS), and a **high-level path** to wire **Amazon SES** when you outgrow the default or want a custom sending domain.
 
+## Sign-up email vs password-reset email (GlossaDocs default)
+
+Production uses a **Pre sign-up Lambda** on the user pool (**Option 2** in project planning): **`autoConfirmUser`** and **`autoVerifyEmail`**. That means:
+
+- Users typically **do not** receive a **sign-up verification** message from Cognito (the address is marked verified for pool purposes without an inbox check).
+- **Forgot password** still sends a **one-time code** to the **email on the account**, subject to the same default limits and SES rules below—**if** the address is wrong or unreachable, the user may not receive it; this is a deliberate tradeoff that may be revisited (e.g. mandatory verification, soft “verify for recovery,” SES). Details and operator notes: [aws-amplify-apigw-lambda-auth-runbook.md](./aws-amplify-apigw-lambda-auth-runbook.md).
+
 ## Default Cognito email (no SES configuration)
 
 If the user pool uses Cognito’s **default email configuration** (you have not configured the pool to use your own Amazon SES resources), AWS applies a **daily email quota at the AWS account level**.

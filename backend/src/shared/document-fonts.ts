@@ -34,6 +34,22 @@ export const DOCUMENT_LANGUAGE_FONT_CATALOG: Record<DocumentLanguage, LanguageFo
       { family: "PT Serif", googleFontFamily: "PT+Serif:wght@400;700" },
       { family: "Roboto Slab", googleFontFamily: "Roboto+Slab:wght@400;600;700" }
     ]
+  },
+  es: {
+    defaultFamily: "Source Sans 3",
+    fonts: [
+      { family: "Source Sans 3", googleFontFamily: "Source+Sans+3:wght@400;500;700" },
+      { family: "Nunito Sans", googleFontFamily: "Nunito+Sans:wght@400;600;700" },
+      { family: "Crimson Pro", googleFontFamily: "Crimson+Pro:wght@400;500;700" }
+    ]
+  },
+  fr: {
+    defaultFamily: "Source Sans 3",
+    fonts: [
+      { family: "Source Sans 3", googleFontFamily: "Source+Sans+3:wght@400;500;700" },
+      { family: "Nunito Sans", googleFontFamily: "Nunito+Sans:wght@400;600;700" },
+      { family: "Crimson Pro", googleFontFamily: "Crimson+Pro:wght@400;500;700" }
+    ]
   }
 };
 

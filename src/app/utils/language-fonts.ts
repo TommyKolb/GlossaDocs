@@ -55,6 +55,46 @@ export const LANGUAGE_FONT_CATALOG: Record<Language, LanguageFontCatalogEntry> =
         fallbackStack: "serif"
       }
     ]
+  },
+  es: {
+    defaultFamily: "Source Sans 3",
+    fonts: [
+      {
+        family: "Source Sans 3",
+        googleFontFamily: "Source+Sans+3:wght@400;500;700",
+        fallbackStack: "sans-serif"
+      },
+      {
+        family: "Nunito Sans",
+        googleFontFamily: "Nunito+Sans:wght@400;600;700",
+        fallbackStack: "sans-serif"
+      },
+      {
+        family: "Crimson Pro",
+        googleFontFamily: "Crimson+Pro:wght@400;500;700",
+        fallbackStack: "serif"
+      }
+    ]
+  },
+  fr: {
+    defaultFamily: "Source Sans 3",
+    fonts: [
+      {
+        family: "Source Sans 3",
+        googleFontFamily: "Source+Sans+3:wght@400;500;700",
+        fallbackStack: "sans-serif"
+      },
+      {
+        family: "Nunito Sans",
+        googleFontFamily: "Nunito+Sans:wght@400;600;700",
+        fallbackStack: "sans-serif"
+      },
+      {
+        family: "Crimson Pro",
+        googleFontFamily: "Crimson+Pro:wght@400;500;700",
+        fallbackStack: "serif"
+      }
+    ]
   }
 };
 

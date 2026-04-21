@@ -33,6 +33,21 @@ describe("getKeyboardLayout", () => {
     expect(jKey?.output).toBe("й");
   });
 
+
+
+  it("includes Spanish-specific letters on the Spanish layout", () => {
+    const layout = getKeyboardLayout("es");
+    const flat = layout.flat().map((k) => k.output);
+    expect(flat).toContain("ñ");
+    expect(flat).toContain("ü");
+  });
+
+  it("includes French-specific letters on the French layout", () => {
+    const layout = getKeyboardLayout("fr");
+    const flat = layout.flat().map((k) => k.output);
+    expect(flat).toContain("é");
+    expect(flat).toContain("ç");
+  });
   it("changes only typedWith when overrides swap two letters’ physical keys (no duplicate keys)", () => {
     const overrides: KeyboardLayoutOverrides = {
       ru: { й: "k", к: "j" }
@@ -119,6 +134,28 @@ describe("getRemappedCharacter", () => {
         capsLock: false
       })
     ).toBe("ü");
+  });
+
+  it("maps Spanish Semicolon to ñ", () => {
+    expect(
+      getRemappedCharacter({
+        language: "es",
+        key: ";",
+        shiftKey: false,
+        capsLock: false
+      })
+    ).toBe("ñ");
+  });
+
+  it("maps French BracketLeft to é", () => {
+    expect(
+      getRemappedCharacter({
+        language: "fr",
+        key: "[",
+        shiftKey: false,
+        capsLock: false
+      })
+    ).toBe("é");
   });
 
   it("falls back to event.code for physical-key remap when event.key is on another layout", () => {
@@ -266,9 +303,16 @@ describe("normalizeKeyboardLayoutOverrides", () => {
   });
 
   it("skips unknown language keys and invalid inner shapes", () => {
-    expect(normalizeKeyboardLayoutOverrides({ fr: { a: "b" } })).toEqual({});
+    expect(normalizeKeyboardLayoutOverrides({ xx: { a: "b" } } as Record<string, unknown>)).toEqual({});
     expect(normalizeKeyboardLayoutOverrides({ en: "bad" } as unknown)).toEqual({});
     expect(normalizeKeyboardLayoutOverrides({ en: [] } as unknown)).toEqual({});
+  });
+
+  it("keeps overrides for Spanish and French when valid", () => {
+    expect(normalizeKeyboardLayoutOverrides({ es: { ñ: "n" }, fr: { é: "e" } })).toEqual({
+      es: { ñ: "n" },
+      fr: { é: "e" }
+    });
   });
 
   it("drops empty string values so language entry is omitted when nothing valid remains", () => {

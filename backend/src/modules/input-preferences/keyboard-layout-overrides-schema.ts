@@ -14,7 +14,9 @@ export const keyboardLayoutOverridesSchema = z
   .object({
     en: perLanguageKeyboardOverridesSchema.optional(),
     de: perLanguageKeyboardOverridesSchema.optional(),
-    ru: perLanguageKeyboardOverridesSchema.optional()
+    ru: perLanguageKeyboardOverridesSchema.optional(),
+    es: perLanguageKeyboardOverridesSchema.optional(),
+    fr: perLanguageKeyboardOverridesSchema.optional()
   })
   .strict();
 

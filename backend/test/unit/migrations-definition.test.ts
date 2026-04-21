@@ -65,4 +65,11 @@ describe("migration file definitions", () => {
     expect(text).toContain("keyboard_layout_overrides");
     expect(text).toContain("jsonb");
   });
+
+  it("007 extends documents language check for es and fr", async () => {
+    const text = await migrationText("007_extend_documents_language_check.js");
+    expect(text).toContain('dropConstraint("documents", "documents_language_check")');
+    expect(text).toContain("es");
+    expect(text).toContain("fr");
+  });
 });

@@ -108,7 +108,7 @@ describe("document routes", () => {
     const response = await request(app.server)
       .post("/documents")
       .set("Authorization", "Bearer token-user-1")
-      .send({ title: "Bad Doc", content: "<p>X</p>", language: "fr" });
+      .send({ title: "Bad Doc", content: "<p>X</p>", language: "xx" });
 
     expect(response.status).toBe(400);
     expect(response.body.code).toBe("VALIDATION_ERROR");

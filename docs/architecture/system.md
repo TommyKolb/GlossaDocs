@@ -61,7 +61,7 @@ flowchart LR
 - **Security boundary:** credential verification stays in the configured IdP (Keycloak/Cognito); GlossaDocs verifies **signed** JWTs and never persists user passwords.
 - **Modular monolith:** avoids distributed-system overhead while keeping replaceable ports (`DocumentRepository`, `SettingsRepository`, `AuditWriter`).
 - **Extensibility:** Story 3 adds settings without changing document or auth contracts.
-- **Cloud portability:** same module boundaries for Docker Compose, ECS, or Lambda (see `README.md`).
+- **Cloud portability:** same module boundaries for Docker Compose, ECS, or Lambda (see [AWS deployment runbook](../deployment/aws-amplify-apigw-lambda-auth-runbook.md) and the developer index in the root [README.md](../../README.md)).
 
 ## Cross-Module REST API Surface
 

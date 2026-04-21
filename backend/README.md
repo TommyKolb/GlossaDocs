@@ -185,8 +185,10 @@ npm run typecheck
 
 ## Further documentation
 
+- [Local development (Docker, guest, ports)](../docs/development/local-development.md)
 - [System architecture](../docs/architecture/system.md)
 - [Module index](../docs/architecture/backend-architecture.md)
 - [Document encryption](../docs/architecture/document-encryption.md)
 - [AWS auth foundation runbook](../docs/deployment/aws-amplify-apigw-lambda-auth-runbook.md)
+- [Adding a language](../docs/development/adding-a-language.md)
 - Language font catalog used for validation: `src/shared/document-fonts.ts`

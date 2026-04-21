@@ -68,7 +68,7 @@ function filterToDeepestBlocksOnly(blocks: HTMLElement[]): HTMLElement[] {
 
 /**
  * Block-level elements that should receive line spacing for the current selection.
- * For a multi-line selection (Google Docs–style), every intersected paragraph/block gets the new spacing.
+ * For a multi-line selection, every intersected paragraph/block gets the new spacing.
  * Uses the deepest intersecting blocks only (skips ancestors when a descendant block also intersects).
  */
 export function findBlockElementsIntersectingRange(

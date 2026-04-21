@@ -64,3 +64,8 @@ Those YAML files use **`workflow_call`** so the **Tests** run can invoke them; t
 PRs that only touch unrelated paths skip frontend/backend calls while still running the font catalog check.
 
 On push and pull requests to **`main`** or **`develop`**, [.github/workflows/deployed-integration-tests.yml](../.github/workflows/deployed-integration-tests.yml) runs the deployed Playwright suite against production URLs. Pull requests from repository forks skip this workflow by default (secrets are unavailable on fork workflows). The workflow also serializes runs with a dedicated `concurrency` group to reduce collisions on the shared E2E account.
+
+## Related
+
+- [Local development](development/local-development.md) — Docker, guest mode, ports.
+- [AWS deployment runbook](deployment/aws-amplify-apigw-lambda-auth-runbook.md) — production Amplify, API Gateway, Lambda, Cognito, RDS, Redis.

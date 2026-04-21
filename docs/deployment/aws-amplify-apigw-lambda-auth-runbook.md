@@ -92,7 +92,25 @@ Frontend (Amplify env vars):
 
 **Sign-up passwords (Cognito):** The CDK user pool enforces a **strong** password policy (minimum length 12, uppercase, lowercase, number, symbol). The app-hosted **Create account** form and API validation must match that policy; otherwise Cognito’s `SignUp` API fails and the API previously surfaced a generic **`AUTH_IDP_UNAVAILABLE`** (**502**). Prefer clear **400** responses and UI copy after aligning validation with the pool (see `cognito-password-policy` in the backend and `UserPool` `passwordPolicy` in `glossadocs-stack.ts`).
 
-**Sign-up without email verification:** By default, Cognito `SignUp` creates an **UNCONFIRMED** user until the user verifies email; **`USER_PASSWORD_AUTH` login then fails** (often surfaced as **`AUTH_IDP_UNAVAILABLE`** / **502**). The backend calls **`AdminConfirmSignUp`** immediately after a successful `SignUp`, and the API Lambda IAM role includes **`cognito-idp:AdminConfirmSignUp`** on the user pool so new accounts can sign in without a verification step. **Accounts created before this behavior** may still be UNCONFIRMED: confirm them in the Cognito console (**Users** → select user → **Confirm user**) or register again with a different email.
+**Sign-up without an inbox verification step (current default, “Option 2”):** The CDK stack attaches a **Pre sign-up Lambda** to the user pool. The trigger sets **`autoConfirmUser`** and **`autoVerifyEmail`** so that:
+
+- Cognito does **not** send the usual post-`SignUp` **email verification code** (saves noise and default Cognito email quota).
+- New users are **CONFIRMED** with **`email_verified: true`**, which **self-service password reset** requires when account recovery is **email-only** (verified destination).
+
+**Tradeoffs (document deliberately; may change later):** Automatic verification **does not prove** the user can receive mail at the address they typed. **Wrong or unreachable emails** can still block **forgot-password** delivery later; **Continue as Guest** and registering again with a corrected email are the main mitigations unless you add mandatory verification, a soft “verify for recovery” flow, or operator support. A future revision might switch to **mandatory email verification**, **SES**, or stricter policies as traffic or compliance needs grow.
+
+**Backend `AdminConfirmSignUp`:** The API still calls **`AdminConfirmSignUp`** after **`SignUp`** when Cognito reports the user as unconfirmed (safety net if the trigger is misconfigured or bypassed). The API Lambda keeps **`cognito-idp:AdminConfirmSignUp`** and **`cognito-idp:ListUsers`** on the user pool.
+
+**One-time fix for existing users (pre–Pre sign-up or mis-merged attributes):** Users who are **UNCONFIRMED** or have **`email_verified: false`** may be unable to use **forgot password** until fixed. In the Cognito console: **Users** → select user → **Confirm user** if needed, and **Mark email address as verified** (or use CLI):
+
+```bash
+aws cognito-idp admin-update-user-attributes \
+  --user-pool-id <USER_POOL_ID> \
+  --username <USERNAME_OR_EMAIL> \
+  --user-attributes Name=email_verified,Value=true
+```
+
+**App client secret:** The CDK stack does **not** set **`COGNITO_CLIENT_SECRET`** on the API Lambda. The generated app client has **no secret** by default. If you **turn on a client secret** in the console (or replace the client), you **must** set **`COGNITO_CLIENT_SECRET`** on the Lambda to match; otherwise **`SecretHash`** on **`SignUp`**, **forgot password**, and **confirm forgot password** will fail (password reset failures are logged in CloudWatch while the HTTP API still returns a generic success for anti-enumeration).
 
 **Password reset username resolution:** The backend may call **`ListUsers`** during forgot/confirm reset to resolve Cognito username from email in pools where username differs from email. Ensure API IAM also allows **`cognito-idp:ListUsers`** scoped to the user pool.
 

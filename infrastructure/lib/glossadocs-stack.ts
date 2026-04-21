@@ -278,6 +278,21 @@ export class GlossaDocsStack extends cdk.Stack {
       removalPolicy: RemovalPolicy.RETAIN
     });
 
+    const preSignUpFn = new lambda.Function(this, "UserPoolPreSignUp", {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      handler: "index.handler",
+      description:
+        "Pre sign-up: auto-confirm user and mark email verified (no signup verification email; password reset uses verified-email recovery).",
+      code: lambda.Code.fromInline(`exports.handler = async function (event) {
+  event.response.autoConfirmUser = true;
+  event.response.autoVerifyEmail = true;
+  return event;
+};
+`)
+    });
+
+    userPool.addTrigger(cognito.UserPoolOperation.PRE_SIGN_UP, preSignUpFn);
+
     const userPoolClient = userPool.addClient("WebClient", {
       authFlows: {
         userPassword: true,

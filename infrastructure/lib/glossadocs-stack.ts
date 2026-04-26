@@ -335,6 +335,17 @@ export class GlossaDocsStack extends cdk.Stack {
       redis.attrPrimaryEndPointPort
     ]);
 
+    const authSessionEncryptionKey = new secretsmanager.Secret(this, "AuthSessionEncryptionKey", {
+      description: "Encrypts IdP access tokens at rest in Redis (AUTH_SESSION_ENCRYPTION_KEY)",
+      removalPolicy: RemovalPolicy.RETAIN,
+      generateSecretString: {
+        secretStringTemplate: JSON.stringify({}),
+        generateStringKey: "key",
+        passwordLength: 64,
+        excludePunctuation: true
+      }
+    });
+
     const apiLambda = new lambda.Function(this, "BackendLambda", {
       runtime: lambda.Runtime.NODEJS_20_X,
       handler: "dist/lambda.handler",
@@ -356,6 +367,7 @@ export class GlossaDocsStack extends cdk.Stack {
         CORS_ALLOWED_ORIGINS: config.backendCorsOrigin,
         DATABASE_URL: databaseUrl,
         REDIS_URL: redisUrl,
+        AUTH_SESSION_ENCRYPTION_KEY: authSessionEncryptionKey.secretValueFromJson("key").toString(),
         COGNITO_REGION: this.region,
         COGNITO_USER_POOL_ID: userPool.userPoolId,
         COGNITO_CLIENT_ID: userPoolClient.userPoolClientId,
@@ -363,6 +375,8 @@ export class GlossaDocsStack extends cdk.Stack {
         OIDC_PUBLIC_REDIRECT_URI: callbackUrl
       }
     });
+
+    authSessionEncryptionKey.grantRead(apiLambda);
 
     apiLambda.addToRolePolicy(
       new iam.PolicyStatement({

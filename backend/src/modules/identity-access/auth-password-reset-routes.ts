@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 
+import { createInMemorySlidingWindowIpRateLimiter } from "../api-edge/in-memory-sliding-window-rate-limit.js";
 import { cognitoPasswordSchema } from "../../shared/cognito-password-policy.js";
 import { ApiError } from "../../shared/api-error.js";
 import { getAuthProviderErrorCode } from "./auth-provider-errors.js";
@@ -27,29 +28,16 @@ export const authPasswordResetRoutes: FastifyPluginAsync<AuthPasswordResetRoutes
   app,
   options
 ) => {
-  const resetAttemptsByKey = new Map<string, number[]>();
   const resetRateLimitWindowMs = options.resetRateLimitWindowMs ?? 60_000;
   const resetRateLimitMaxAttempts = options.resetRateLimitMaxAttempts ?? 20;
-
-  function enforcePasswordResetRateLimit(ip: string): void {
-    const key = ip || "unknown-ip";
-    const now = Date.now();
-    const cutoff = now - resetRateLimitWindowMs;
-    const recentAttempts = (resetAttemptsByKey.get(key) ?? []).filter((value) => value >= cutoff);
-    if (recentAttempts.length >= resetRateLimitMaxAttempts) {
-      resetAttemptsByKey.set(key, recentAttempts);
-      throw new ApiError(
-        429,
-        "AUTH_RATE_LIMITED",
-        "Too many password reset attempts. Please wait before trying again."
-      );
-    }
-    recentAttempts.push(now);
-    resetAttemptsByKey.set(key, recentAttempts);
-  }
+  const passwordResetRateLimit = createInMemorySlidingWindowIpRateLimiter({
+    windowMs: resetRateLimitWindowMs,
+    maxAttempts: resetRateLimitMaxAttempts,
+    tooManyMessage: "Too many password reset attempts. Please wait before trying again."
+  });
 
   app.post("/auth/password-reset", async (request, reply) => {
-    enforcePasswordResetRateLimit(request.ip);
+    passwordResetRateLimit.enforce(request.ip);
 
     if (!options.authAdminClient) {
       throw new ApiError(500, "CONFIG_AUTH_ADMIN_INCOMPLETE", "Auth admin provider is not configured");
@@ -74,7 +62,7 @@ export const authPasswordResetRoutes: FastifyPluginAsync<AuthPasswordResetRoutes
   });
 
   app.post("/auth/password-reset/confirm", async (request, reply) => {
-    enforcePasswordResetRateLimit(request.ip);
+    passwordResetRateLimit.enforce(request.ip);
 
     if (options.authProvider !== "cognito") {
       return reply.status(501).send({

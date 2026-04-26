@@ -139,4 +139,35 @@ describe("getConfig", () => {
       } as unknown as NodeJS.ProcessEnv)
     ).toThrow(/CONFIG_DATABASE_TLS_INSECURE/);
   });
+
+  it("throws when APP_ENV=prod is missing AUTH_SESSION_ENCRYPTION_KEY", () => {
+    expect(() =>
+      getConfig({
+        NODE_ENV: "production",
+        CORS_ALLOWED_ORIGINS: "https://app.example.com",
+        AUTH_SESSION_SECURE_COOKIE: "true",
+        AUTH_SESSION_STORE: "redis",
+        REDIS_URL: "redis://127.0.0.1:6379",
+        COGNITO_REGION: "us-east-1",
+        COGNITO_USER_POOL_ID: "us-east-1_abc123",
+        COGNITO_CLIENT_ID: "client123"
+      } as unknown as NodeJS.ProcessEnv)
+    ).toThrow(/CONFIG_SESSION_ENCRYPTION_KEY_MISSING/);
+  });
+
+  it("throws when AUTH_SESSION_ENCRYPTION_KEY is too short in prod", () => {
+    expect(() =>
+      getConfig({
+        NODE_ENV: "production",
+        CORS_ALLOWED_ORIGINS: "https://app.example.com",
+        AUTH_SESSION_SECURE_COOKIE: "true",
+        AUTH_SESSION_STORE: "redis",
+        REDIS_URL: "redis://127.0.0.1:6379",
+        AUTH_SESSION_ENCRYPTION_KEY: "short",
+        COGNITO_REGION: "us-east-1",
+        COGNITO_USER_POOL_ID: "us-east-1_abc123",
+        COGNITO_CLIENT_ID: "client123"
+      } as unknown as NodeJS.ProcessEnv)
+    ).toThrow(/CONFIG_SESSION_ENCRYPTION_KEY_INSECURE/);
+  });
 });

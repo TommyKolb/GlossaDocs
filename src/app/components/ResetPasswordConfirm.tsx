@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "./ui/button";
@@ -22,6 +22,14 @@ export function ResetPasswordConfirm({ initialEmail, onBack, onSuccess }: ResetP
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const errorId = "reset-password-confirm-error";
+  const newPasswordPolicyHintId = "reset-new-password-policy";
+  const newPasswordDescribedBy = [newPasswordPolicyHintId, error ? errorId : null]
+    .filter(Boolean)
+    .join(" ");
+
+  useEffect(() => {
+    document.getElementById("confirm-email")?.focus();
+  }, []);
 
   const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -127,9 +135,11 @@ export function ResetPasswordConfirm({ initialEmail, onBack, onSuccess }: ResetP
                 required
                 disabled={isSubmitting}
                 aria-invalid={error ? "true" : "false"}
-                aria-describedby={error ? errorId : undefined}
+                aria-describedby={newPasswordDescribedBy}
               />
-              <p className="text-xs text-gray-500 mt-1">{SIGNUP_PASSWORD_POLICY_HINT}</p>
+              <p id={newPasswordPolicyHintId} className="text-xs text-gray-500 mt-1">
+                {SIGNUP_PASSWORD_POLICY_HINT}
+              </p>
             </div>
             <div>
               <label htmlFor="confirm-repeat-password" className="block text-sm font-medium text-gray-700 mb-1">

@@ -13,15 +13,15 @@ describeSerialOrSkip("D-AUTH / D-DOC / D-FLD / D-SET — authenticated deployed 
   let e2eDocBody: string;
   let e2eFolderName: string;
 
-  test.beforeAll(() => {
+  test.beforeAll(async ({ browser }) => {
     const runId = Date.now();
     e2eDocTitle = `E2E-DOC-${runId}`;
     e2eDocBody = `E2E-body-${runId}`;
     e2eFolderName = `E2E-FLD-${runId}`;
+    page = await browser.newPage();
   });
 
-  test("D-AUTH-01: login reaches authenticated shell", async ({ browser }) => {
-    page = await browser.newPage();
+  test("D-AUTH-01: login reaches authenticated shell", async () => {
     await loginProdUser(page);
     await expect(page.getByText(/signed in as/i)).toBeVisible();
   });

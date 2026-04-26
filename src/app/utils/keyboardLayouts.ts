@@ -56,12 +56,52 @@ const FRENCH_LAYOUT: KeyboardLayout = [
   [key('z', 'z'), key('x', 'x'), key('c', 'c'), key('v', 'v'), key('b', 'b'), key('n', 'n'), key('m', 'm'), key('ù', ','), key('à', '.'), key('â', '-'), key('ê', '='), key('ô', '`'), key('ï', '/')]
 ];
 
+/** Italian accented letters on US QWERTY-style positions. */
+const ITALIAN_LAYOUT: KeyboardLayout = [
+  [key('q', 'q'), key('w', 'w'), key('e', 'e'), key('r', 'r'), key('t', 't'), key('y', 'y'), key('u', 'u'), key('i', 'i'), key('o', 'o'), key('p', 'p'), key('é', '[')],
+  [key('a', 'a'), key('s', 's'), key('d', 'd'), key('f', 'f'), key('g', 'g'), key('h', 'h'), key('j', 'j'), key('k', 'k'), key('l', 'l'), key('à', ';'), key('è', '\'')],
+  [key('z', 'z'), key('x', 'x'), key('c', 'c'), key('v', 'v'), key('b', 'b'), key('n', 'n'), key('m', 'm'), key('ì', ','), key('ò', '.'), key('ù', '-')]
+];
+
+/** Portuguese: ã, õ, ç, and common accents (Brazil/Europe). */
+const PORTUGUESE_LAYOUT: KeyboardLayout = [
+  [key('q', 'q'), key('w', 'w'), key('e', 'e'), key('r', 'r'), key('t', 't'), key('y', 'y'), key('u', 'u'), key('i', 'i'), key('o', 'o'), key('p', 'p'), key('ú', '[')],
+  [key('a', 'a'), key('s', 's'), key('d', 'd'), key('f', 'f'), key('g', 'g'), key('h', 'h'), key('j', 'j'), key('k', 'k'), key('l', 'l'), key('ã', ';'), key('õ', "'")],
+  [key('z', 'z'), key('x', 'x'), key('c', 'c'), key('v', 'v'), key('b', 'b'), key('n', 'n'), key('m', 'm'), key('ç', ','), key('á', '.'), key('é', '-'), key('í', '='), key('ó', '`'), key('à', '/'), key('â', '\\')]
+];
+
+/** Dutch: mostly Latin; diacritics for loanwords. */
+const DUTCH_LAYOUT: KeyboardLayout = [
+  [key('q', 'q'), key('w', 'w'), key('e', 'e'), key('r', 'r'), key('t', 't'), key('y', 'y'), key('u', 'u'), key('i', 'i'), key('o', 'o'), key('p', 'p'), key('é', '[')],
+  [key('a', 'a'), key('s', 's'), key('d', 'd'), key('f', 'f'), key('g', 'g'), key('h', 'h'), key('j', 'j'), key('k', 'k'), key('l', 'l'), key('ö', ';'), key('ü', "'")],
+  [key('z', 'z'), key('x', 'x'), key('c', 'c'), key('v', 'v'), key('b', 'b'), key('n', 'n'), key('m', 'm'), key('ë', ','), key('ï', '.'), key('è', '-')]
+];
+
+/** Polish — standard Latin plus national characters. */
+const POLISH_LAYOUT: KeyboardLayout = [
+  [key('q', 'q'), key('w', 'w'), key('e', 'e'), key('r', 'r'), key('t', 't'), key('y', 'y'), key('u', 'u'), key('i', 'i'), key('o', 'o'), key('p', 'p'), key('ó', '[')],
+  [key('a', 'a'), key('s', 's'), key('d', 'd'), key('f', 'f'), key('g', 'g'), key('h', 'h'), key('j', 'j'), key('k', 'k'), key('l', 'l'), key('ł', ';'), key('ą', "'")],
+  [key('z', 'z'), key('x', 'x'), key('c', 'c'), key('v', 'v'), key('b', 'b'), key('n', 'n'), key('m', 'm'), key('ę', ','), key('ć', '.'), key('ń', '-'), key('ś', '='), key('ż', '`'), key('ź', '/')]
+];
+
+/** Ukrainian — same QWERTY row layout as the Russian on-screen map; distinct letters (і ї є ґ) where needed. */
+const UKRAINIAN_LAYOUT: KeyboardLayout = [
+  [key('й', 'j'), key('ц', 'c'), key('у', 'u'), key('к', 'k'), key('е', 'e'), key('н', 'n'), key('г', 'g'), key('ш', 'w'), key('щ', 'q'), key('з', 'z'), key('х', 'h'), key('ї', '['), key('ґ', ']')],
+  [key('ф', 'f'), key('і', 'y'), key('в', 'v'), key('а', 'a'), key('п', 'p'), key('р', 'r'), key('о', 'o'), key('л', 'l'), key('д', 'd'), key('ж', ';'), key('є', "'")],
+  [key('я', 'x'), key('ч', '4'), key('с', 's'), key('м', 'm'), key('и', 'i'), key('т', 't'), key('ь', 'b'), key('б', ','), key('ю', '.')]
+];
+
 const LANGUAGE_KEYBOARD_LAYOUTS: Readonly<Record<Language, KeyboardLayout>> = {
   en: ENGLISH_LAYOUT,
   de: GERMAN_LAYOUT,
   ru: RUSSIAN_LAYOUT,
   es: SPANISH_LAYOUT,
-  fr: FRENCH_LAYOUT
+  fr: FRENCH_LAYOUT,
+  it: ITALIAN_LAYOUT,
+  pt: PORTUGUESE_LAYOUT,
+  nl: DUTCH_LAYOUT,
+  pl: POLISH_LAYOUT,
+  uk: UKRAINIAN_LAYOUT
 };
 
 /** Built-in layout for the language (no user overrides). */

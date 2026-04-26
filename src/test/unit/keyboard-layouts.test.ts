@@ -48,6 +48,43 @@ describe("getKeyboardLayout", () => {
     expect(flat).toContain("é");
     expect(flat).toContain("ç");
   });
+
+
+  it("includes Italian-specific letters on the Italian layout", () => {
+    const layout = getKeyboardLayout("it");
+    const flat = layout.flat().map((k) => k.output);
+    expect(flat).toContain("à");
+    expect(flat).toContain("è");
+  });
+
+  it("includes Portuguese-specific letters on the Portuguese layout", () => {
+    const layout = getKeyboardLayout("pt");
+    const flat = layout.flat().map((k) => k.output);
+    expect(flat).toContain("ã");
+    expect(flat).toContain("ç");
+  });
+
+  it("includes Dutch-specific letters on the Dutch layout", () => {
+    const layout = getKeyboardLayout("nl");
+    const flat = layout.flat().map((k) => k.output);
+    expect(flat).toContain("ë");
+    expect(flat).toContain("ü");
+  });
+
+  it("includes Polish-specific letters on the Polish layout", () => {
+    const layout = getKeyboardLayout("pl");
+    const flat = layout.flat().map((k) => k.output);
+    expect(flat).toContain("ą");
+    expect(flat).toContain("ł");
+  });
+
+  it("includes Ukrainian-specific letters on the Ukrainian layout", () => {
+    const layout = getKeyboardLayout("uk");
+    const flat = layout.flat().map((k) => k.output);
+    expect(flat).toContain("ї");
+    expect(flat).toContain("ґ");
+  });
+
   it("changes only typedWith when overrides swap two letters’ physical keys (no duplicate keys)", () => {
     const overrides: KeyboardLayoutOverrides = {
       ru: { й: "k", к: "j" }

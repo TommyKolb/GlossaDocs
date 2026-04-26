@@ -60,7 +60,23 @@ export const LANGUAGE_FONT_CATALOG: Record<Language, LanguageFontCatalogEntry> =
     ]
   },
   es: SOURCE_SANS_LATIN_CATALOG,
-  fr: SOURCE_SANS_LATIN_CATALOG
+  fr: SOURCE_SANS_LATIN_CATALOG,
+  it: SOURCE_SANS_LATIN_CATALOG,
+  pt: SOURCE_SANS_LATIN_CATALOG,
+  nl: SOURCE_SANS_LATIN_CATALOG,
+  pl: SOURCE_SANS_LATIN_CATALOG,
+  uk: {
+    defaultFamily: "Noto Sans",
+    fonts: [
+      { family: "Noto Sans", googleFontFamily: "Noto+Sans:wght@400;500;700", fallbackStack: "sans-serif" },
+      { family: "PT Serif", googleFontFamily: "PT+Serif:wght@400;700", fallbackStack: "serif" },
+      {
+        family: "Roboto Slab",
+        googleFontFamily: "Roboto+Slab:wght@400;600;700",
+        fallbackStack: "serif"
+      }
+    ]
+  }
 };
 
 export const SUPPORTED_FONT_FAMILIES = Array.from(

@@ -12,14 +12,29 @@ const DEFAULT_SETTINGS: UserSettings = {
   keyboardLayoutOverrides: {}
 };
 
-type LocaleCode = "en-US" | "de-DE" | "ru-RU" | "es-ES" | "fr-FR";
+type LocaleCode =
+  | "en-US"
+  | "de-DE"
+  | "ru-RU"
+  | "es-ES"
+  | "fr-FR"
+  | "it-IT"
+  | "pt-PT"
+  | "nl-NL"
+  | "pl-PL"
+  | "uk-UA";
 
 const LANGUAGE_TO_LOCALE: Record<Language, LocaleCode> = {
   en: "en-US",
   de: "de-DE",
   ru: "ru-RU",
   es: "es-ES",
-  fr: "fr-FR"
+  fr: "fr-FR",
+  it: "it-IT",
+  pt: "pt-PT",
+  nl: "nl-NL",
+  pl: "pl-PL",
+  uk: "uk-UA"
 };
 
 const LOCALE_PREFIX_TO_LANGUAGE: Array<{ prefix: string; language: Language }> = [
@@ -27,6 +42,11 @@ const LOCALE_PREFIX_TO_LANGUAGE: Array<{ prefix: string; language: Language }> =
   { prefix: "ru", language: "ru" },
   { prefix: "es", language: "es" },
   { prefix: "fr", language: "fr" },
+  { prefix: "it", language: "it" },
+  { prefix: "pt", language: "pt" },
+  { prefix: "nl", language: "nl" },
+  { prefix: "pl", language: "pl" },
+  { prefix: "uk", language: "uk" },
   { prefix: "en", language: "en" }
 ];
 

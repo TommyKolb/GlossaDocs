@@ -38,7 +38,19 @@ export const DOCUMENT_LANGUAGE_FONT_CATALOG: Record<DocumentLanguage, LanguageFo
     ]
   },
   es: SOURCE_SANS_LATIN_CATALOG,
-  fr: SOURCE_SANS_LATIN_CATALOG
+  fr: SOURCE_SANS_LATIN_CATALOG,
+  it: SOURCE_SANS_LATIN_CATALOG,
+  pt: SOURCE_SANS_LATIN_CATALOG,
+  nl: SOURCE_SANS_LATIN_CATALOG,
+  pl: SOURCE_SANS_LATIN_CATALOG,
+  uk: {
+    defaultFamily: "Noto Sans",
+    fonts: [
+      { family: "Noto Sans", googleFontFamily: "Noto+Sans:wght@400;500;700" },
+      { family: "PT Serif", googleFontFamily: "PT+Serif:wght@400;700" },
+      { family: "Roboto Slab", googleFontFamily: "Roboto+Slab:wght@400;600;700" }
+    ]
+  }
 };
 
 export const SUPPORTED_DOCUMENT_FONT_FAMILIES = [

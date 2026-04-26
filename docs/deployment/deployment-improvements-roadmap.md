@@ -62,7 +62,7 @@ Current architecture still has idle baseline cost due to always-on managed resou
 
 ## 3) Keep infrastructure diff stable
 
-- Maintain `infrastructure-diff.yml` auth/config behavior.
+- Keep optional `cdk diff` in `run-infrastructure-tests` (PRs, when `DEPLOY_AWS_ROLE_ARN` is set) and the manual `infrastructure-diff.yml` workflow aligned for auth/config.
 - Keep `cdk.context.json` committed for `--no-lookups` checks.
 
 ## 4) Keep deployment docs synchronized with reality

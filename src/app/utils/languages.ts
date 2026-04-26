@@ -2,6 +2,8 @@ export const LANGUAGES = [
   { value: 'en', label: 'English', flag: '🇺🇸' },
   { value: 'de', label: 'German', flag: '🇩🇪' },
   { value: 'ru', label: 'Russian', flag: '🇷🇺' },
+  { value: 'es', label: 'Spanish', flag: '🇪🇸' },
+  { value: 'fr', label: 'French', flag: '🇫🇷' }
 ] as const;
 
 export type Language = (typeof LANGUAGES)[number]['value'];

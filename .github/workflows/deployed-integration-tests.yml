@@ -1,3 +1,5 @@
+# `deployment: false` on the environment: loads GitHub Environment secrets/vars (e.g. Production) without
+# creating a deployment record. See: https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions#example-using-an-environment-without-creating-a-deployment
 name: Deployed integration tests
 
 on:
@@ -13,7 +15,9 @@ concurrency:
 jobs:
   deployed-integration-tests:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    environment: Production
+    environment:
+      name: Production
+      deployment: false
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -52,7 +56,7 @@ jobs:
 
           if [ "${#missing[@]}" -gt 0 ]; then
             echo "Missing required variables/secrets: ${missing[*]}"
-            echo "Expected in the selected GitHub environment (Production) as vars or secrets."
+            echo "Set PROD_API_BASE_URL, PROD_FRONTEND_URL, E2E_PROD_EMAIL, and E2E_PROD_PASSWORD on the GitHub \"Production\" environment (or as repo/org variables and secrets). This job uses the environment with deployment: false, so it does not create a deployment object."
             exit 1
           fi
 

@@ -42,10 +42,26 @@ const RUSSIAN_LAYOUT: KeyboardLayout = [
   [key('я', 'x'), key('ч', '4'), key('с', 's'), key('м', 'm'), key('и', 'i'), key('т', 't'), key('ь', 'b'), key('б', ','), key('ю', '.')],
 ];
 
+/** Spanish Latin letters on US-style key positions (ñ, ü, accents, ¿¡). */
+const SPANISH_LAYOUT: KeyboardLayout = [
+  [key('q', 'q'), key('w', 'w'), key('e', 'e'), key('r', 'r'), key('t', 't'), key('y', 'y'), key('u', 'u'), key('i', 'i'), key('o', 'o'), key('p', 'p'), key('ü', '[')],
+  [key('a', 'a'), key('s', 's'), key('d', 'd'), key('f', 'f'), key('g', 'g'), key('h', 'h'), key('j', 'j'), key('k', 'k'), key('l', 'l'), key('ñ', ';'), key('á', '\'')],
+  [key('z', 'z'), key('x', 'x'), key('c', 'c'), key('v', 'v'), key('b', 'b'), key('n', 'n'), key('m', 'm'), key('é', ','), key('í', '.'), key('ó', '-'), key('ú', '='), key('¿', '`'), key('¡', '/')]
+];
+
+/** French letters on US QWERTY positions (common accented letters and ç). */
+const FRENCH_LAYOUT: KeyboardLayout = [
+  [key('q', 'q'), key('w', 'w'), key('e', 'e'), key('r', 'r'), key('t', 't'), key('y', 'y'), key('u', 'u'), key('i', 'i'), key('o', 'o'), key('p', 'p'), key('é', '[')],
+  [key('a', 'a'), key('s', 's'), key('d', 'd'), key('f', 'f'), key('g', 'g'), key('h', 'h'), key('j', 'j'), key('k', 'k'), key('l', 'l'), key('è', ';'), key('ç', '\'')],
+  [key('z', 'z'), key('x', 'x'), key('c', 'c'), key('v', 'v'), key('b', 'b'), key('n', 'n'), key('m', 'm'), key('ù', ','), key('à', '.'), key('â', '-'), key('ê', '='), key('ô', '`'), key('ï', '/')]
+];
+
 const LANGUAGE_KEYBOARD_LAYOUTS: Readonly<Record<Language, KeyboardLayout>> = {
   en: ENGLISH_LAYOUT,
   de: GERMAN_LAYOUT,
   ru: RUSSIAN_LAYOUT,
+  es: SPANISH_LAYOUT,
+  fr: FRENCH_LAYOUT
 };
 
 /** Built-in layout for the language (no user overrides). */

@@ -76,12 +76,12 @@ Table `documents`:
 
 Indexes include `(owner_id, updated_at desc)` for listing.
 
-Optional: when `DOCUMENT_ENCRYPTION_KEY` is set, title/content may be encrypted at rest in PostgreSQL (see `README.md` and `docs/architecture/document-encryption.md`).
+Optional: when `DOCUMENT_ENCRYPTION_KEY` is set, title/content may be encrypted at rest in PostgreSQL (see [document-encryption.md](../architecture/document-encryption.md) and [backend/README.md](../../backend/README.md)).
 
 ## Frontend integration (implemented)
 - **`document-repository.ts`** implements the dual-mode strategy and remote create/update selection.
 - **`Editor.tsx`** and **`DocumentList.tsx`** consume that layer only (not `db.ts` directly for feature logic).
-- **Auth UX** is documented in the root `README.md` (login, register, password reset, guest mode).
+- **Auth UX** for end users is summarized in the root [README.md](../../README.md); developer setup and providers are in [local-development.md](../development/local-development.md) and the [identity/access module](../architecture/modules/identity-access-module.md).
 
 ## Non-goals (Story 1)
 - Collaboration / realtime editing
@@ -97,7 +97,7 @@ Optional: when `DOCUMENT_ENCRYPTION_KEY` is set, title/content may be encrypted 
 
 ## Risks and mitigations
 - **Save race between autosave and manual save**: Mitigated with a client-side in-flight guard and queued re-run if save was requested while busy (`Editor.tsx`).
-- **Unsafe HTML from `contentEditable`**: Mitigated by backend sanitization on write (see `README.md` and backend sanitizer tests).
+- **Unsafe HTML from `contentEditable`**: Mitigated by backend sanitization on write (see [API edge module](../architecture/modules/api-edge-module.md) and backend sanitizer tests).
 - **Stale local id after server changes**: Mitigated by recreate-on-404 behavior in `document-repository.ts` for authenticated saves.
 
 ## Test plan

@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [main, develop]
 
+# OIDC in infrastructure CDK diff (reusable run-infrastructure-tests) needs id-token: write.
+permissions:
+  contents: read
+  id-token: write
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -14,6 +19,7 @@ jobs:
   changes:
     runs-on: ubuntu-latest
     outputs:
+      ci: ${{ steps.filter.outputs.ci }}
       frontend: ${{ steps.filter.outputs.frontend }}
       backend: ${{ steps.filter.outputs.backend }}
       infrastructure: ${{ steps.filter.outputs.infrastructure }}
@@ -26,6 +32,10 @@ jobs:
         id: filter
         with:
           filters: |
+            # Orchestrator only: do not also list this under frontend/backend/infra, or
+            # a single change to this file is counted three times in the same matrix.
+            ci:
+              - '.github/workflows/tests.yml'
             frontend:
               - 'src/**'
               - 'e2e/**'
@@ -34,15 +44,12 @@ jobs:
               - 'playwright.deployed.config.ts'
               - 'package.json'
               - 'package-lock.json'
-              - '.github/workflows/tests.yml'
               - '.github/workflows/run-frontend-tests.yml'
             backend:
               - 'backend/**'
-              - '.github/workflows/tests.yml'
               - '.github/workflows/run-backend-tests.yml'
             infrastructure:
               - 'infrastructure/**'
-              - '.github/workflows/tests.yml'
               - '.github/workflows/run-infrastructure-tests.yml'
 
   font-catalogs:
@@ -51,17 +58,17 @@ jobs:
   frontend:
     name: Frontend tests
     needs: changes
-    if: needs.changes.outputs.frontend == 'true'
+    if: needs.changes.outputs.frontend == 'true' || needs.changes.outputs.ci == 'true'
     uses: ./.github/workflows/run-frontend-tests.yml
 
   backend:
     name: Backend tests
     needs: changes
-    if: needs.changes.outputs.backend == 'true'
+    if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.ci == 'true'
     uses: ./.github/workflows/run-backend-tests.yml
 
   infrastructure:
     name: Infrastructure tests
     needs: changes
-    if: needs.changes.outputs.infrastructure == 'true'
+    if: needs.changes.outputs.infrastructure == 'true' || needs.changes.outputs.ci == 'true'
     uses: ./.github/workflows/run-infrastructure-tests.yml

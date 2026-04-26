@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "./ui/button";
@@ -53,6 +53,10 @@ export function SignUp({ onCancel, onAccountCreated }: SignUpProps) {
     }
     return null;
   }, [confirmPassword, passwordsMatch]);
+
+  useEffect(() => {
+    document.getElementById("signup-email")?.focus();
+  }, []);
 
   const blockingSummary = useMemo(() => {
     if (canSubmit) return null;

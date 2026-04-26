@@ -43,6 +43,11 @@ interface DocumentListProps {
   onSelectDocument: (id: string | null) => void;
 }
 
+function logDocumentListError(message: string, error: unknown): void {
+  if (import.meta.env.MODE === "test") return;
+  console.error(message, error);
+}
+
 export function DocumentList({ user, onSelectDocument }: DocumentListProps) {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
@@ -95,7 +100,7 @@ export function DocumentList({ user, onSelectDocument }: DocumentListProps) {
       if (latestLoadRequestRef.current !== requestId) {
         return;
       }
-      console.error('Error loading documents:', error);
+      logDocumentListError('Error loading documents:', error);
       setLoadErrorMessage('Failed to load documents. Check your connection and try again.');
     } finally {
       if (latestLoadRequestRef.current === requestId) {
@@ -153,7 +158,7 @@ export function DocumentList({ user, onSelectDocument }: DocumentListProps) {
       if (loadingToast !== undefined) {
         toast.dismiss(loadingToast);
       }
-      console.error('Error importing document:', error);
+      logDocumentListError('Error importing document:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to import document');
     } finally {
       // Reset file input
@@ -175,7 +180,7 @@ export function DocumentList({ user, onSelectDocument }: DocumentListProps) {
       await deleteDocument(pendingDeleteId);
       await loadDocuments({ showSpinner: false });
     } catch (error) {
-      console.error('Error deleting document:', error);
+      logDocumentListError('Error deleting document:', error);
       toast.error('Failed to delete document');
     } finally {
       setIsDeleting(false);
@@ -193,7 +198,7 @@ export function DocumentList({ user, onSelectDocument }: DocumentListProps) {
       await moveDocumentToFolder(documentId, folderId);
       await loadDocuments({ showSpinner: false });
     } catch (error) {
-      console.error('Error moving document:', error);
+      logDocumentListError('Error moving document:', error);
       if (isPayloadTooLargeError(error)) {
         toast.error(DOCUMENT_PAYLOAD_TOO_LARGE_MESSAGE);
       } else {
@@ -277,7 +282,7 @@ export function DocumentList({ user, onSelectDocument }: DocumentListProps) {
       setIsCreateFolderDialogOpen(false);
       setNewFolderNameInput('');
     } catch (error) {
-      console.error('Error creating folder:', error);
+      logDocumentListError('Error creating folder:', error);
       toast.error('Failed to create folder');
     } finally {
       setIsFolderMutating(false);
@@ -312,7 +317,7 @@ export function DocumentList({ user, onSelectDocument }: DocumentListProps) {
       await loadDocuments({ showSpinner: false });
       setIsRenameFolderDialogOpen(false);
     } catch (error) {
-      console.error('Error renaming folder:', error);
+      logDocumentListError('Error renaming folder:', error);
       toast.error('Failed to rename folder');
     } finally {
       setIsFolderMutating(false);
@@ -331,7 +336,7 @@ export function DocumentList({ user, onSelectDocument }: DocumentListProps) {
       await loadDocuments({ showSpinner: false });
       setIsFolderDeleteAlertOpen(false);
     } catch (error) {
-      console.error('Error deleting folder:', error);
+      logDocumentListError('Error deleting folder:', error);
       toast.error('Failed to delete folder');
     } finally {
       setIsFolderMutating(false);

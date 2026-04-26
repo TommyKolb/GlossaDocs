@@ -45,6 +45,11 @@ export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: Log
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    const el = document.getElementById("username");
+    el?.focus();
+  }, []);
+
   const handleLogin = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
 

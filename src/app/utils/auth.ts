@@ -18,6 +18,7 @@ export interface LoginCredentials {
 
 const USER_STORAGE_KEY = "glossadocs_user";
 const isDevBuild =
+  import.meta.env.MODE !== "test" &&
   typeof window !== "undefined" &&
   (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
 const storedUserSchema = z.object({

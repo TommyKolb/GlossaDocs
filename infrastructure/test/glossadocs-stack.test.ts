@@ -41,8 +41,13 @@ describe("GlossaDocsStack", () => {
     "provisions core AWS resources",
     () => {
     template.resourceCountIs("AWS::Cognito::UserPool", 1);
+    template.hasResourceProperties("AWS::Cognito::UserPool", {
+      LambdaConfig: Match.objectLike({
+        PreSignUp: Match.anyValue()
+      })
+    });
     template.resourceCountIs("AWS::ApiGateway::RestApi", 1);
-    template.resourceCountIs("AWS::Lambda::Function", 1);
+    template.resourceCountIs("AWS::Lambda::Function", 2);
     template.resourceCountIs("AWS::RDS::DBInstance", 1);
     template.resourceCountIs("AWS::RDS::DBProxy", 0);
     template.resourceCountIs("AWS::ElastiCache::ReplicationGroup", 1);
@@ -74,7 +79,8 @@ describe("GlossaDocsStack", () => {
           APP_ENV: "prod",
           AUTH_PROVIDER: "cognito",
           AUTH_SESSION_STORE: "redis",
-          AUTH_SESSION_SECURE_COOKIE: "true"
+          AUTH_SESSION_SECURE_COOKIE: "true",
+          AUTH_SESSION_ENCRYPTION_KEY: Match.anyValue()
         })
       }
     });

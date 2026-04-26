@@ -178,6 +178,18 @@ export function getConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       "REDIS_URL must be configured when APP_ENV=prod",
       true
     );
+    requireConfigValue(
+      cfg.AUTH_SESSION_ENCRYPTION_KEY,
+      "CONFIG_SESSION_ENCRYPTION_KEY_MISSING",
+      "AUTH_SESSION_ENCRYPTION_KEY must be set when APP_ENV=prod and AUTH_SESSION_STORE=redis so access tokens are encrypted at rest in Redis",
+      true
+    );
+    const encKey = cfg.AUTH_SESSION_ENCRYPTION_KEY?.trim() ?? "";
+    if (encKey.length < 16) {
+      throw new Error(
+        "CONFIG_SESSION_ENCRYPTION_KEY_INSECURE: AUTH_SESSION_ENCRYPTION_KEY must be at least 16 characters in APP_ENV=prod (use a long random value; e.g. openssl rand -base64 32)"
+      );
+    }
     if (cfg.DATABASE_TLS_INSECURE === true) {
       throw new Error(
         "CONFIG_DATABASE_TLS_INSECURE: DATABASE_TLS_INSECURE cannot be true when APP_ENV=prod"

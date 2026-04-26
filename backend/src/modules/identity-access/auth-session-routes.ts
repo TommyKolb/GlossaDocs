@@ -1,6 +1,7 @@
-import type { FastifyPluginAsync, FastifyRequest } from "fastify";
+import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 
+import { createInMemorySlidingWindowIpRateLimiter } from "../api-edge/in-memory-sliding-window-rate-limit.js";
 import { ApiError } from "../../shared/api-error.js";
 import type { AppConfig } from "../../shared/config.js";
 import { getAuthProviderErrorCode } from "./auth-provider-errors.js";
@@ -46,28 +47,13 @@ function getCookieOptions(
 }
 
 export const authSessionRoutes: FastifyPluginAsync<AuthSessionRoutesOptions> = async (app, options) => {
-  const loginAttemptsByKey = new Map<string, number[]>();
   const loginRateLimitWindowMs = options.loginRateLimitWindowMs ?? 60_000;
   const loginRateLimitMaxAttempts = options.loginRateLimitMaxAttempts ?? 20;
-
-  function enforceLoginRateLimit(request: FastifyRequest): void {
-    const key = request.ip || "unknown-ip";
-    const now = Date.now();
-    const cutoff = now - loginRateLimitWindowMs;
-    const recentAttempts = (loginAttemptsByKey.get(key) ?? []).filter((value) => value >= cutoff);
-
-    if (recentAttempts.length >= loginRateLimitMaxAttempts) {
-      loginAttemptsByKey.set(key, recentAttempts);
-      throw new ApiError(
-        429,
-        "AUTH_RATE_LIMITED",
-        "Too many login attempts. Please wait before trying again."
-      );
-    }
-
-    recentAttempts.push(now);
-    loginAttemptsByKey.set(key, recentAttempts);
-  }
+  const loginRateLimit = createInMemorySlidingWindowIpRateLimiter({
+    windowMs: loginRateLimitWindowMs,
+    maxAttempts: loginRateLimitMaxAttempts,
+    tooManyMessage: "Too many login attempts. Please wait before trying again."
+  });
 
   app.get("/auth/login", async (_request, reply) =>
     reply
@@ -80,7 +66,7 @@ export const authSessionRoutes: FastifyPluginAsync<AuthSessionRoutesOptions> = a
   );
 
   app.post("/auth/login", async (request, reply) => {
-    enforceLoginRateLimit(request);
+    loginRateLimit.enforce(request.ip);
 
     if (!options.passwordLoginClient) {
       throw new ApiError(500, "CONFIG_AUTH_LOGIN_INCOMPLETE", "Auth login provider is not configured");

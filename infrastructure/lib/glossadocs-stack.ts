@@ -278,6 +278,21 @@ export class GlossaDocsStack extends cdk.Stack {
       removalPolicy: RemovalPolicy.RETAIN
     });
 
+    const preSignUpFn = new lambda.Function(this, "UserPoolPreSignUp", {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      handler: "index.handler",
+      description:
+        "Pre sign-up: auto-confirm user and mark email verified (no signup verification email; password reset uses verified-email recovery).",
+      code: lambda.Code.fromInline(`exports.handler = async function (event) {
+  event.response.autoConfirmUser = true;
+  event.response.autoVerifyEmail = true;
+  return event;
+};
+`)
+    });
+
+    userPool.addTrigger(cognito.UserPoolOperation.PRE_SIGN_UP, preSignUpFn);
+
     const userPoolClient = userPool.addClient("WebClient", {
       authFlows: {
         userPassword: true,
@@ -320,6 +335,17 @@ export class GlossaDocsStack extends cdk.Stack {
       redis.attrPrimaryEndPointPort
     ]);
 
+    const authSessionEncryptionKey = new secretsmanager.Secret(this, "AuthSessionEncryptionKey", {
+      description: "Encrypts IdP access tokens at rest in Redis (AUTH_SESSION_ENCRYPTION_KEY)",
+      removalPolicy: RemovalPolicy.RETAIN,
+      generateSecretString: {
+        secretStringTemplate: JSON.stringify({}),
+        generateStringKey: "key",
+        passwordLength: 64,
+        excludePunctuation: true
+      }
+    });
+
     const apiLambda = new lambda.Function(this, "BackendLambda", {
       runtime: lambda.Runtime.NODEJS_20_X,
       handler: "dist/lambda.handler",
@@ -341,6 +367,7 @@ export class GlossaDocsStack extends cdk.Stack {
         CORS_ALLOWED_ORIGINS: config.backendCorsOrigin,
         DATABASE_URL: databaseUrl,
         REDIS_URL: redisUrl,
+        AUTH_SESSION_ENCRYPTION_KEY: authSessionEncryptionKey.secretValueFromJson("key").toString(),
         COGNITO_REGION: this.region,
         COGNITO_USER_POOL_ID: userPool.userPoolId,
         COGNITO_CLIENT_ID: userPoolClient.userPoolClientId,
@@ -348,6 +375,8 @@ export class GlossaDocsStack extends cdk.Stack {
         OIDC_PUBLIC_REDIRECT_URI: callbackUrl
       }
     });
+
+    authSessionEncryptionKey.grantRead(apiLambda);
 
     apiLambda.addToRolePolicy(
       new iam.PolicyStatement({

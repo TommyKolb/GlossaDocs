@@ -61,7 +61,7 @@ flowchart LR
 - **Security boundary:** credential verification stays in the configured IdP (Keycloak/Cognito); GlossaDocs verifies **signed** JWTs and never persists user passwords.
 - **Modular monolith:** avoids distributed-system overhead while keeping replaceable ports (`DocumentRepository`, `SettingsRepository`, `AuditWriter`).
 - **Extensibility:** Story 3 adds settings without changing document or auth contracts.
-- **Cloud portability:** same module boundaries for Docker Compose, ECS, or Lambda (see `README.md`).
+- **Cloud portability:** same module boundaries for Docker Compose, ECS, or Lambda (see [AWS deployment runbook](../deployment/aws-amplify-apigw-lambda-auth-runbook.md) and the developer index in the root [README.md](../../README.md)).
 
 ## Cross-Module REST API Surface
 
@@ -119,7 +119,7 @@ Variables consumed via `getConfig` / `buildApp` in this repo (see `backend/src/s
 | `COGNITO_REGION`, `COGNITO_USER_POOL_ID`, `COGNITO_CLIENT_ID`, `COGNITO_CLIENT_SECRET` | Cognito auth adapter config |
 | `COGNITO_PUBLIC_DOMAIN` | Cognito Hosted UI domain used by `GET /auth/public` |
 | `AUTH_SESSION_COOKIE_NAME`, `AUTH_SESSION_TTL_SECONDS`, `AUTH_SESSION_SECURE_COOKIE` | Session cookie |
-| `AUTH_SESSION_STORE`, `REDIS_URL`, `AUTH_REDIS_KEY_PREFIX` | `memory` (dev) or `redis` (production sessions) |
+| `AUTH_SESSION_STORE`, `REDIS_URL`, `AUTH_REDIS_KEY_PREFIX`, `AUTH_SESSION_ENCRYPTION_KEY` (required in prod with Redis) | `memory` (dev) or `redis` (production sessions) |
 | `DOCUMENT_ENCRYPTION_KEY` | Optional AES-GCM for document title/content at rest |
 
 For AWS deployment/auth wiring and next-branch completion steps, see [deployment runbook](../deployment/aws-amplify-apigw-lambda-auth-runbook.md).

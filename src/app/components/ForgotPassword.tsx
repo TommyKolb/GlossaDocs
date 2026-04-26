@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "./ui/button";
@@ -20,6 +20,10 @@ export function ForgotPassword({ onCancel, onProceedToEnterCode }: ForgotPasswor
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const errorId = "forgot-password-error";
+
+  useEffect(() => {
+    document.getElementById("reset-email")?.focus();
+  }, []);
 
   const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();

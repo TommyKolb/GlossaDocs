@@ -76,9 +76,6 @@ export async function loginWithCredentials(credentials: LoginCredentials): Promi
  * Guest mode remains local-only by design so users can run the app without backend services.
  */
 export async function continueAsGuest(): Promise<User> {
-  // Simulate API call delay
-  await new Promise((resolve) => setTimeout(resolve, 500));
-
   const guestUser: User = {
     id: `guest_${Date.now()}`,
     username: "Guest",

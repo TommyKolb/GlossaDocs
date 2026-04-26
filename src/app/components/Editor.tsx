@@ -28,10 +28,12 @@ import { NEW_DOCUMENT_FOLDER_ID_STORAGE_KEY } from '../data/storage-keys';
 
 interface EditorProps {
   documentId: string | null;
+  /** When opening from the document list, avoids a redundant fetch (list payload already includes body). */
+  initialDocument?: Document;
   onBack: () => void;
 }
 
-export function Editor({ documentId, onBack }: EditorProps) {
+export function Editor({ documentId, initialDocument, onBack }: EditorProps) {
   // State hooks
   const [document, setDocument] = useState<Document | null>(null);
   const [loadErrorMessage, setLoadErrorMessage] = useState<string | null>(null);
@@ -667,22 +669,27 @@ export function Editor({ documentId, onBack }: EditorProps) {
     };
 
     async function loadDocument() {
-
-      let lastUsedLocale: string | null = null;
-      try {
-        const settings = await getUserSettings();
-        applyIfCurrent(() => {
-          setIsKeyboardVisible(settings.keyboardVisible);
-          setKeyboardLayoutOverrides(settings.keyboardLayoutOverrides ?? {});
-        });
-        lastUsedLocale = settings.lastUsedLocale;
-      } catch (error) {
-        console.error('Error loading user settings:', error);
-      }
-
       if (documentId) {
+        const settingsPromise = getUserSettings().catch((error) => {
+          console.error('Error loading user settings:', error);
+          return null;
+        });
+
+        const docPromise =
+          initialDocument && initialDocument.id === documentId
+            ? Promise.resolve(initialDocument)
+            : getDocument(documentId);
+
         try {
-          const doc = await getDocument(documentId);
+          const [settings, doc] = await Promise.all([settingsPromise, docPromise]);
+
+          applyIfCurrent(() => {
+            if (settings) {
+              setIsKeyboardVisible(settings.keyboardVisible);
+              setKeyboardLayoutOverrides(settings.keyboardLayoutOverrides ?? {});
+            }
+          });
+
           if (!doc) {
             applyIfCurrent(() => {
               setLoadErrorMessage('This document no longer exists or you no longer have access to it.');
@@ -699,41 +706,54 @@ export function Editor({ documentId, onBack }: EditorProps) {
             setLoadErrorMessage('Failed to load this document. Please try again.');
           });
         }
-      } else {
-        let preferredLanguage: Language = EDITOR_CONFIG.DEFAULT_LANGUAGE;
-        if (lastUsedLocale) {
-          preferredLanguage = localeToLanguage(lastUsedLocale);
-        }
-
-        // Create new document
-        let initialFolderId = localStorage.getItem(NEW_DOCUMENT_FOLDER_ID_STORAGE_KEY);
-        if (initialFolderId) {
-          try {
-            const folders = await getAllFolders();
-            const folderExists = folders.some((folder) => folder.id === initialFolderId);
-            if (!folderExists) {
-              initialFolderId = null;
-              localStorage.removeItem(NEW_DOCUMENT_FOLDER_ID_STORAGE_KEY);
-            }
-          } catch {
-            initialFolderId = null;
-          }
-        }
-        const newDoc: Document = {
-          id: generateDocumentId(),
-          title: EDITOR_CONFIG.DEFAULT_TITLE,
-          content: '',
-          language: preferredLanguage,
-          folderId: initialFolderId,
-          fontFamily: getDefaultFontFamilyForLanguage(preferredLanguage),
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        };
-        applyIfCurrent(() => {
-          setDocument(newDoc);
-          setIsDocumentReady(true);
-        });
+        return;
       }
+
+      let lastUsedLocale: string | null = null;
+      try {
+        const settings = await getUserSettings();
+        applyIfCurrent(() => {
+          setIsKeyboardVisible(settings.keyboardVisible);
+          setKeyboardLayoutOverrides(settings.keyboardLayoutOverrides ?? {});
+        });
+        lastUsedLocale = settings.lastUsedLocale;
+      } catch (error) {
+        console.error('Error loading user settings:', error);
+      }
+
+      let preferredLanguage: Language = EDITOR_CONFIG.DEFAULT_LANGUAGE;
+      if (lastUsedLocale) {
+        preferredLanguage = localeToLanguage(lastUsedLocale);
+      }
+
+      // Create new document
+      let initialFolderId = localStorage.getItem(NEW_DOCUMENT_FOLDER_ID_STORAGE_KEY);
+      if (initialFolderId) {
+        try {
+          const folders = await getAllFolders();
+          const folderExists = folders.some((folder) => folder.id === initialFolderId);
+          if (!folderExists) {
+            initialFolderId = null;
+            localStorage.removeItem(NEW_DOCUMENT_FOLDER_ID_STORAGE_KEY);
+          }
+        } catch {
+          initialFolderId = null;
+        }
+      }
+      const newDoc: Document = {
+        id: generateDocumentId(),
+        title: EDITOR_CONFIG.DEFAULT_TITLE,
+        content: '',
+        language: preferredLanguage,
+        folderId: initialFolderId,
+        fontFamily: getDefaultFontFamilyForLanguage(preferredLanguage),
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+      applyIfCurrent(() => {
+        setDocument(newDoc);
+        setIsDocumentReady(true);
+      });
 
     }
     void loadDocument();
@@ -741,7 +761,7 @@ export function Editor({ documentId, onBack }: EditorProps) {
     return () => {
       cancelled = true;
     };
-  }, [documentId]);
+  }, [documentId, initialDocument]);
 
   // Keep the editable DOM synchronized with loaded/saved document content.
   // Guard against unnecessary resets so we do not disturb caret/selection.

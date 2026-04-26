@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { FileText, Folder as FolderIcon, FolderPlus, Pencil, Trash } from 'lucide-react';
 import type { Document, Folder } from '../models/document';
 import {
@@ -40,7 +40,9 @@ import { NEW_DOCUMENT_FOLDER_ID_STORAGE_KEY } from '../data/storage-keys';
 
 interface DocumentListProps {
   user: User;
-  onSelectDocument: (id: string | null) => void;
+  onSelectDocument: (id: string | null, initialDocument?: Document) => void;
+  /** Increment (e.g. when closing the editor) to refresh list data without a full-page spinner. */
+  listSyncRequestVersion?: number;
 }
 
 function logDocumentListError(message: string, error: unknown): void {
@@ -48,7 +50,7 @@ function logDocumentListError(message: string, error: unknown): void {
   console.error(message, error);
 }
 
-export function DocumentList({ user, onSelectDocument }: DocumentListProps) {
+export function DocumentList({ user, onSelectDocument, listSyncRequestVersion = 0 }: DocumentListProps) {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
@@ -79,11 +81,7 @@ export function DocumentList({ user, onSelectDocument }: DocumentListProps) {
     updatePointerFromDragEvent
   } = useDocumentDragPreview(setDraggingDocumentId, setDropTargetFolderId);
 
-  useEffect(() => {
-    void loadDocuments({ showSpinner: true });
-  }, [user.id, user.isGuest]);
-
-  async function loadDocuments(options: { showSpinner?: boolean } = {}) {
+  const loadDocuments = useCallback(async (options: { showSpinner?: boolean } = {}) => {
     const requestId = ++latestLoadRequestRef.current;
     if (options.showSpinner !== false) {
       setLoading(true);
@@ -107,7 +105,18 @@ export function DocumentList({ user, onSelectDocument }: DocumentListProps) {
         setLoading(false);
       }
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    void loadDocuments({ showSpinner: true });
+  }, [user.id, user.isGuest, loadDocuments]);
+
+  useEffect(() => {
+    if (!listSyncRequestVersion) {
+      return;
+    }
+    void loadDocuments({ showSpinner: false });
+  }, [listSyncRequestVersion, loadDocuments]);
 
   function handleCreateNew() {
     if (activeFolderId) {
@@ -153,7 +162,7 @@ export function DocumentList({ user, onSelectDocument }: DocumentListProps) {
       toast.success(`${newDoc.title} imported successfully!`);
       
       // Open the newly imported document
-      onSelectDocument(persistedDoc.id);
+      onSelectDocument(persistedDoc.id, persistedDoc);
     } catch (error) {
       if (loadingToast !== undefined) {
         toast.dismiss(loadingToast);
@@ -487,7 +496,7 @@ export function DocumentList({ user, onSelectDocument }: DocumentListProps) {
                 <DocumentCard
                   key={doc.id}
                   document={doc}
-                  onSelect={onSelectDocument}
+                  onSelect={(doc) => onSelectDocument(doc.id, doc)}
                   onDelete={handleDelete}
                   onRequestMove={openMoveDialog}
                   onDragStartDocument={onDragStartDocument}

@@ -1,6 +1,6 @@
 import { motion } from 'motion/react';
 import { LanguageInfo } from '../utils/languages';
-import { LANGUAGE_BADGE_ANIMATION } from '../hooks/useLanguageCycling';
+import { UI_CONSTANTS } from '../utils/constants';
 
 interface LanguageBadgeProps {
   language: LanguageInfo;
@@ -10,8 +10,8 @@ const ANIMATION_CONFIG = {
   initial: { opacity: 0, scale: 0.9, y: -10 },
   animate: { opacity: 1, scale: 1, y: 0 },
   exit: { opacity: 0, scale: 0.9, y: 10 },
-  transition: { 
-    duration: LANGUAGE_BADGE_ANIMATION.duration,
+  transition: {
+    duration: UI_CONSTANTS.LANGUAGE_BADGE_MOTION_DURATION_S,
     ease: [0.4, 0, 0.2, 1] as const
   }
 };

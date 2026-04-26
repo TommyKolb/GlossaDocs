@@ -50,7 +50,10 @@ export const DOCUMENT_LANGUAGE_FONT_CATALOG: Record<DocumentLanguage, LanguageFo
       { family: "PT Serif", googleFontFamily: "PT+Serif:wght@400;700" },
       { family: "Roboto Slab", googleFontFamily: "Roboto+Slab:wght@400;600;700" }
     ]
-  }
+  },
+  id: SOURCE_SANS_LATIN_CATALOG,
+  sw: SOURCE_SANS_LATIN_CATALOG,
+  tl: SOURCE_SANS_LATIN_CATALOG
 };
 
 export const SUPPORTED_DOCUMENT_FONT_FAMILIES = [

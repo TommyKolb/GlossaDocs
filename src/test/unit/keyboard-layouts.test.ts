@@ -23,7 +23,10 @@ const DEFAULT_LAYOUT_CHARACTER_CHECKS: { lang: Language; mustContain: string[] }
   { lang: "pt", mustContain: ["ã", "ç"] },
   { lang: "nl", mustContain: ["ë", "ü"] },
   { lang: "pl", mustContain: ["ą", "ł"] },
-  { lang: "uk", mustContain: ["ї", "ґ"] }
+  { lang: "uk", mustContain: ["ї", "ґ"] },
+  { lang: "id", mustContain: ["q", "m"] },
+  { lang: "sw", mustContain: ["q", "m"] },
+  { lang: "tl", mustContain: ["ñ"] }
 ];
 
 describe("getKeyboardLayout", () => {

@@ -8,7 +8,10 @@ export const LANGUAGES = [
   { value: 'pt', label: 'Portuguese', flag: '🇵🇹', welcomeText: 'Bem-vindo', welcomeLabel: 'Português' },
   { value: 'nl', label: 'Dutch', flag: '🇳🇱', welcomeText: 'Welkom', welcomeLabel: 'Nederlands' },
   { value: 'pl', label: 'Polish', flag: '🇵🇱', welcomeText: 'Witamy', welcomeLabel: 'Polski' },
-  { value: 'uk', label: 'Ukrainian', flag: '🇺🇦', welcomeText: 'Ласкаво просимо', welcomeLabel: 'Українська' }
+  { value: 'uk', label: 'Ukrainian', flag: '🇺🇦', welcomeText: 'Ласкаво просимо', welcomeLabel: 'Українська' },
+  { value: 'id', label: 'Indonesian', flag: '🇮🇩', welcomeText: 'Selamat datang', welcomeLabel: 'Bahasa Indonesia' },
+  { value: 'sw', label: 'Swahili', flag: '🇰🇪', welcomeText: 'Karibu', welcomeLabel: 'Kiswahili' },
+  { value: 'tl', label: 'Tagalog', flag: '🇵🇭', welcomeText: 'Maligayang pagdating', welcomeLabel: 'Filipino' }
 ] as const;
 
 export type Language = (typeof LANGUAGES)[number]['value'];

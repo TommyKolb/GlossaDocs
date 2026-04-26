@@ -91,10 +91,15 @@ export async function continueAsGuest(): Promise<User> {
 }
 
 export async function logout(): Promise<void> {
-  try {
-    await authApi.logout();
-  } catch {
-    // Ignore network errors and still clear local state.
+  const effectiveUser = getEffectiveUser();
+  const isGuestSession = effectiveUser?.isGuest === true;
+
+  if (!isGuestSession) {
+    try {
+      await authApi.logout();
+    } catch {
+      // Ignore network errors and still clear local state.
+    }
   }
 
   clearClientAuthState();

@@ -73,6 +73,19 @@ describe("auth utilities", () => {
     );
   });
 
+  it("logout skips backend call for guest users", async () => {
+    vi.stubGlobal("fetch", vi.fn());
+    localStorage.setItem(
+      "glossadocs_user",
+      JSON.stringify({ id: "guest_1", username: "Guest", isGuest: true })
+    );
+
+    await logout();
+
+    expect(localStorage.getItem("glossadocs_user")).toBeNull();
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  });
+
   it("getAuthenticatedUserFromBackend clears local auth when session is missing", async () => {
     localStorage.setItem(
       "glossadocs_user",

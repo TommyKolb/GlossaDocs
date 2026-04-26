@@ -1,6 +1,7 @@
 import type { QueryResultRow } from "pg";
 
 import { queryDb } from "../../shared/db.js";
+import { SUPPORTED_DOCUMENT_LANGUAGES } from "../../shared/document-languages.js";
 import {
   keyboardLayoutOutputKeySchema,
   keyboardLayoutOverridesSchema,
@@ -43,7 +44,7 @@ export function parseKeyboardLayoutOverrides(value: unknown): KeyboardLayoutOver
 
   const raw = value as Record<string, unknown>;
   const candidate: Record<string, unknown> = {};
-  for (const language of ["en", "de", "ru"] as const) {
+  for (const language of SUPPORTED_DOCUMENT_LANGUAGES) {
     const perLanguage = parseLanguageOverrides(raw[language]);
     if (perLanguage) {
       candidate[language] = perLanguage;

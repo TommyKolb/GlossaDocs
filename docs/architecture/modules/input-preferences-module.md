@@ -48,7 +48,7 @@ flowchart TB
 | `UpdateSettingsDto` | optional `lastUsedLocale`, `keyboardVisible`, `keyboardLayoutOverrides` |
 | `SettingsRepository` | `findByOwner(actorSub)`, `upsert(actorSub, patch)` |
 
-`KeyboardLayoutOverrides` is defined in `keyboard-layout-overrides-schema.ts` (strict top-level keys: `en`, `de`, `ru`; each value is a map of output character → physical key string).
+`KeyboardLayoutOverrides` is defined in `keyboard-layout-overrides-schema.ts`: a **strict** object whose top-level keys are exactly the entries in `SUPPORTED_DOCUMENT_LANGUAGES` (same list as `backend/src/shared/document-languages.ts`); each value is a map of output character → physical key string. The Zod object shape is generated from that array, so new languages do not need a hand-edited key list in the schema file.
 
 ## Stable storage mechanism
 

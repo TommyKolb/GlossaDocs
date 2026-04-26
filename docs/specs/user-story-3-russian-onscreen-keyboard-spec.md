@@ -2,7 +2,7 @@
 
 ## Header
 - **Story**: As a multilingual writer, I want an integrated on-screen keyboard for a non-Latin alphabet so that I can type special characters directly inside the editor.
-- **V1 product focus**: Russian Cyrillic using a **Latin-key phonetic mapping** (type Latin letters; get Cyrillic output). The same UI component also shows **English** and **German** Latin layouts when those document languages are selected.
+- **V1 product focus**: Russian Cyrillic using a **Latin-key phonetic mapping** (type Latin letters; get Cyrillic output). The same UI component also shows **Latin layouts** (English, German, Spanish, and other supported Latin-script languages) when those document languages are selected.
 - **Status**: **Core behavior implemented** in the editor (panel, per-language layouts, physical-key remapping when the keyboard is enabled, visibility toggle + persistence, **user-customizable per-key mappings** with reset to defaults, persisted in user settings). **Not implemented**: long-press variant picker; dedicated layout IDs (e.g. `ru-phonetic-v1`) separate from the `Language` enum.
 - **Depends on**:
   - [`docs/architecture/backend-architecture.md`](../architecture/backend-architecture.md)
@@ -10,7 +10,7 @@
 - **Single-backend assumption**: Same app and backend as Story 1; no separate keyboard service.
 
 ## Goal
-Ship an in-editor on-screen keyboard that inserts text at the caret, aligns with the document’s selected language, and keeps keyboard visibility in user settings. Russian is the primary non-Latin target; German/English layouts support the same component for Latin scripts.
+Ship an in-editor on-screen keyboard that inserts text at the caret, aligns with the document’s selected language, and keeps keyboard visibility in user settings. Russian and Ukrainian are the primary non–Latin script targets; other entries in `LANGUAGE_KEYBOARD_LAYOUTS` cover the remaining supported document languages.
 
 ## Current code baseline
 - **Layouts and remapping**: `src/app/utils/keyboardLayouts.ts` — per-`Language` registry in `LANGUAGE_KEYBOARD_LAYOUTS`, `getDefaultKeyboardLayout`, `getKeyboardLayout(language, overrides?)`, `getRemappedCharacter`, merge/diff helpers for user overrides.

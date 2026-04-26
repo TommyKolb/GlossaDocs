@@ -9,7 +9,7 @@ Owns **user-scoped rich-text documents and folders**: create, list, read, update
 **What it does**
 - CRUD for documents keyed by authenticated **`actorSub`** (stored as `owner_id`).
 - CRUD for nested folders keyed by authenticated **`actorSub`**.
-- Validates **language** against `SUPPORTED_DOCUMENT_LANGUAGES` (`en`, `de`, `ru`) at the HTTP and DB constraint level.
+- Validates **language** against `SUPPORTED_DOCUMENT_LANGUAGES` in `backend/src/shared/document-languages.ts` at the HTTP (Zod) and DB `CHECK` constraint level (migrations that define `documents_language_check`, e.g. `007_extend_documents_language_check.js` and `008_extend_documents_language_check.js`).
 - Sanitizes **title** (plain text) and **content** (allowlisted HTML) before persistence.
 - Lists documents for an owner ordered by **`updated_at` descending**.
 - Supports optional `folderId` on documents; folder deletion reparents direct child folders/documents to the deleted folder parent.
@@ -73,7 +73,7 @@ flowchart TB
 | `owner_id` | `text` | OIDC subject (`sub`) from authenticated principal |
 | `title` | `text` | Plain text after sanitization; may be ciphertext |
 | `content` | `text` | Sanitized HTML; may be ciphertext |
-| `language` | `text` | Check: `in ('en','de','ru')` |
+| `language` | `text` | `CHECK` (`documents_language_check`); allowed codes match `SUPPORTED_DOCUMENT_LANGUAGES` (see `008_extend_documents_language_check.js` for the current list) |
 | `folder_id` | `uuid` | Nullable FK to `folders.id` |
 | `font_family` | `text` | Nullable font family from shared catalog |
 | `created_at` | `timestamptz` | |

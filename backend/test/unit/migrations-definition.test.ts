@@ -2,6 +2,8 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { SUPPORTED_DOCUMENT_LANGUAGES } from "../../src/shared/document-languages.js";
+
 const migrationsDir = path.resolve(import.meta.dirname, "../../migrations");
 
 async function migrationText(fileName: string): Promise<string> {
@@ -66,10 +68,10 @@ describe("migration file definitions", () => {
     expect(text).toContain("jsonb");
   });
 
-  it("007 extends documents language check for es and fr", async () => {
+  it("007 up() CHECK constraint matches SUPPORTED_DOCUMENT_LANGUAGES", async () => {
     const text = await migrationText("007_extend_documents_language_check.js");
     expect(text).toContain('dropConstraint("documents", "documents_language_check")');
-    expect(text).toContain("es");
-    expect(text).toContain("fr");
+    const listInParens = `(${SUPPORTED_DOCUMENT_LANGUAGES.map((l) => `'${l}'`).join(",")})`;
+    expect(text).toContain(`language in ${listInParens}`);
   });
 });

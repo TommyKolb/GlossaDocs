@@ -10,6 +10,15 @@ export interface LanguageFontCatalogEntry {
   fonts: readonly DocumentFontDefinition[];
 }
 
+const SOURCE_SANS_LATIN_CATALOG: LanguageFontCatalogEntry = {
+  defaultFamily: "Source Sans 3",
+  fonts: [
+    { family: "Source Sans 3", googleFontFamily: "Source+Sans+3:wght@400;500;700" },
+    { family: "Nunito Sans", googleFontFamily: "Nunito+Sans:wght@400;600;700" },
+    { family: "Crimson Pro", googleFontFamily: "Crimson+Pro:wght@400;500;700" }
+  ]
+};
+
 export const DOCUMENT_LANGUAGE_FONT_CATALOG: Record<DocumentLanguage, LanguageFontCatalogEntry> = {
   en: {
     defaultFamily: "Inter",
@@ -19,14 +28,7 @@ export const DOCUMENT_LANGUAGE_FONT_CATALOG: Record<DocumentLanguage, LanguageFo
       { family: "Merriweather", googleFontFamily: "Merriweather:wght@400;700" }
     ]
   },
-  de: {
-    defaultFamily: "Source Sans 3",
-    fonts: [
-      { family: "Source Sans 3", googleFontFamily: "Source+Sans+3:wght@400;500;700" },
-      { family: "Nunito Sans", googleFontFamily: "Nunito+Sans:wght@400;600;700" },
-      { family: "Crimson Pro", googleFontFamily: "Crimson+Pro:wght@400;500;700" }
-    ]
-  },
+  de: SOURCE_SANS_LATIN_CATALOG,
   ru: {
     defaultFamily: "Noto Sans",
     fonts: [
@@ -35,22 +37,8 @@ export const DOCUMENT_LANGUAGE_FONT_CATALOG: Record<DocumentLanguage, LanguageFo
       { family: "Roboto Slab", googleFontFamily: "Roboto+Slab:wght@400;600;700" }
     ]
   },
-  es: {
-    defaultFamily: "Source Sans 3",
-    fonts: [
-      { family: "Source Sans 3", googleFontFamily: "Source+Sans+3:wght@400;500;700" },
-      { family: "Nunito Sans", googleFontFamily: "Nunito+Sans:wght@400;600;700" },
-      { family: "Crimson Pro", googleFontFamily: "Crimson+Pro:wght@400;500;700" }
-    ]
-  },
-  fr: {
-    defaultFamily: "Source Sans 3",
-    fonts: [
-      { family: "Source Sans 3", googleFontFamily: "Source+Sans+3:wght@400;500;700" },
-      { family: "Nunito Sans", googleFontFamily: "Nunito+Sans:wght@400;600;700" },
-      { family: "Crimson Pro", googleFontFamily: "Crimson+Pro:wght@400;500;700" }
-    ]
-  }
+  es: SOURCE_SANS_LATIN_CATALOG,
+  fr: SOURCE_SANS_LATIN_CATALOG
 };
 
 export const SUPPORTED_DOCUMENT_FONT_FAMILIES = [

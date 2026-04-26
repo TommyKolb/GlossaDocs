@@ -11,6 +11,28 @@ export interface LanguageFontCatalogEntry {
   fonts: readonly LanguageFontDefinition[];
 }
 
+/** German, Spanish, and French use the same Latin extended stack (keeps one edit point for all three). */
+const SOURCE_SANS_LATIN_CATALOG: LanguageFontCatalogEntry = {
+  defaultFamily: "Source Sans 3",
+  fonts: [
+    {
+      family: "Source Sans 3",
+      googleFontFamily: "Source+Sans+3:wght@400;500;700",
+      fallbackStack: "sans-serif"
+    },
+    {
+      family: "Nunito Sans",
+      googleFontFamily: "Nunito+Sans:wght@400;600;700",
+      fallbackStack: "sans-serif"
+    },
+    {
+      family: "Crimson Pro",
+      googleFontFamily: "Crimson+Pro:wght@400;500;700",
+      fallbackStack: "serif"
+    }
+  ]
+};
+
 export const LANGUAGE_FONT_CATALOG: Record<Language, LanguageFontCatalogEntry> = {
   en: {
     defaultFamily: "Inter",
@@ -24,26 +46,7 @@ export const LANGUAGE_FONT_CATALOG: Record<Language, LanguageFontCatalogEntry> =
       }
     ]
   },
-  de: {
-    defaultFamily: "Source Sans 3",
-    fonts: [
-      {
-        family: "Source Sans 3",
-        googleFontFamily: "Source+Sans+3:wght@400;500;700",
-        fallbackStack: "sans-serif"
-      },
-      {
-        family: "Nunito Sans",
-        googleFontFamily: "Nunito+Sans:wght@400;600;700",
-        fallbackStack: "sans-serif"
-      },
-      {
-        family: "Crimson Pro",
-        googleFontFamily: "Crimson+Pro:wght@400;500;700",
-        fallbackStack: "serif"
-      }
-    ]
-  },
+  de: SOURCE_SANS_LATIN_CATALOG,
   ru: {
     defaultFamily: "Noto Sans",
     fonts: [
@@ -56,46 +59,8 @@ export const LANGUAGE_FONT_CATALOG: Record<Language, LanguageFontCatalogEntry> =
       }
     ]
   },
-  es: {
-    defaultFamily: "Source Sans 3",
-    fonts: [
-      {
-        family: "Source Sans 3",
-        googleFontFamily: "Source+Sans+3:wght@400;500;700",
-        fallbackStack: "sans-serif"
-      },
-      {
-        family: "Nunito Sans",
-        googleFontFamily: "Nunito+Sans:wght@400;600;700",
-        fallbackStack: "sans-serif"
-      },
-      {
-        family: "Crimson Pro",
-        googleFontFamily: "Crimson+Pro:wght@400;500;700",
-        fallbackStack: "serif"
-      }
-    ]
-  },
-  fr: {
-    defaultFamily: "Source Sans 3",
-    fonts: [
-      {
-        family: "Source Sans 3",
-        googleFontFamily: "Source+Sans+3:wght@400;500;700",
-        fallbackStack: "sans-serif"
-      },
-      {
-        family: "Nunito Sans",
-        googleFontFamily: "Nunito+Sans:wght@400;600;700",
-        fallbackStack: "sans-serif"
-      },
-      {
-        family: "Crimson Pro",
-        googleFontFamily: "Crimson+Pro:wght@400;500;700",
-        fallbackStack: "serif"
-      }
-    ]
-  }
+  es: SOURCE_SANS_LATIN_CATALOG,
+  fr: SOURCE_SANS_LATIN_CATALOG
 };
 
 export const SUPPORTED_FONT_FAMILIES = Array.from(

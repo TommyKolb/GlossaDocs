@@ -14,9 +14,13 @@ export function DocumentListHero({ user, onCreateDocument, onUploadDocument }: D
   const handleResetSession = async () => {
     try {
       await logout();
-      // Reload the page to reset app state (guard: timer may fire after jsdom teardown in tests)
+      // Reload the page to reset app state. jsdom throws on reload (navigation not implemented).
       setTimeout(() => {
-        globalThis.window?.location?.reload?.();
+        try {
+          globalThis.window?.location?.reload?.();
+        } catch {
+          /* no-op in test / restricted embeds */
+        }
       }, 120);
     } catch (error) {
       toast.error('Failed to reset session');

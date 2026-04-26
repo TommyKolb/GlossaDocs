@@ -151,6 +151,24 @@ describe("settings routes", () => {
     expect(getResponse.body.keyboardLayoutOverrides).toEqual(overrides);
   });
 
+  it("persists keyboardLayoutOverrides for a Latin language and returns them on GET", async () => {
+    const overrides = { es: { ñ: "n" } };
+    const putResponse = await request(app.server)
+      .put("/settings")
+      .set("Authorization", "Bearer token-user-1")
+      .send({ keyboardLayoutOverrides: overrides });
+
+    expect(putResponse.status).toBe(200);
+    expect(putResponse.body.keyboardLayoutOverrides).toEqual(overrides);
+
+    const getResponse = await request(app.server)
+      .get("/settings")
+      .set("Authorization", "Bearer token-user-1");
+
+    expect(getResponse.status).toBe(200);
+    expect(getResponse.body.keyboardLayoutOverrides).toEqual(overrides);
+  });
+
   it("rejects keyboardLayoutOverrides with an unknown top-level language key", async () => {
     const response = await request(app.server)
       .put("/settings")

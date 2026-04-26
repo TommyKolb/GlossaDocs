@@ -12,7 +12,7 @@ Requires **Node.js 20+** and dependencies (`npm run setup:dev` at the repo root,
 
 ## Commands (local)
 
-- Full gate (font catalog check + frontend + backend Vitest): `npm test` / `npm run test:all`
+- Full gate (font + language-code catalog checks + frontend + backend Vitest): `npm test` / `npm run test:all`
 - Frontend Vitest: `npm run test:frontend` (or `test:frontend:unit` / `test:frontend:integration`)
 - Frontend coverage: `npm run test:frontend:coverage` → `coverage/frontend/`
 - Backend Vitest: `npm run test:backend` (or `npm --prefix backend run test:unit` / `test:integration`)
@@ -21,7 +21,7 @@ Requires **Node.js 20+** and dependencies (`npm run setup:dev` at the repo root,
 - E2E: `npm run test:e2e` (first time: `npm run test:e2e:install` for Chromium)
 - **Deployed integration:** `npm run test:deployed` — Playwright against the live Amplify app and API (`playwright.deployed.config.ts`, specs in `e2e/deployed/`). Specification: [docs/specs/test/deployed-integration.test-spec.md](specs/test/deployed-integration.test-spec.md).
 
-`test:frontend` / `test:backend` alone do not run `check:font-catalogs`; use `npm test` for the full gate.
+`test:frontend` / `test:backend` alone do not run `check:font-catalogs` or `check:language-codes`; use `npm test` for the full gate.
 
 ### Deployed integration environment
 

@@ -11,7 +11,7 @@ export interface LanguageFontCatalogEntry {
   fonts: readonly LanguageFontDefinition[];
 }
 
-/** German, Spanish, and French use the same Latin extended stack (keeps one edit point for all three). */
+/** Shared Latin extended stack for multiple languages (keeps one edit point; mirror in backend document-fonts). */
 const SOURCE_SANS_LATIN_CATALOG: LanguageFontCatalogEntry = {
   defaultFamily: "Source Sans 3",
   fonts: [

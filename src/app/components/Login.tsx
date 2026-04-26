@@ -292,7 +292,7 @@ export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: Log
         <div className="mt-4 sm:mt-6 text-center text-sm text-gray-600">
           <p>Multi-language document editor</p>
           <p className="text-xs text-gray-500 mt-1">
-            Supporting English, Deutsch, and Русский
+            {LANGUAGES.map((l) => l.label).join(' · ')}
           </p>
         </div>
       </div>

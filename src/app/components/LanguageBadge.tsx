@@ -23,9 +23,10 @@ export function LanguageBadge({ language }: LanguageBadgeProps) {
       {...ANIMATION_CONFIG}
       className="flex items-center gap-2.5 px-4 py-2.5 bg-white rounded-full shadow-sm border border-gray-200"
     >
-      <span 
-        className="text-2xl flex items-center justify-center" 
+      <span
+        className="text-2xl flex items-center justify-center"
         style={{ lineHeight: 1 }}
+        aria-hidden="true"
       >
         {language.flag}
       </span>

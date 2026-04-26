@@ -8,11 +8,15 @@ describe("parseKeyboardLayoutOverrides", () => {
       parseKeyboardLayoutOverrides({
         en: { q: "x" },
         ru: { й: "k" },
-        fr: { a: "b" }
+        fr: { a: "b" },
+        es: { ñ: "n" },
+        xx: { q: "z" }
       })
     ).toEqual({
       en: { q: "x" },
-      ru: { й: "k" }
+      ru: { й: "k" },
+      fr: { a: "b" },
+      es: { ñ: "n" }
     });
   });
 

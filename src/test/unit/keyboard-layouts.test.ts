@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { LANGUAGES } from "@/app/utils/languages";
+import type { Language } from "@/app/utils/languages";
 import {
   diffKeyboardLayoutAgainstLanguageDefaults,
   getDefaultKeyboardLayout,
@@ -13,6 +15,17 @@ import {
   type KeyboardLayoutOverrides
 } from "@/app/utils/keyboardLayouts";
 
+const DEFAULT_LAYOUT_CHARACTER_CHECKS: { lang: Language; mustContain: string[] }[] = [
+  { lang: "de", mustContain: ["ü", "ß"] },
+  { lang: "es", mustContain: ["ñ", "ü"] },
+  { lang: "fr", mustContain: ["é", "ç"] },
+  { lang: "it", mustContain: ["à", "è"] },
+  { lang: "pt", mustContain: ["ã", "ç"] },
+  { lang: "nl", mustContain: ["ë", "ü"] },
+  { lang: "pl", mustContain: ["ą", "ł"] },
+  { lang: "uk", mustContain: ["ї", "ґ"] }
+];
+
 describe("getKeyboardLayout", () => {
   it("returns three rows for English with expected first-row keys", () => {
     const layout = getKeyboardLayout("en");
@@ -20,12 +33,16 @@ describe("getKeyboardLayout", () => {
     expect(layout[0]?.map((k) => k.output).join("")).toBe("qwertyuiop");
   });
 
-  it("includes German-specific letters on the German layout", () => {
-    const layout = getKeyboardLayout("de");
-    const flat = layout.flat().map((k) => k.output);
-    expect(flat).toContain("ü");
-    expect(flat).toContain("ß");
-  });
+  it.each(DEFAULT_LAYOUT_CHARACTER_CHECKS)(
+    "includes expected characters on the $lang built-in layout",
+    ({ lang, mustContain }) => {
+      const layout = getKeyboardLayout(lang);
+      const flat = layout.flat().map((k) => k.output);
+      for (const ch of mustContain) {
+        expect(flat).toContain(ch);
+      }
+    }
+  );
 
   it("maps Russian row keys to Cyrillic outputs and Latin typedWith labels", () => {
     const layout = getKeyboardLayout("ru");
@@ -33,21 +50,6 @@ describe("getKeyboardLayout", () => {
     expect(jKey?.output).toBe("й");
   });
 
-
-
-  it("includes Spanish-specific letters on the Spanish layout", () => {
-    const layout = getKeyboardLayout("es");
-    const flat = layout.flat().map((k) => k.output);
-    expect(flat).toContain("ñ");
-    expect(flat).toContain("ü");
-  });
-
-  it("includes French-specific letters on the French layout", () => {
-    const layout = getKeyboardLayout("fr");
-    const flat = layout.flat().map((k) => k.output);
-    expect(flat).toContain("é");
-    expect(flat).toContain("ç");
-  });
   it("changes only typedWith when overrides swap two letters’ physical keys (no duplicate keys)", () => {
     const overrides: KeyboardLayoutOverrides = {
       ru: { й: "k", к: "j" }
@@ -55,6 +57,15 @@ describe("getKeyboardLayout", () => {
     const layout = getKeyboardLayout("ru", overrides);
     expect(layout.flat().find((k) => k.output === "й")?.typedWith).toBe("k");
     expect(layout.flat().find((k) => k.output === "к")?.typedWith).toBe("j");
+  });
+});
+
+describe("built-in default keyboard layouts", () => {
+  it("use each physical key (typedWith) at most once per language", () => {
+    for (const { value } of LANGUAGES) {
+      const layout = getDefaultKeyboardLayout(value);
+      expect(getDuplicatePhysicalKeyError(layout)).toBeNull();
+    }
   });
 });
 

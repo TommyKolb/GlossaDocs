@@ -17,16 +17,6 @@ interface LoginProps {
   onForgotPassword: () => void;
 }
 
-// Multilingual welcome messages
-const WELCOME_MESSAGES = [
-  { text: 'Welcome', lang: 'English' },
-  { text: 'Willkommen', lang: 'Deutsch' },
-  { text: 'Добро пожаловать', lang: 'Русский' },
-  { text: 'Bienvenue', lang: 'Français' },
-  { text: 'Bienvenido', lang: 'Español' },
-  { text: 'Benvenuto', lang: 'Italiano' },
-];
-
 export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: LoginProps) {
   const showDevAuthNote = import.meta.env.DEV;
   const [username, setUsername] = useState('');
@@ -40,7 +30,7 @@ export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: Log
   // Cycle through welcome messages
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentWelcomeIndex((prev) => (prev + 1) % WELCOME_MESSAGES.length);
+      setCurrentWelcomeIndex((prev) => (prev + 1) % LANGUAGES.length);
     }, UI_CONSTANTS.WELCOME_MESSAGE_INTERVAL_MS);
     return () => clearInterval(interval);
   }, []);
@@ -73,7 +63,6 @@ export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: Log
     setIsLoading(true);
     try {
       const user = await loginWithCredentials({ username: trimmedUsername, password });
-      toast.success(`Welcome back, ${user.username}!`);
       onLoginSuccess(user);
     } catch {
       setFormErrors({
@@ -126,10 +115,10 @@ export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: Log
           {/* Animated welcome message */}
           <div className="mb-4 sm:mb-6 h-16 sm:h-10" aria-live="polite" aria-atomic="true">
             <p className="text-xl sm:text-2xl font-medium text-gray-700 transition-all duration-500">
-              {WELCOME_MESSAGES[currentWelcomeIndex].text}
+              {LANGUAGES[currentWelcomeIndex].welcomeText}
             </p>
             <p className="text-xs sm:text-sm text-gray-500 mt-1 transition-all duration-500">
-              {WELCOME_MESSAGES[currentWelcomeIndex].lang}
+              {LANGUAGES[currentWelcomeIndex].welcomeLabel}
             </p>
           </div>
 
@@ -303,7 +292,7 @@ export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: Log
         <div className="mt-4 sm:mt-6 text-center text-sm text-gray-600">
           <p>Multi-language document editor</p>
           <p className="text-xs text-gray-500 mt-1">
-            Supporting English, Deutsch, and Русский
+            {LANGUAGES.map((l) => l.label).join(' · ')}
           </p>
         </div>
       </div>

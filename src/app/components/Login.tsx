@@ -291,7 +291,7 @@ export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: Log
         {/* Footer note */}
         <div className="mt-4 sm:mt-6 text-center text-sm text-gray-600">
           <p>Multi-language document editor</p>
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-gray-500 mt-1 max-w-lg mx-auto px-1 leading-snug break-words">
             {LANGUAGES.map((l) => l.label).join(' · ')}
           </p>
         </div>

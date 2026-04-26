@@ -10,7 +10,6 @@ export const LANGUAGES = [
   { value: 'pl', label: 'Polish', flag: '🇵🇱', welcomeText: 'Witamy', welcomeLabel: 'Polski' },
   { value: 'uk', label: 'Ukrainian', flag: '🇺🇦', welcomeText: 'Ласкаво просимо', welcomeLabel: 'Українська' },
   { value: 'id', label: 'Indonesian', flag: '🇮🇩', welcomeText: 'Selamat datang', welcomeLabel: 'Bahasa Indonesia' },
-  { value: 'vi', label: 'Vietnamese', flag: '🇻🇳', welcomeText: 'Chào mừng', welcomeLabel: 'Tiếng Việt' },
   { value: 'sw', label: 'Swahili', flag: '🇰🇪', welcomeText: 'Karibu', welcomeLabel: 'Kiswahili' },
   { value: 'tl', label: 'Tagalog', flag: '🇵🇭', welcomeText: 'Maligayang pagdating', welcomeLabel: 'Filipino' }
 ] as const;

@@ -24,7 +24,8 @@ const DEFAULT_LAYOUT_CHARACTER_CHECKS: { lang: Language; mustContain: string[] }
   { lang: "nl", mustContain: ["ë", "ü"] },
   { lang: "pl", mustContain: ["ą", "ł"] },
   { lang: "uk", mustContain: ["ї", "ґ"] },
-  { lang: "vi", mustContain: ["đ", "ă", "ơ"] },
+  { lang: "id", mustContain: ["q", "m"] },
+  { lang: "sw", mustContain: ["q", "m"] },
   { lang: "tl", mustContain: ["ñ"] }
 ];
 

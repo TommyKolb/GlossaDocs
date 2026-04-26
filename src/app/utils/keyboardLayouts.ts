@@ -94,15 +94,6 @@ const UKRAINIAN_LAYOUT: KeyboardLayout = [
 /** Indonesian — standard Latin (A–Z); same on-screen map as English. */
 const INDONESIAN_LAYOUT: KeyboardLayout = ENGLISH_LAYOUT;
 
-/**
- * Vietnamese — US QWERTY positions with common letters and tone samples (representative subset).
- */
-const VIETNAMESE_LAYOUT: KeyboardLayout = [
-  [key('q', 'q'), key('w', 'w'), key('e', 'e'), key('r', 'r'), key('t', 't'), key('y', 'y'), key('u', 'u'), key('i', 'i'), key('o', 'o'), key('p', 'p'), key('đ', '[')],
-  [key('a', 'a'), key('s', 's'), key('d', 'd'), key('f', 'f'), key('g', 'g'), key('h', 'h'), key('j', 'j'), key('k', 'k'), key('l', 'l'), key('ă', ';'), key('â', '\'')],
-  [key('z', 'z'), key('x', 'x'), key('c', 'c'), key('v', 'v'), key('b', 'b'), key('n', 'n'), key('m', 'm'), key('ê', ','), key('ô', '.'), key('ơ', '-'), key('ư', '='), key('à', '`'), key('á', '/')]
-];
-
 /** Swahili — standard Latin; same on-screen map as English. */
 const SWAHILI_LAYOUT: KeyboardLayout = ENGLISH_LAYOUT;
 
@@ -125,7 +116,6 @@ const LANGUAGE_KEYBOARD_LAYOUTS: Readonly<Record<Language, KeyboardLayout>> = {
   pl: POLISH_LAYOUT,
   uk: UKRAINIAN_LAYOUT,
   id: INDONESIAN_LAYOUT,
-  vi: VIETNAMESE_LAYOUT,
   sw: SWAHILI_LAYOUT,
   tl: TAGALOG_LAYOUT
 };

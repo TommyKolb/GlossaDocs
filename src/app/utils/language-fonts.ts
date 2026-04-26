@@ -78,7 +78,6 @@ export const LANGUAGE_FONT_CATALOG: Record<Language, LanguageFontCatalogEntry> =
     ]
   },
   id: SOURCE_SANS_LATIN_CATALOG,
-  vi: SOURCE_SANS_LATIN_CATALOG,
   sw: SOURCE_SANS_LATIN_CATALOG,
   tl: SOURCE_SANS_LATIN_CATALOG
 };

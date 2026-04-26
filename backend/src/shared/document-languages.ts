@@ -10,7 +10,6 @@ export const SUPPORTED_DOCUMENT_LANGUAGES = [
   "pl",
   "uk",
   "id",
-  "vi",
   "sw",
   "tl"
 ] as const;

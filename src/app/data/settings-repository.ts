@@ -24,7 +24,6 @@ type LocaleCode =
   | "pl-PL"
   | "uk-UA"
   | "id-ID"
-  | "vi-VN"
   | "sw-KE"
   | "tl-PH";
 
@@ -40,7 +39,6 @@ const LANGUAGE_TO_LOCALE: Record<Language, LocaleCode> = {
   pl: "pl-PL",
   uk: "uk-UA",
   id: "id-ID",
-  vi: "vi-VN",
   sw: "sw-KE",
   tl: "tl-PH"
 };
@@ -56,7 +54,6 @@ const LOCALE_PREFIX_TO_LANGUAGE: Array<{ prefix: string; language: Language }> =
   { prefix: "pl", language: "pl" },
   { prefix: "uk", language: "uk" },
   { prefix: "id", language: "id" },
-  { prefix: "vi", language: "vi" },
   { prefix: "sw", language: "sw" },
   { prefix: "tl", language: "tl" },
   { prefix: "en", language: "en" }

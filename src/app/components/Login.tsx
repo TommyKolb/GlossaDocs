@@ -6,7 +6,6 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { loginWithCredentials, continueAsGuest, type User } from '../utils/auth';
 import { LANGUAGES } from '../utils/languages';
-import { useLanguageCycling } from '../hooks/useLanguageCycling';
 import { LanguageBadge } from './LanguageBadge';
 import { UI_CONSTANTS } from '../utils/constants';
 import { toast } from 'sonner';
@@ -24,8 +23,6 @@ export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: Log
   const [isLoading, setIsLoading] = useState(false);
   const [currentWelcomeIndex, setCurrentWelcomeIndex] = useState(0);
   const [formErrors, setFormErrors] = useState<{ username?: string; password?: string; general?: string }>({});
-
-  const visibleLanguages = useLanguageCycling(LANGUAGES.length);
 
   // Cycle through welcome messages
   useEffect(() => {
@@ -123,11 +120,14 @@ export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: Log
           </div>
 
           {/* Language badges with animation */}
-          <ul className="h-12 flex items-center justify-center gap-2 sm:gap-3 mb-6 sm:mb-8 list-none p-0 m-0" aria-label="Supported languages">
+          <ul
+            className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 mb-6 sm:mb-8 list-none p-0 m-0"
+            aria-label="Supported languages"
+          >
             <AnimatePresence mode="sync">
-              {visibleLanguages.map((index) => (
-                <li key={LANGUAGES[index].value}>
-                  <LanguageBadge language={LANGUAGES[index]} />
+              {LANGUAGES.map((language) => (
+                <li key={language.value}>
+                  <LanguageBadge language={language} />
                 </li>
               ))}
             </AnimatePresence>

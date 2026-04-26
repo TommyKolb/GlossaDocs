@@ -13,10 +13,6 @@ vi.mock("sonner", () => ({
   }
 }));
 
-vi.mock("@/app/hooks/useLanguageCycling", () => ({
-  useLanguageCycling: () => [0, 1, 2]
-}));
-
 vi.mock("@/app/components/LanguageBadge", () => ({
   LanguageBadge: () => <div data-testid="LanguageBadge" />
 }));

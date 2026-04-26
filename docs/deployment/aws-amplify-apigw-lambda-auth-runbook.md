@@ -66,7 +66,10 @@ Backend (`backend/.env` or Lambda environment):
 - `AUTH_SESSION_SECURE_COOKIE=true`
 - `AUTH_SESSION_STORE=redis`
 - `REDIS_URL=<elasticache-connection-url>`
-- `AUTH_SESSION_ENCRYPTION_KEY=<high-entropy secret used to encrypt Redis session token payloads>`
+- `AUTH_SESSION_ENCRYPTION_KEY=<high-entropy secret, min 16 characters, used to encrypt IdP access tokens at rest in Redis>`
+
+  **CDK deploy:** The stack [infrastructure/lib/glossadocs-stack.ts](infrastructure/lib/glossadocs-stack.ts) creates an **AWS Secrets Manager** secret and maps it to `AUTH_SESSION_ENCRYPTION_KEY` on the API Lambda, so a fresh `cdk deploy` does not require a manually chosen value. To rotate or replace the key, update the secret in AWS and redeploy or sync the Lambda environment; **expect existing Redis-backed sessions to become invalid** (users sign in again).
+
 - `DATABASE_URL=<rds-connection-string-with-sslmode=require>`
 - **RDS CA bundle:** the backend ships AWS’s public RDS CA PEM at `backend/certs/rds-global-bundle.pem` and uses it for TLS verification to RDS. Do not omit it from Lambda packaging; production will not start verified TLS without it (or an explicit `RDS_CA_BUNDLE_PATH`). `DATABASE_TLS_INSECURE` is not valid in `APP_ENV=prod`.
 - `COGNITO_REGION=<region>`
@@ -83,6 +86,8 @@ Optional and auto-derived when omitted in Cognito mode:
 - `OIDC_JWKS_URL` (derived as `${OIDC_ISSUER_URL}/.well-known/jwks.json`)
 - `AUTH_LOGIN_RATE_LIMIT_WINDOW_MS` / `AUTH_LOGIN_RATE_LIMIT_MAX_ATTEMPTS` (defaults: 60s / 20 attempts per IP)
 - `AUTH_PASSWORD_RESET_RATE_LIMIT_WINDOW_MS` / `AUTH_PASSWORD_RESET_RATE_LIMIT_MAX_ATTEMPTS` (defaults: 60s / 20 attempts per IP across reset request + confirm endpoints)
+
+**In-process rate limits (login, password reset):** The API enforces per-IP sliding windows in the Fastify process. On **AWS Lambda** those counters are **per execution environment**, reset on **cold start**, and are **not** a substitute for **API Gateway throttling** (already set on the REST API in CDK) or **WAF** for edge-wide protection.
 
 Frontend (Amplify env vars):
 

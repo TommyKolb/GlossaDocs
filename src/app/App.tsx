@@ -68,6 +68,13 @@ export default function App() {
   if (!user) {
     return (
       <div className="size-full">
+        <a
+          href="#auth-main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:bg-blue-600 focus:text-white focus:px-4 focus:py-2 focus:rounded-md focus:shadow-lg"
+        >
+          Skip to main content
+        </a>
+        <main id="auth-main-content" className="size-full" tabIndex={-1}>
         {authView === 'login' ? (
           <Login
             onLoginSuccess={handleLoginSuccess}
@@ -109,6 +116,7 @@ export default function App() {
             }}
           />
         )}
+        </main>
         <Toaster />
       </div>
     );

@@ -155,7 +155,7 @@ describe("settings routes", () => {
     const response = await request(app.server)
       .put("/settings")
       .set("Authorization", "Bearer token-user-1")
-      .send({ keyboardLayoutOverrides: { fr: {} } });
+      .send({ keyboardLayoutOverrides: { xx: {} } });
 
     expect(response.status).toBe(400);
     expect(response.body.code).toBe("VALIDATION_ERROR");

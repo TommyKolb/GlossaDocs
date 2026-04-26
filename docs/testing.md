@@ -55,15 +55,16 @@ On push and pull requests to **`main`** or **`develop`**, the **[Tests](../.gith
 | Called workflow | Role |
 |-----------------|------|
 | [check-font-catalogs.yml](../.github/workflows/check-font-catalogs.yml) | Always; ensures `language-fonts.ts` and `document-fonts.ts` list the same `family` names (no `npm ci` required). |
-| [run-frontend-tests.yml](../.github/workflows/run-frontend-tests.yml) | Vitest with coverage and Playwright E2E — only when frontend-related paths change (`src/`, `e2e/`, root `package.json`, Vite/Playwright config, `tests.yml`, or `run-frontend-tests.yml`). |
-| [run-backend-tests.yml](../.github/workflows/run-backend-tests.yml) | `typecheck` and Vitest with coverage — only when `backend/` or orchestration files under the backend filter change. |
-| [run-infrastructure-tests.yml](../.github/workflows/run-infrastructure-tests.yml) | Infrastructure typecheck, lint, CDK assertion tests, and `cdk synth` — only when `infrastructure/` or infra workflow files change. |
+| [run-frontend-tests.yml](../.github/workflows/run-frontend-tests.yml) | Vitest with coverage and Playwright E2E — when frontend-related paths change (`src/`, `e2e/`, root `package.json`, Vite/Playwright config, or `run-frontend-tests.yml`), or when [tests.yml](../.github/workflows/tests.yml) changes (orchestrates a full test matrix for that run). |
+| [run-backend-tests.yml](../.github/workflows/run-backend-tests.yml) | `typecheck` and Vitest with coverage — when `backend/` or `run-backend-tests.yml` change, or when `tests.yml` changes. |
+| [run-infrastructure-tests.yml](../.github/workflows/run-infrastructure-tests.yml) | Infrastructure typecheck, lint, CDK assertion tests, `cdk synth`, and on **pull requests** an optional `cdk diff` when repository variable `DEPLOY_AWS_ROLE_ARN` is set (same behavior as the old standalone infrastructure-diff workflow) — when `infrastructure/` or `run-infrastructure-tests.yml` change, or when `tests.yml` changes. |
+| [infrastructure-diff.yml](../.github/workflows/infrastructure-diff.yml) (optional) | **Manual** “Run workflow” only — for ad-hoc CDK diff. PR coverage lives in the Tests workflow. |
 
 Those YAML files use **`workflow_call`** so the **Tests** run can invoke them; they also expose **`workflow_dispatch`** so you can run each workflow alone from the Actions tab when debugging.
 
 PRs that only touch unrelated paths skip frontend/backend calls while still running the font catalog check.
 
-On push and pull requests to **`main`** or **`develop`**, [.github/workflows/deployed-integration-tests.yml](../.github/workflows/deployed-integration-tests.yml) runs the deployed Playwright suite against production URLs. Pull requests from repository forks skip this workflow by default (secrets are unavailable on fork workflows). The workflow also serializes runs with a dedicated `concurrency` group to reduce collisions on the shared E2E account.
+On push and pull requests to **`main`** or **`develop`**, [.github/workflows/deployed-integration-tests.yml](../.github/workflows/deployed-integration-tests.yml) runs the deployed Playwright suite against production URLs. The job uses the **Production** GitHub Environment for variables and secrets but sets `deployment: false` so a **deployment object** is not created (per [using an environment without creating a deployment](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#example-using-an-environment-without-creating-a-deployment); not compatible with custom deployment protection rules on that environment). You can instead use repository- or org-level `PROD_*` and E2E values if you prefer. Pull requests from repository forks skip this workflow by default (secrets are unavailable on fork workflows). The workflow also serializes runs with a dedicated `concurrency` group to reduce collisions on the shared E2E account.
 
 ## Related
 

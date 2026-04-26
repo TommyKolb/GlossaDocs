@@ -1,13 +1,9 @@
-name: Infrastructure diff
+# Use the main Tests workflow (run-infrastructure-tests) for PRs; it now runs the same
+# optional CDK diff when vars.DEPLOY_AWS_ROLE_ARN is set. This workflow is for manual
+# "Run workflow" from the Actions tab to reproduce a diff without re-running the full suite.
+name: Infrastructure diff (manual)
 
 on:
-  pull_request:
-    branches: [main, develop]
-    paths:
-      - "infrastructure/**"
-      - ".github/workflows/infrastructure-diff.yml"
-      - ".github/workflows/run-infrastructure-tests.yml"
-      - ".github/workflows/deploy-production.yml"
   workflow_dispatch:
 
 permissions:

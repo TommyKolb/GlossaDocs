@@ -212,8 +212,8 @@ Manual steps should be limited to one-time environment/bootstrap setup (for exam
 Repository workflows expected after implementation:
 
 - `.github/workflows/tests.yml` (test orchestrator)
-- `.github/workflows/run-infrastructure-tests.yml` (infra typecheck/lint/assert/synth)
-- `.github/workflows/infrastructure-diff.yml` (PR dry-run diff visibility)
+- `.github/workflows/run-infrastructure-tests.yml` (infra typecheck/lint/assert/synth; optional `cdk diff` on PRs when `DEPLOY_AWS_ROLE_ARN` is set)
+- `.github/workflows/infrastructure-diff.yml` (optional manual dry-run diff from the Actions tab)
 - `.github/workflows/deploy-production.yml` (main-branch automated release)
 
 ## 8) API Gateway + Lambda Wiring

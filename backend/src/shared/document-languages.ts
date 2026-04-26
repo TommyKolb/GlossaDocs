@@ -8,7 +8,11 @@ export const SUPPORTED_DOCUMENT_LANGUAGES = [
   "pt",
   "nl",
   "pl",
-  "uk"
+  "uk",
+  "id",
+  "vi",
+  "sw",
+  "tl"
 ] as const;
 
 export type DocumentLanguage = (typeof SUPPORTED_DOCUMENT_LANGUAGES)[number];

@@ -76,7 +76,11 @@ export const LANGUAGE_FONT_CATALOG: Record<Language, LanguageFontCatalogEntry> =
         fallbackStack: "serif"
       }
     ]
-  }
+  },
+  id: SOURCE_SANS_LATIN_CATALOG,
+  vi: SOURCE_SANS_LATIN_CATALOG,
+  sw: SOURCE_SANS_LATIN_CATALOG,
+  tl: SOURCE_SANS_LATIN_CATALOG
 };
 
 export const SUPPORTED_FONT_FAMILIES = Array.from(

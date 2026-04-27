@@ -1,6 +1,5 @@
 import * as React from 'react';
 import { useState, useEffect } from 'react';
-import { AnimatePresence } from 'motion/react';
 import { LogIn, UserPlus } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -125,16 +124,14 @@ export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: Log
 
           {/* Language badges with animation */}
           <ul
-            className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 mb-6 sm:mb-8 list-none p-0 m-0"
+            className="grid grid-cols-3 items-stretch gap-2 sm:gap-3 mb-6 sm:mb-8 list-none p-0 m-0"
             aria-label="Supported languages"
           >
-            <AnimatePresence mode="sync">
-              {visibleLanguages.map((language) => (
-                <li key={language.value}>
-                  <LanguageBadge language={language} />
-                </li>
-              ))}
-            </AnimatePresence>
+            {visibleLanguages.map((language, index) => (
+              <li key={`language-slot-${index}`} className="min-w-0">
+                <LanguageBadge language={language} />
+              </li>
+            ))}
           </ul>
         </div>
 

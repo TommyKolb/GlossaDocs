@@ -27,7 +27,8 @@ const DEFAULT_LAYOUT_CHARACTER_CHECKS: { lang: Language; mustContain: string[] }
   { lang: "uk", mustContain: ["ї", "ґ"] },
   { lang: "id", mustContain: ["q", "m"] },
   { lang: "sw", mustContain: ["q", "m"] },
-  { lang: "tl", mustContain: ["ñ"] }
+  { lang: "tl", mustContain: ["ñ"] },
+  { lang: "ar", mustContain: ["ض", "ق", "\u0644\u0627"] }
 ];
 
 describe("getKeyboardLayout", () => {
@@ -52,6 +53,61 @@ describe("getKeyboardLayout", () => {
     const layout = getKeyboardLayout("ru");
     const jKey = layout.flat().find((k) => k.typedWith === "j");
     expect(jKey?.output).toBe("й");
+  });
+
+  it("maps Arabic (101) physical q to ض and Shift+q to fatha", () => {
+    expect(
+      getRemappedCharacter({
+        language: "ar",
+        key: "q",
+        shiftKey: false,
+        capsLock: false
+      })
+    ).toBe("ض");
+    expect(
+      getRemappedCharacter({
+        language: "ar",
+        key: "q",
+        shiftKey: true,
+        capsLock: false
+      })
+    ).toBe("\u064e");
+  });
+
+  it("does not treat Caps Lock as Shift for Arabic remap layer", () => {
+    expect(
+      getRemappedCharacter({
+        language: "ar",
+        key: "q",
+        shiftKey: false,
+        capsLock: true
+      })
+    ).toBe("ض");
+  });
+
+  it("preserves Arabic shiftOutput when output→typedWith overrides remap a key", () => {
+    // Map ض (default physical `q`) to `1` — no other Arabic key uses typedWith `1`, so remap is unambiguous.
+    const overrides: KeyboardLayoutOverrides = { ar: { "\u0636": "1" } };
+    expect(
+      getRemappedCharacter({
+        language: "ar",
+        key: "1",
+        code: "Digit1",
+        shiftKey: false,
+        capsLock: false,
+        keyboardLayoutOverrides: overrides
+      })
+    ).toBe("ض");
+    expect(
+      getRemappedCharacter({
+        language: "ar",
+        key: "1",
+        code: "Digit1",
+        shiftKey: true,
+        capsLock: false,
+        keyboardLayoutOverrides: overrides
+      })
+    ).toBe("\u064e");
   });
 
   it("changes only typedWith when overrides swap two letters’ physical keys (no duplicate keys)", () => {

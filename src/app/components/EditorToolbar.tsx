@@ -86,7 +86,10 @@ export function EditorToolbar({
   return (
     <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
       {/* Top bar with back button and document title */}
-      <div className="px-3 sm:px-6 py-2 sm:py-3 flex items-center gap-2 sm:gap-4">
+      <div
+        className="px-3 sm:px-6 py-2 sm:py-3 flex items-center gap-2 sm:gap-4"
+        dir="ltr"
+      >
         <Button 
           variant="ghost" 
           size="sm" 
@@ -103,8 +106,10 @@ export function EditorToolbar({
           value={title}
           onChange={(e) => onTitleChange(e.target.value)}
           placeholder="Untitled Document"
-          className="flex-1 text-base sm:text-lg font-semibold bg-transparent border-none outline-none focus:bg-gray-50 px-2 py-1 rounded min-w-0"
+          className="flex-1 min-w-0 text-base sm:text-lg font-semibold bg-transparent border-none outline-none focus:bg-gray-50 px-2 py-1 rounded text-start"
           aria-label="Document title"
+          dir="auto"
+          lang={language}
         />
 
         {/* Unsaved changes indicator */}
@@ -191,7 +196,12 @@ export function EditorToolbar({
                 {LANGUAGES.map((lang) => (
                   <SelectItem key={lang.value} value={lang.value}>
                     <span className="flex items-center gap-2">
-                      <span aria-hidden="true">{lang.flag}</span>
+                      <span
+                        className="tabular-nums min-w-[1.5rem] text-center text-[10px] font-semibold text-gray-600"
+                        aria-hidden="true"
+                      >
+                        {lang.listBadge}
+                      </span>
                       <span>{lang.label}</span>
                     </span>
                   </SelectItem>

@@ -12,6 +12,7 @@ export const SUPPORTED_DOCUMENT_LANGUAGES = [
   "id",
   "sw",
   "tl",
+  "ar",
   "zh-Hans",
   "zh-Hant"
 ] as const;

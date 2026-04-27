@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Editor } from "@/app/components/Editor";
+import type { Language } from "@/app/utils/languages";
 
 const { getUserSettingsMock, updateUserSettingsMock, getDocumentMock, saveDocumentMock, getAllFoldersMock } = vi.hoisted(() => ({
   getUserSettingsMock: vi.fn(),
@@ -55,12 +56,12 @@ function deferred<T>(): Deferred<T> {
   return { promise, resolve };
 }
 
-function buildApiDoc(id: string, title: string) {
+function buildApiDoc(id: string, title: string, language: Language = "en") {
   return {
     id,
     title,
     content: "<p>body</p>",
-    language: "en" as const,
+    language,
     folderId: null,
     fontFamily: "Inter",
     createdAt: Date.now(),
@@ -108,6 +109,14 @@ describe("Editor load-state handling", () => {
     const editor = await screen.findByRole("textbox", { name: /From list/i });
     expect(editor.textContent).toMatch(/body/i);
     expect(getDocumentMock).not.toHaveBeenCalled();
+  });
+
+  it("sets rtl on the editor for Arabic documents", async () => {
+    const doc = buildApiDoc("11111111-1111-4111-8111-000000000002", "Arabic doc", "ar");
+    render(<Editor documentId={doc.id} initialDocument={doc} onBack={() => {}} />);
+
+    const editor = await screen.findByRole("textbox", { name: /Arabic doc/i });
+    expect(editor).toHaveAttribute("dir", "rtl");
   });
 
   it("shows a fallback and lets users go back when a document is missing", async () => {

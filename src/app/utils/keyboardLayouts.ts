@@ -10,9 +10,11 @@ export type KeyboardLayout = readonly (readonly KeyboardKey[])[];
 export type KeyboardLayoutLanguage = Exclude<Language, 'zh-Hans' | 'zh-Hant'>;
 
 /**
- * Per-language overrides: **alphabet letter (output)** → **physical key label** (`typedWith`).
- * On-screen letters stay as in the built-in layout; only which key you type with changes.
- * Shift + key uses the same mapping; the shifted character is always `output.toUpperCase()` (existing remap rules).
+ * Per-language overrides: **output character** → **physical key label** (`typedWith`).
+ * On-screen glyphs stay as in the built-in layout; only which key you type with changes.
+ * Shifted output depends on language: Latin/Cyrillic use `output.toUpperCase()` when no explicit
+ * `shiftOutput` is set; Arabic uses explicit `shiftOutput` (harakat / punctuation) per key—see
+ * `shouldUseShiftedCharacter` and `getRemappedCharacter`.
  */
 export type KeyboardLayoutOverrides = Partial<Record<Language, Record<string, string>>>;
 
@@ -105,6 +107,53 @@ const TAGALOG_LAYOUT: KeyboardLayout = [
   [key('z', 'z'), key('x', 'x'), key('c', 'c'), key('v', 'v'), key('b', 'b'), key('n', 'n'), key('m', 'm')]
 ];
 
+/**
+ * Windows Arabic (101), KBDA1.dll, KLID 00000401 (ar-SA). Unshifted/shift pairs per Microsoft layout;
+ * explicit shiftOutput on every key (Arabic letters have no case; Shift selects harakat and punctuation).
+ */
+const ARABIC_LAYOUT: KeyboardLayout = [
+  [
+    key("ض", "q", "\u064e"),
+    key("ص", "w", "\u064b"),
+    key("ث", "e", "\u064f"),
+    key("ق", "r", "\u064c"),
+    key("ف", "t", "\u0644\u0625"),
+    key("غ", "y", "\u0625"),
+    key("ع", "u", "'"),
+    key("ه", "i", "\u00f7"),
+    key("خ", "o", "\u00d7"),
+    key("ح", "p", "\u061b"),
+    key("ج", "[", "<"),
+    key("د", "]", ">")
+  ],
+  [
+    key("ش", "a", "\u0650"),
+    key("س", "s", "\u064d"),
+    key("ي", "d", "]"),
+    key("ب", "f", "["),
+    key("ل", "g", "\u0644\u0623"),
+    key("ا", "h", "\u0623"),
+    key("ت", "j", "\u0640"),
+    key("ن", "k", "\u060c"),
+    key("م", "l", "/"),
+    key("ك", ";", ":"),
+    key("ط", "'", '"'),
+    key("\\", "\\", "|")
+  ],
+  [
+    key("ئ", "z", "~"),
+    key("ء", "x", "}"),
+    key("ؤ", "c", "{"),
+    key("ر", "v", "\u0644\u0622"),
+    key("\u0644\u0627", "b", "\u0622"),
+    key("ى", "n", "\u2019"),
+    key("ة", "m", ","),
+    key("و", ",", "."),
+    key("ز", ".", "\u061f"),
+    key("ظ", "/", "/")
+  ]
+];
+
 const LANGUAGE_KEYBOARD_LAYOUTS: Readonly<Record<KeyboardLayoutLanguage, KeyboardLayout>> = {
   en: ENGLISH_LAYOUT,
   de: GERMAN_LAYOUT,
@@ -118,7 +167,8 @@ const LANGUAGE_KEYBOARD_LAYOUTS: Readonly<Record<KeyboardLayoutLanguage, Keyboar
   uk: UKRAINIAN_LAYOUT,
   id: INDONESIAN_LAYOUT,
   sw: SWAHILI_LAYOUT,
-  tl: TAGALOG_LAYOUT
+  tl: TAGALOG_LAYOUT,
+  ar: ARABIC_LAYOUT
 };
 
 export function isKeyboardLayoutLanguage(language: Language): language is KeyboardLayoutLanguage {
@@ -131,8 +181,9 @@ export function getDefaultKeyboardLayout(language: KeyboardLayoutLanguage): Keyb
 }
 
 /**
- * Apply **output → typedWith** overrides: each built-in letter keeps its display `output`;
- * only `typedWith` changes. Unknown output keys in the override map are ignored.
+ * Apply **output → typedWith** overrides: each built-in key keeps its display `output`;
+ * only `typedWith` changes. Explicit `shiftOutput` (e.g. Arabic harakat) is preserved so remapping
+ * a key does not drop the Shift layer. Unknown output keys in the override map are ignored.
  */
 export function applyOutputToTypedWithOverrides(
   layout: KeyboardLayout,
@@ -144,9 +195,7 @@ export function applyOutputToTypedWithOverrides(
       if (typedWith === undefined) {
         return layoutKey;
       }
-      const next: KeyboardKey = { ...layoutKey, typedWith };
-      delete next.shiftOutput;
-      return next;
+      return { ...layoutKey, typedWith };
     })
   ) as KeyboardLayout;
 }
@@ -263,7 +312,11 @@ export function normalizeKeyboardLayoutOverrides(raw: unknown): KeyboardLayoutOv
   return result;
 }
 
-function shouldUseShiftedCharacter(shiftKey: boolean, capsLock: boolean): boolean {
+function shouldUseShiftedCharacter(shiftKey: boolean, capsLock: boolean, language: Language): boolean {
+  // Arabic shift layer is harakat/punctuation, not “uppercase”; Caps Lock must not flip that layer.
+  if (language === "ar") {
+    return shiftKey;
+  }
   return shiftKey !== capsLock;
 }
 
@@ -336,7 +389,7 @@ export function getRemappedCharacter({
     return null;
   }
 
-  return shouldUseShiftedCharacter(shiftKey, capsLock)
+  return shouldUseShiftedCharacter(shiftKey, capsLock, language)
     ? remap.shiftOutput ?? remap.output
     : remap.output;
 }

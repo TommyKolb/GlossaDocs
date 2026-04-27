@@ -94,6 +94,14 @@ flowchart LR
 
 This comfortably supports small-team CRUD + settings workloads; tune pools and instances for production SLAs.
 
+## React application shell (frontend)
+
+The SPA is not a second backend, but a few behaviors are worth documenting so refactors do not reintroduce redundant work:
+
+- **Document list stays mounted** when the editor is open (`src/app/App.tsx`). The list is **hidden** (and **inert** when the editor is active) so returning from the editor does not remount the whole tree. A version counter (`listSyncRequestVersion`) triggers a **quiet refresh** of folders and documents when the user leaves the editor so the list reflects saves without a full-page loading state.
+- **Opening a document from the list** passes the list row’s `Document` as `initialDocument` into `Editor`, so the editor can **skip a duplicate `getDocument` call** when the list payload already included the body.
+- **Guest logout** does not call `POST /auth/logout` because there is no server session; only `clearClientAuthState` runs (`src/app/utils/auth.ts`).
+
 ## Deployment Mapping
 
 - **Local:** Docker Compose with API + PostgreSQL + Keycloak (+ optional Redis for sessions)

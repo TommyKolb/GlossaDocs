@@ -8,7 +8,7 @@ import { Card } from './ui/card';
 
 interface DocumentCardProps {
   document: Document;
-  onSelect: (id: string) => void;
+  onSelect: (document: Document) => void;
   onDelete: (id: string, event: MouseEvent) => void;
   onRequestMove: (id: string) => void;
   onDragStartDocument: (id: string, event: DragEvent<HTMLDivElement>) => void;
@@ -32,7 +32,7 @@ export function DocumentCard({
 
   function handleCardClick(event: MouseEvent<HTMLDivElement>) {
     if ((event.target as HTMLElement).closest('button')) return;
-    onSelect(document.id);
+    onSelect(document);
   }
 
   function handleCardKeyDown(event: KeyboardEvent<HTMLDivElement>) {
@@ -43,7 +43,7 @@ export function DocumentCard({
       return;
     }
     event.preventDefault();
-    onSelect(document.id);
+    onSelect(document);
   }
 
   return (

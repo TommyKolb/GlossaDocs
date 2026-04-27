@@ -8,7 +8,12 @@ export const LANGUAGES = [
   { value: 'pt', label: 'Portuguese', flag: '🇵🇹', welcomeText: 'Bem-vindo', welcomeLabel: 'Português' },
   { value: 'nl', label: 'Dutch', flag: '🇳🇱', welcomeText: 'Welkom', welcomeLabel: 'Nederlands' },
   { value: 'pl', label: 'Polish', flag: '🇵🇱', welcomeText: 'Witamy', welcomeLabel: 'Polski' },
-  { value: 'uk', label: 'Ukrainian', flag: '🇺🇦', welcomeText: 'Ласкаво просимо', welcomeLabel: 'Українська' }
+  { value: 'uk', label: 'Ukrainian', flag: '🇺🇦', welcomeText: 'Ласкаво просимо', welcomeLabel: 'Українська' },
+  { value: 'id', label: 'Indonesian', flag: '🇮🇩', welcomeText: 'Selamat datang', welcomeLabel: 'Bahasa Indonesia' },
+  { value: 'sw', label: 'Swahili', flag: '🇰🇪', welcomeText: 'Karibu', welcomeLabel: 'Kiswahili' },
+  { value: 'tl', label: 'Tagalog', flag: '🇵🇭', welcomeText: 'Maligayang pagdating', welcomeLabel: 'Filipino' },
+  { value: 'zh-Hans', label: 'Chinese (Simplified)', flag: '🇨🇳', welcomeText: '欢迎', welcomeLabel: '简体中文' },
+  { value: 'zh-Hant', label: 'Chinese (Traditional)', flag: '🇹🇼', welcomeText: '歡迎', welcomeLabel: '繁體中文' }
 ] as const;
 
 export type Language = (typeof LANGUAGES)[number]['value'];
@@ -40,4 +45,10 @@ export function getLanguageFlag(lang: string): string {
  */
 export function isLanguage(value: string): value is Language {
   return LANGUAGES.some((lang) => lang.value === value);
+}
+
+export type ChineseLanguage = Extract<Language, 'zh-Hans' | 'zh-Hant'>;
+
+export function isChineseLanguage(language: Language): language is ChineseLanguage {
+  return language === 'zh-Hans' || language === 'zh-Hant';
 }

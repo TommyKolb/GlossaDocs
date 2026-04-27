@@ -44,6 +44,33 @@ describe("sanitizeDocumentContent", () => {
     expect(sanitizeDocumentContent(safe)).toBe(safe);
   });
 
+  it("preserves legacy font tags from rich-text commands", () => {
+    const legacy = '<p><font face="Georgia">Hola</font></p>';
+    const out = sanitizeDocumentContent(legacy);
+    expect(out).toContain("<font");
+    expect(out).toContain('face=');
+    expect(out).toContain("Hola");
+  });
+
+  it("strips event handlers from font tags", () => {
+    const onmouseover = '<p><font face="Arial" onmouseover="alert(1)">X</font></p>';
+    const outMouse = sanitizeDocumentContent(onmouseover);
+    expect(outMouse).not.toContain("onmouseover");
+    expect(outMouse).toContain("X");
+    const onclick = '<font face="Arial" onclick="alert(1)">Z</font>';
+    const outClick = sanitizeDocumentContent(onclick);
+    expect(outClick).not.toContain("onclick");
+    expect(outClick).toContain("Z");
+  });
+
+  it("strips style attribute on font tags (not allowlisted) so malicious CSS cannot slip through", () => {
+    const withBadStyle = '<font face="Georgia" style="background:url(javascript:alert(1))">Y</font>';
+    const out = sanitizeDocumentContent(withBadStyle);
+    expect(out).not.toContain("style=");
+    expect(out).not.toContain("javascript:");
+    expect(out).toContain("Y");
+  });
+
   it("preserves br and span with style", () => {
     const withBr = "<p>Line one<br>Line two</p>";
     const outBr = sanitizeDocumentContent(withBr);

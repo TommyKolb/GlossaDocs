@@ -1,12 +1,12 @@
 import * as React from 'react';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { EditorToolbar } from './EditorToolbar';
 import { LanguageKeyboard } from './LanguageKeyboard';
 import type { Document } from '../models/document';
 import { generateDocumentId } from '../models/document';
 import { getAllFolders, getDocument, saveDocument } from '../data/document-repository';
 import { exportDocument, type ExportFormat } from '../utils/export';
-import { getLanguageName, type Language } from '../utils/languages';
+import { getLanguageName, isChineseLanguage, type Language } from '../utils/languages';
 import { getDefaultFontFamilyForLanguage, resolveDocumentFontFamily } from '../utils/language-fonts';
 import { EDITOR_CONFIG, UI_CONSTANTS } from '../utils/constants';
 import {
@@ -18,20 +18,40 @@ import {
 import { ensureSelectionInEditor } from '../utils/editor-selection';
 import type { KeyboardLayoutOverrides } from '../utils/keyboardLayouts';
 import { getRemappedCharacter } from '../utils/keyboardLayouts';
+import {
+  chineseLanguageToScript,
+  getChineseCandidates,
+  normalizePinyin,
+  resolveChinesePinyinBufferEffect,
+  resolveChinesePinyinKeyAction,
+  type ChineseCandidate
+} from '../utils/chinesePinyin';
 import { getEditorShortcutAction } from '../utils/keyboardShortcuts';
 import { useFormattingState } from '../hooks/useFormattingState';
 import { useAutoSave } from '../hooks/useAutoSave';
 import { getUserSettings, languageToLocale, localeToLanguage, updateUserSettings } from '../data/settings-repository';
+import type { UserSettings } from '../api/contracts';
 import { DOCUMENT_PAYLOAD_TOO_LARGE_MESSAGE, isPayloadTooLargeError } from '../api/client';
 import { toast } from 'sonner';
 import { NEW_DOCUMENT_FOLDER_ID_STORAGE_KEY } from '../data/storage-keys';
 
+async function loadUserSettingsForEditor(): Promise<UserSettings | null> {
+  try {
+    return await getUserSettings();
+  } catch (error) {
+    console.error('Error loading user settings:', error);
+    return null;
+  }
+}
+
 interface EditorProps {
   documentId: string | null;
+  /** When opening from the document list, avoids a redundant fetch (list payload already includes body). */
+  initialDocument?: Document;
   onBack: () => void;
 }
 
-export function Editor({ documentId, onBack }: EditorProps) {
+export function Editor({ documentId, initialDocument, onBack }: EditorProps) {
   // State hooks
   const [document, setDocument] = useState<Document | null>(null);
   const [loadErrorMessage, setLoadErrorMessage] = useState<string | null>(null);
@@ -40,6 +60,7 @@ export function Editor({ documentId, onBack }: EditorProps) {
   const [isDocumentReady, setIsDocumentReady] = useState(false);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(true);
   const [keyboardLayoutOverrides, setKeyboardLayoutOverrides] = useState<KeyboardLayoutOverrides>({});
+  const [pinyinBuffer, setPinyinBuffer] = useState('');
   const keyboardLayoutSaveRequestRef = useRef(0);
   
   // Refs
@@ -51,10 +72,19 @@ export function Editor({ documentId, onBack }: EditorProps) {
   const saveRequestedWhileRunningRef = useRef(false);
   const isMountedRef = useRef(true);
   const latestLoadRequestRef = useRef(0);
-  
+  const initialDocumentRef = useRef<Document | undefined>(undefined);
+
   // Custom hooks
   const { formattingState, updateFormattingState } = useFormattingState();
   const activeLanguage = document?.language ?? EDITOR_CONFIG.DEFAULT_LANGUAGE;
+  const activeChineseScript = isChineseLanguage(activeLanguage) ? chineseLanguageToScript(activeLanguage) : null;
+  const pinyinCandidates = useMemo(
+    () =>
+      activeChineseScript
+        ? getChineseCandidates({ pinyin: pinyinBuffer, script: activeChineseScript })
+        : [],
+    [activeChineseScript, pinyinBuffer]
+  );
 
   const saveSelection = useCallback(() => {
     const selection = window.getSelection();
@@ -154,6 +184,7 @@ export function Editor({ documentId, onBack }: EditorProps) {
     if (editorRef.current) {
       const isRTL = false; // None of the current languages are RTL, but keeping this for future
       editorRef.current.dir = isRTL ? 'rtl' : 'ltr';
+      editorRef.current.style.fontFamily = nextFontFamily;
     }
 
     toast.success(`Language changed to ${getLanguageName(newLanguage)}`);
@@ -178,6 +209,17 @@ export function Editor({ documentId, onBack }: EditorProps) {
         return;
       }
 
+      // Compute before execCommand mutates the DOM or moves the caret.
+      let selectionCoversEntireDocument = false;
+      if (selection.rangeCount > 0 && editorElement) {
+        const selectedRange = selection.getRangeAt(0).cloneRange();
+        const editorRange = window.document.createRange();
+        editorRange.selectNodeContents(editorElement);
+        selectionCoversEntireDocument =
+          selectedRange.compareBoundaryPoints(Range.START_TO_START, editorRange) === 0 &&
+          selectedRange.compareBoundaryPoints(Range.END_TO_END, editorRange) === 0;
+      }
+
       // Ask the browser to keep formatting as CSS spans when possible.
       window.document.execCommand('styleWithCSS', false, 'true');
       const applied = window.document.execCommand('fontName', false, resolvedFontFamily);
@@ -198,21 +240,6 @@ export function Editor({ documentId, onBack }: EditorProps) {
         }
       }
 
-      const hasRangeSelection =
-        selection !== null &&
-        selection.rangeCount > 0 &&
-        !selection.getRangeAt(0).collapsed;
-
-      let selectionCoversEntireDocument = false;
-      if (selection && selection.rangeCount > 0 && editorElement) {
-        const selectedRange = selection.getRangeAt(0).cloneRange();
-        const editorRange = window.document.createRange();
-        editorRange.selectNodeContents(editorElement);
-        selectionCoversEntireDocument =
-          selectedRange.compareBoundaryPoints(Range.START_TO_START, editorRange) === 0 &&
-          selectedRange.compareBoundaryPoints(Range.END_TO_END, editorRange) === 0;
-      }
-
       if (!applied && (!selection || selection.rangeCount === 0 || selection.isCollapsed)) {
         if (selection && selection.rangeCount > 0) {
           const range = selection.getRangeAt(0);
@@ -228,8 +255,13 @@ export function Editor({ documentId, onBack }: EditorProps) {
         }
       }
 
-      // Keep toolbar value in sync with the most recently chosen font.
-      // This does not force existing text to re-render in that font.
+      // Keep toolbar / persisted default in sync. Only change the editor root font when the
+      // whole document is targeted (like changing default in Word); partial selections use
+      // inline markup only so unstyled paragraphs keep the previous default.
+      if (selectionCoversEntireDocument) {
+        editorElement.style.fontFamily = resolvedFontFamily;
+      }
+
       setDocument((current) => {
         if (!current) {
           return current;
@@ -251,6 +283,7 @@ export function Editor({ documentId, onBack }: EditorProps) {
   const insertTextAtCursor = useCallback((text: string) => {
     if (!editorRef.current) return;
 
+    restoreSelection();
     editorRef.current.focus();
 
     // Prefer browser-native rich-text insertion so active styles (bold/italic/underline)
@@ -276,7 +309,20 @@ export function Editor({ documentId, onBack }: EditorProps) {
     setHasUnsavedChanges(true);
     saveSelection();
     updateFormattingState();
-  }, [saveSelection, updateFormattingState]);
+  }, [restoreSelection, saveSelection, updateFormattingState]);
+
+  const updatePinyinBuffer = useCallback((next: string) => {
+    setPinyinBuffer(normalizePinyin(next));
+  }, []);
+
+  const clearPinyinBuffer = useCallback(() => {
+    setPinyinBuffer('');
+  }, []);
+
+  const commitChineseCandidate = useCallback((candidate: ChineseCandidate) => {
+    insertTextAtCursor(candidate.text);
+    setPinyinBuffer('');
+  }, [insertTextAtCursor]);
 
   const handleFormat = useCallback((command: string) => {
     if (command.startsWith('fontSize:')) {
@@ -499,6 +545,15 @@ export function Editor({ documentId, onBack }: EditorProps) {
     });
   }, []);
 
+  useEffect(() => {
+    setPinyinBuffer((prev) => {
+      if (!isChineseLanguage(activeLanguage) || !isKeyboardVisible) {
+        return prev ? '' : prev;
+      }
+      return prev;
+    });
+  }, [activeLanguage, isKeyboardVisible]);
+
   const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
     const isImageWrapper = (element: Element | null): element is HTMLElement =>
       element instanceof HTMLElement &&
@@ -523,6 +578,38 @@ export function Editor({ documentId, onBack }: EditorProps) {
       event.preventDefault();
       handleFormat(shortcutAction);
       return;
+    }
+
+    if (isKeyboardVisible && isChineseLanguage(activeLanguage)) {
+      const pinyinAction = resolveChinesePinyinKeyAction({
+        key: event.key,
+        buffer: pinyinBuffer,
+        candidates: pinyinCandidates,
+        ctrlKey: event.ctrlKey,
+        metaKey: event.metaKey,
+        altKey: event.altKey,
+        isComposing: event.nativeEvent.isComposing,
+        captureTextInput: true
+      });
+      const bufferEffect = resolveChinesePinyinBufferEffect(pinyinAction, pinyinBuffer);
+
+      if (bufferEffect.type === 'setBuffer') {
+        event.preventDefault();
+        setPinyinBuffer(bufferEffect.value);
+        return;
+      }
+
+      if (bufferEffect.type === 'clear') {
+        event.preventDefault();
+        clearPinyinBuffer();
+        return;
+      }
+
+      if (bufferEffect.type === 'commit') {
+        event.preventDefault();
+        commitChineseCandidate(bufferEffect.candidate);
+        return;
+      }
     }
 
     if (event.key === 'Backspace' && editorRef.current) {
@@ -605,7 +692,17 @@ export function Editor({ documentId, onBack }: EditorProps) {
         }
       }, 0);
     }
-  }, [activeLanguage, handleFormat, insertTextAtCursor, isKeyboardVisible, keyboardLayoutOverrides]);
+  }, [
+    activeLanguage,
+    clearPinyinBuffer,
+    commitChineseCandidate,
+    handleFormat,
+    insertTextAtCursor,
+    isKeyboardVisible,
+    keyboardLayoutOverrides,
+    pinyinBuffer,
+    pinyinCandidates
+  ]);
 
   const handleGlobalKeyDown = useCallback((event: KeyboardEvent) => {
     const shortcutAction = getEditorShortcutAction(event);
@@ -649,6 +746,14 @@ export function Editor({ documentId, onBack }: EditorProps) {
   }, []);
 
   useEffect(() => {
+    if (documentId && initialDocument?.id === documentId) {
+      initialDocumentRef.current = initialDocument;
+    } else {
+      initialDocumentRef.current = undefined;
+    }
+  }, [documentId, initialDocument]);
+
+  useEffect(() => {
     const requestId = ++latestLoadRequestRef.current;
     let cancelled = false;
     setLoadErrorMessage(null);
@@ -667,22 +772,27 @@ export function Editor({ documentId, onBack }: EditorProps) {
     };
 
     async function loadDocument() {
-
-      let lastUsedLocale: string | null = null;
-      try {
-        const settings = await getUserSettings();
-        applyIfCurrent(() => {
-          setIsKeyboardVisible(settings.keyboardVisible);
-          setKeyboardLayoutOverrides(settings.keyboardLayoutOverrides ?? {});
-        });
-        lastUsedLocale = settings.lastUsedLocale;
-      } catch (error) {
-        console.error('Error loading user settings:', error);
-      }
-
       if (documentId) {
+        const settingsPromise = loadUserSettingsForEditor();
+
+        const initialFromList =
+          initialDocumentRef.current && initialDocumentRef.current.id === documentId
+            ? initialDocumentRef.current
+            : undefined;
+        const docPromise = initialFromList
+          ? Promise.resolve(initialFromList)
+          : getDocument(documentId);
+
         try {
-          const doc = await getDocument(documentId);
+          const [settings, doc] = await Promise.all([settingsPromise, docPromise]);
+
+          applyIfCurrent(() => {
+            if (settings) {
+              setIsKeyboardVisible(settings.keyboardVisible);
+              setKeyboardLayoutOverrides(settings.keyboardLayoutOverrides ?? {});
+            }
+          });
+
           if (!doc) {
             applyIfCurrent(() => {
               setLoadErrorMessage('This document no longer exists or you no longer have access to it.');
@@ -699,41 +809,52 @@ export function Editor({ documentId, onBack }: EditorProps) {
             setLoadErrorMessage('Failed to load this document. Please try again.');
           });
         }
-      } else {
-        let preferredLanguage: Language = EDITOR_CONFIG.DEFAULT_LANGUAGE;
-        if (lastUsedLocale) {
-          preferredLanguage = localeToLanguage(lastUsedLocale);
-        }
-
-        // Create new document
-        let initialFolderId = localStorage.getItem(NEW_DOCUMENT_FOLDER_ID_STORAGE_KEY);
-        if (initialFolderId) {
-          try {
-            const folders = await getAllFolders();
-            const folderExists = folders.some((folder) => folder.id === initialFolderId);
-            if (!folderExists) {
-              initialFolderId = null;
-              localStorage.removeItem(NEW_DOCUMENT_FOLDER_ID_STORAGE_KEY);
-            }
-          } catch {
-            initialFolderId = null;
-          }
-        }
-        const newDoc: Document = {
-          id: generateDocumentId(),
-          title: EDITOR_CONFIG.DEFAULT_TITLE,
-          content: '',
-          language: preferredLanguage,
-          folderId: initialFolderId,
-          fontFamily: getDefaultFontFamilyForLanguage(preferredLanguage),
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        };
-        applyIfCurrent(() => {
-          setDocument(newDoc);
-          setIsDocumentReady(true);
-        });
+        return;
       }
+
+      let lastUsedLocale: string | null = null;
+      const settings = await loadUserSettingsForEditor();
+      if (settings) {
+        applyIfCurrent(() => {
+          setIsKeyboardVisible(settings.keyboardVisible);
+          setKeyboardLayoutOverrides(settings.keyboardLayoutOverrides ?? {});
+        });
+        lastUsedLocale = settings.lastUsedLocale;
+      }
+
+      let preferredLanguage: Language = EDITOR_CONFIG.DEFAULT_LANGUAGE;
+      if (lastUsedLocale) {
+        preferredLanguage = localeToLanguage(lastUsedLocale);
+      }
+
+      // Create new document
+      let initialFolderId = localStorage.getItem(NEW_DOCUMENT_FOLDER_ID_STORAGE_KEY);
+      if (initialFolderId) {
+        try {
+          const folders = await getAllFolders();
+          const folderExists = folders.some((folder) => folder.id === initialFolderId);
+          if (!folderExists) {
+            initialFolderId = null;
+            localStorage.removeItem(NEW_DOCUMENT_FOLDER_ID_STORAGE_KEY);
+          }
+        } catch {
+          initialFolderId = null;
+        }
+      }
+      const newDoc: Document = {
+        id: generateDocumentId(),
+        title: EDITOR_CONFIG.DEFAULT_TITLE,
+        content: '',
+        language: preferredLanguage,
+        folderId: initialFolderId,
+        fontFamily: getDefaultFontFamilyForLanguage(preferredLanguage),
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+      applyIfCurrent(() => {
+        setDocument(newDoc);
+        setIsDocumentReady(true);
+      });
 
     }
     void loadDocument();
@@ -741,7 +862,7 @@ export function Editor({ documentId, onBack }: EditorProps) {
     return () => {
       cancelled = true;
     };
-  }, [documentId]);
+  }, [documentId, initialDocument?.id]);
 
   // Keep the editable DOM synchronized with loaded/saved document content.
   // Guard against unnecessary resets so we do not disturb caret/selection.
@@ -753,13 +874,15 @@ export function Editor({ documentId, onBack }: EditorProps) {
     }
   }, [document?.id, document?.content]);
 
+  // Default font for the editor surface (new text / unstyled blocks). Do not tie this to
+  // document.fontFamily on every toolbar change — that re-styled the whole document and
+  // fought partial execCommand(fontName) results. Language changes set root font explicitly;
+  // full-document font picks set it inside handleFontFamilyChange.
   useEffect(() => {
     if (document && editorRef.current) {
-      if (editorRef.current.style.fontFamily !== document.fontFamily) {
-        editorRef.current.style.fontFamily = document.fontFamily;
-      }
+      editorRef.current.style.fontFamily = document.fontFamily;
     }
-  }, [document?.id, document?.fontFamily]);
+  }, [document?.id]);
 
   useEffect(() => {
     documentRef.current = document;
@@ -855,6 +978,11 @@ export function Editor({ documentId, onBack }: EditorProps) {
               onInsertCharacter={insertTextAtCursor}
               keyboardLayoutOverrides={keyboardLayoutOverrides}
               onKeyboardLayoutOverridesChange={persistKeyboardLayoutOverrides}
+              pinyinBuffer={pinyinBuffer}
+              pinyinCandidates={pinyinCandidates}
+              onPinyinBufferChange={updatePinyinBuffer}
+              onPinyinCandidateSelect={commitChineseCandidate}
+              onPinyinClear={clearPinyinBuffer}
             />
           </div>
         </div>

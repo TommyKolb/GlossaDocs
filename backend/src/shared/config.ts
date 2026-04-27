@@ -76,6 +76,16 @@ const configSchema = z.object({
   AUTH_PASSWORD_RESET_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
   /** Per-IP maximum password reset attempts within the configured window. */
   AUTH_PASSWORD_RESET_RATE_LIMIT_MAX_ATTEMPTS: z.coerce.number().int().positive().default(20),
+  /** Per-IP sign-up rate limit window in milliseconds. */
+  AUTH_REGISTER_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
+  /** Per-IP maximum sign-up attempts within the configured window. */
+  AUTH_REGISTER_RATE_LIMIT_MAX_ATTEMPTS: z.coerce.number().int().positive().default(20),
+  /**
+   * When true, Fastify `trustProxy` is enabled so `request.ip` follows `X-Forwarded-For`
+   * (first hop). Set true behind API Gateway or another trusted reverse proxy so per-IP
+   * rate limits apply to end clients. Leave false for direct local connections.
+   */
+  API_TRUST_PROXY: booleanFromEnv.default(false),
   /** AWS region for Cognito resources. */
   COGNITO_REGION: z.string().optional(),
   /** Cognito User Pool id used for auth and admin APIs. */

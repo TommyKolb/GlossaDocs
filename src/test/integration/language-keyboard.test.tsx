@@ -1,8 +1,33 @@
 import userEvent from "@testing-library/user-event";
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { LanguageKeyboard } from "@/app/components/LanguageKeyboard";
+import type { ChineseCandidate } from "@/app/utils/chinesePinyin";
+
+function renderZhHansPinyinKeyboard(overrides: {
+  onCandidateSelect?: (c: ChineseCandidate) => void;
+  onPinyinClear?: () => void;
+} = {}) {
+  const onCandidateSelect = overrides.onCandidateSelect ?? vi.fn();
+  const onPinyinClear = overrides.onPinyinClear ?? vi.fn();
+  render(
+    <LanguageKeyboard
+      language="zh-Hans"
+      isVisible={true}
+      onToggleVisibility={() => {}}
+      onInsertCharacter={() => {}}
+      keyboardLayoutOverrides={{}}
+      onKeyboardLayoutOverridesChange={() => {}}
+      pinyinBuffer="nihao"
+      pinyinCandidates={[{ pinyin: "nihao", text: "你好", gloss: "hello" }]}
+      onPinyinBufferChange={() => {}}
+      onPinyinCandidateSelect={onCandidateSelect}
+      onPinyinClear={onPinyinClear}
+    />
+  );
+  return { onCandidateSelect, onPinyinClear };
+}
 
 describe("LanguageKeyboard", () => {
   it("shows which physical key types й when overridden, and the dialog lists the same assignment", async () => {
@@ -24,5 +49,32 @@ describe("LanguageKeyboard", () => {
 
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     expect(screen.getByLabelText("Physical key for letter й")).toHaveValue("k");
+  });
+
+  it("shows the Chinese pinyin input instead of fixed mapping customization", async () => {
+    const user = userEvent.setup();
+    const { onCandidateSelect } = renderZhHansPinyinKeyboard();
+
+    expect(screen.getByRole("textbox", { name: /Pinyin buffer/i })).toHaveValue("nihao");
+    expect(screen.getByText(/not a full Chinese IME/i)).toBeInTheDocument();
+    expect(screen.getByText(/CC-CEDICT/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Customize/i })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Choose candidate 1: 你好/i }));
+    expect(onCandidateSelect).toHaveBeenCalledWith({ pinyin: "nihao", text: "你好", gloss: "hello" });
+  });
+
+  it("handles Chinese pinyin keyboard actions in the input panel", async () => {
+    const user = userEvent.setup();
+    const { onCandidateSelect, onPinyinClear } = renderZhHansPinyinKeyboard();
+
+    const input = screen.getByRole("textbox", { name: /Pinyin buffer/i });
+
+    await user.click(input);
+    await user.keyboard("{Enter}");
+    expect(onCandidateSelect).toHaveBeenCalledWith({ pinyin: "nihao", text: "你好", gloss: "hello" });
+
+    await user.keyboard("{Escape}");
+    expect(onPinyinClear).toHaveBeenCalledTimes(1);
   });
 });

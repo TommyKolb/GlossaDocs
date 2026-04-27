@@ -1,12 +1,10 @@
 import * as React from 'react';
 import { useState, useEffect } from 'react';
-import { AnimatePresence } from 'motion/react';
 import { LogIn, UserPlus } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { loginWithCredentials, continueAsGuest, type User } from '../utils/auth';
 import { LANGUAGES } from '../utils/languages';
-import { useLanguageCycling } from '../hooks/useLanguageCycling';
 import { LanguageBadge } from './LanguageBadge';
 import { UI_CONSTANTS } from '../utils/constants';
 import { toast } from 'sonner';
@@ -24,8 +22,10 @@ export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: Log
   const [isLoading, setIsLoading] = useState(false);
   const [currentWelcomeIndex, setCurrentWelcomeIndex] = useState(0);
   const [formErrors, setFormErrors] = useState<{ username?: string; password?: string; general?: string }>({});
-
-  const visibleLanguages = useLanguageCycling(LANGUAGES.length);
+  const visibleLanguages = Array.from(
+    { length: UI_CONSTANTS.WELCOME_LANGUAGE_BADGE_COUNT },
+    (_, offset) => LANGUAGES[(currentWelcomeIndex + offset) % LANGUAGES.length]
+  );
 
   // Cycle through welcome messages
   useEffect(() => {
@@ -123,14 +123,15 @@ export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: Log
           </div>
 
           {/* Language badges with animation */}
-          <ul className="h-12 flex items-center justify-center gap-2 sm:gap-3 mb-6 sm:mb-8 list-none p-0 m-0" aria-label="Supported languages">
-            <AnimatePresence mode="sync">
-              {visibleLanguages.map((index) => (
-                <li key={LANGUAGES[index].value}>
-                  <LanguageBadge language={LANGUAGES[index]} />
-                </li>
-              ))}
-            </AnimatePresence>
+          <ul
+            className="grid grid-cols-3 items-stretch gap-2 sm:gap-3 mb-6 sm:mb-8 list-none p-0 m-0"
+            aria-label="Supported languages"
+          >
+            {visibleLanguages.map((language, index) => (
+              <li key={`language-slot-${index}`} className="min-w-0">
+                <LanguageBadge language={language} />
+              </li>
+            ))}
           </ul>
         </div>
 
@@ -291,7 +292,10 @@ export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: Log
         {/* Footer note */}
         <div className="mt-4 sm:mt-6 text-center text-sm text-gray-600">
           <p>Multi-language document editor</p>
-          <p className="text-xs text-gray-500 mt-1">
+          <p
+            className="text-xs text-gray-500 mt-1 max-w-lg mx-auto px-1 leading-snug break-words"
+            aria-hidden="true"
+          >
             {LANGUAGES.map((l) => l.label).join(' · ')}
           </p>
         </div>

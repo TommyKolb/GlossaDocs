@@ -15,6 +15,7 @@ const ALLOWED_CONTENT_TAGS = [
   "div",
   "br",
   "span",
+  "font",
   "strong",
   "b",
   "em",
@@ -28,6 +29,9 @@ const ALLOWED_CONTENT_ATTRIBUTES: Record<string, string[]> = {
   span: ["style"],
   div: ["style"],
   p: ["style"],
+  /** Legacy output from execCommand(fontName) in some browsers; face is the font family. */
+  // Do not allow `style` on `font` — it bypassed sanitize-html's usual CSS hardening in url() cases.
+  font: ["face", "color"],
   img: ["src", "alt", "width", "height", "style"]
 };
 

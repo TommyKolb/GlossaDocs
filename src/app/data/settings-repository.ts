@@ -22,7 +22,12 @@ type LocaleCode =
   | "pt-PT"
   | "nl-NL"
   | "pl-PL"
-  | "uk-UA";
+  | "uk-UA"
+  | "id-ID"
+  | "sw-KE"
+  | "tl-PH"
+  | "zh-CN"
+  | "zh-TW";
 
 const LANGUAGE_TO_LOCALE: Record<Language, LocaleCode> = {
   en: "en-US",
@@ -34,7 +39,12 @@ const LANGUAGE_TO_LOCALE: Record<Language, LocaleCode> = {
   pt: "pt-PT",
   nl: "nl-NL",
   pl: "pl-PL",
-  uk: "uk-UA"
+  uk: "uk-UA",
+  id: "id-ID",
+  sw: "sw-KE",
+  tl: "tl-PH",
+  "zh-Hans": "zh-CN",
+  "zh-Hant": "zh-TW"
 };
 
 const LOCALE_PREFIX_TO_LANGUAGE: Array<{ prefix: string; language: Language }> = [
@@ -47,6 +57,16 @@ const LOCALE_PREFIX_TO_LANGUAGE: Array<{ prefix: string; language: Language }> =
   { prefix: "nl", language: "nl" },
   { prefix: "pl", language: "pl" },
   { prefix: "uk", language: "uk" },
+  { prefix: "id", language: "id" },
+  { prefix: "sw", language: "sw" },
+  { prefix: "tl", language: "tl" },
+  { prefix: "zh-hans", language: "zh-Hans" },
+  { prefix: "zh-cn", language: "zh-Hans" },
+  { prefix: "zh-sg", language: "zh-Hans" },
+  { prefix: "zh-hant", language: "zh-Hant" },
+  { prefix: "zh-tw", language: "zh-Hant" },
+  { prefix: "zh-hk", language: "zh-Hant" },
+  { prefix: "zh-mo", language: "zh-Hant" },
   { prefix: "en", language: "en" }
 ];
 

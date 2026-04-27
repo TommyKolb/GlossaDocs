@@ -99,6 +99,17 @@ describe("Editor load-state handling", () => {
     cleanup();
   });
 
+  it("does not fetch the document when initialDocument matches documentId", async () => {
+    const doc = buildApiDoc("11111111-1111-4111-8111-000000000001", "From list");
+    render(
+      <Editor documentId={doc.id} initialDocument={doc} onBack={() => {}} />
+    );
+
+    const editor = await screen.findByRole("textbox", { name: /From list/i });
+    expect(editor.textContent).toMatch(/body/i);
+    expect(getDocumentMock).not.toHaveBeenCalled();
+  });
+
   it("shows a fallback and lets users go back when a document is missing", async () => {
     const onBack = vi.fn();
     getDocumentMock.mockResolvedValue(null);

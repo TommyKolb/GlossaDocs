@@ -1,4 +1,4 @@
-import { isLanguage, type Language } from './languages';
+import { isLanguage, isChineseLanguage, type Language } from './languages';
 
 export interface KeyboardKey {
   output: string;
@@ -7,6 +7,7 @@ export interface KeyboardKey {
 }
 
 export type KeyboardLayout = readonly (readonly KeyboardKey[])[];
+export type KeyboardLayoutLanguage = Exclude<Language, 'zh-Hans' | 'zh-Hant'>;
 
 /**
  * Per-language overrides: **alphabet letter (output)** → **physical key label** (`typedWith`).
@@ -91,7 +92,20 @@ const UKRAINIAN_LAYOUT: KeyboardLayout = [
   [key('я', 'x'), key('ч', '4'), key('с', 's'), key('м', 'm'), key('и', 'i'), key('т', 't'), key('ь', 'b'), key('б', ','), key('ю', '.')]
 ];
 
-const LANGUAGE_KEYBOARD_LAYOUTS: Readonly<Record<Language, KeyboardLayout>> = {
+/** Indonesian — standard Latin (A–Z); same on-screen map as English. */
+const INDONESIAN_LAYOUT: KeyboardLayout = ENGLISH_LAYOUT;
+
+/** Swahili — standard Latin; same on-screen map as English. */
+const SWAHILI_LAYOUT: KeyboardLayout = ENGLISH_LAYOUT;
+
+/** Tagalog / Filipino — Latin plus ñ (enye). */
+const TAGALOG_LAYOUT: KeyboardLayout = [
+  [key('q', 'q'), key('w', 'w'), key('e', 'e'), key('r', 'r'), key('t', 't'), key('y', 'y'), key('u', 'u'), key('i', 'i'), key('o', 'o'), key('p', 'p')],
+  [key('a', 'a'), key('s', 's'), key('d', 'd'), key('f', 'f'), key('g', 'g'), key('h', 'h'), key('j', 'j'), key('k', 'k'), key('l', 'l'), key('ñ', ';')],
+  [key('z', 'z'), key('x', 'x'), key('c', 'c'), key('v', 'v'), key('b', 'b'), key('n', 'n'), key('m', 'm')]
+];
+
+const LANGUAGE_KEYBOARD_LAYOUTS: Readonly<Record<KeyboardLayoutLanguage, KeyboardLayout>> = {
   en: ENGLISH_LAYOUT,
   de: GERMAN_LAYOUT,
   ru: RUSSIAN_LAYOUT,
@@ -101,11 +115,18 @@ const LANGUAGE_KEYBOARD_LAYOUTS: Readonly<Record<Language, KeyboardLayout>> = {
   pt: PORTUGUESE_LAYOUT,
   nl: DUTCH_LAYOUT,
   pl: POLISH_LAYOUT,
-  uk: UKRAINIAN_LAYOUT
+  uk: UKRAINIAN_LAYOUT,
+  id: INDONESIAN_LAYOUT,
+  sw: SWAHILI_LAYOUT,
+  tl: TAGALOG_LAYOUT
 };
 
+export function isKeyboardLayoutLanguage(language: Language): language is KeyboardLayoutLanguage {
+  return !isChineseLanguage(language);
+}
+
 /** Built-in layout for the language (no user overrides). */
-export function getDefaultKeyboardLayout(language: Language): KeyboardLayout {
+export function getDefaultKeyboardLayout(language: KeyboardLayoutLanguage): KeyboardLayout {
   return LANGUAGE_KEYBOARD_LAYOUTS[language];
 }
 
@@ -131,6 +152,9 @@ export function applyOutputToTypedWithOverrides(
 }
 
 export function getKeyboardLayout(language: Language, overrides?: KeyboardLayoutOverrides): KeyboardLayout {
+  if (!isKeyboardLayoutLanguage(language)) {
+    return [];
+  }
   const base = LANGUAGE_KEYBOARD_LAYOUTS[language];
   const langOverrides = overrides?.[language];
   if (!langOverrides || Object.keys(langOverrides).length === 0) {
@@ -143,7 +167,7 @@ export function getKeyboardLayout(language: Language, overrides?: KeyboardLayout
  * Returns **output → typedWith** entries that differ from the built-in layout (for persistence).
  */
 export function diffKeyboardLayoutAgainstLanguageDefaults(
-  language: Language,
+  language: KeyboardLayoutLanguage,
   effective: KeyboardLayout
 ): Record<string, string> {
   const defFlat = getDefaultKeyboardLayout(language).flat();

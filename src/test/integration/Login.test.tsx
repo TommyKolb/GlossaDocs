@@ -1,10 +1,11 @@
 import "@testing-library/jest-dom/vitest";
 import * as React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { Login } from "@/app/components/Login";
+import { UI_CONSTANTS } from "@/app/utils/constants";
 
 vi.mock("sonner", () => ({
   toast: {
@@ -13,12 +14,12 @@ vi.mock("sonner", () => ({
   }
 }));
 
-vi.mock("@/app/hooks/useLanguageCycling", () => ({
-  useLanguageCycling: () => [0, 1, 2]
-}));
-
 vi.mock("@/app/components/LanguageBadge", () => ({
-  LanguageBadge: () => <div data-testid="LanguageBadge" />
+  LanguageBadge: ({ language }: { language: { label: string; value: string } }) => (
+    <div data-testid="LanguageBadge" data-language={language.value}>
+      {language.label}
+    </div>
+  )
 }));
 
 vi.mock("@/app/utils/auth", () => ({
@@ -33,6 +34,7 @@ describe("Login signup + reset entrypoints", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.useRealTimers();
   });
 
   it("renders privacy promise about email usage", () => {
@@ -86,5 +88,30 @@ describe("Login signup + reset entrypoints", () => {
       />
     );
     expect(screen.getByLabelText(/^Password$/i)).toBeInTheDocument();
+  });
+
+  it("shows only three supported language badges at a time", () => {
+    render(<Login onLoginSuccess={() => {}} onCreateAccount={() => {}} onForgotPassword={() => {}} />);
+
+    const supportedLanguages = screen.getByLabelText("Supported languages");
+    const badges = within(supportedLanguages).getAllByTestId("LanguageBadge");
+
+    expect(badges).toHaveLength(UI_CONSTANTS.WELCOME_LANGUAGE_BADGE_COUNT);
+    expect(badges.map((badge) => badge.getAttribute("data-language"))).toEqual(["en", "de", "ru"]);
+  });
+
+  it("rotates the supported language badges with the welcome message", () => {
+    vi.useFakeTimers();
+    render(<Login onLoginSuccess={() => {}} onCreateAccount={() => {}} onForgotPassword={() => {}} />);
+
+    act(() => {
+      vi.advanceTimersByTime(UI_CONSTANTS.WELCOME_MESSAGE_INTERVAL_MS);
+    });
+
+    const supportedLanguages = screen.getByLabelText("Supported languages");
+    const badges = within(supportedLanguages).getAllByTestId("LanguageBadge");
+
+    expect(screen.getByText("Willkommen")).toBeInTheDocument();
+    expect(badges.map((badge) => badge.getAttribute("data-language"))).toEqual(["de", "ru", "es"]);
   });
 });

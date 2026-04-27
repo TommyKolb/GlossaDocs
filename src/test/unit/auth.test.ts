@@ -59,7 +59,15 @@ describe("auth utilities", () => {
         } as any)
       )
     );
-    localStorage.setItem("glossadocs_user", JSON.stringify({ id: "u1" }));
+    localStorage.setItem(
+      "glossadocs_user",
+      JSON.stringify({
+        id: "u1",
+        username: "alice",
+        email: "alice@example.com",
+        isGuest: false
+      })
+    );
 
     await logout();
 
@@ -71,6 +79,41 @@ describe("auth utilities", () => {
         credentials: "include"
       })
     );
+  });
+
+  it("logout skips backend call for guest users", async () => {
+    vi.stubGlobal("fetch", vi.fn());
+    localStorage.setItem(
+      "glossadocs_user",
+      JSON.stringify({ id: "guest_1", username: "Guest", isGuest: true })
+    );
+
+    await logout();
+
+    expect(localStorage.getItem("glossadocs_user")).toBeNull();
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  });
+
+  it("logout skips backend when session override is guest (even if localStorage differed)", async () => {
+    vi.stubGlobal("fetch", vi.fn());
+    localStorage.setItem(
+      "glossadocs_user",
+      JSON.stringify({
+        id: "user-1",
+        username: "signed-in",
+        isGuest: false
+      })
+    );
+    setSessionOverride({
+      id: "guest_from_override",
+      username: "Guest",
+      isGuest: true
+    });
+
+    await logout();
+
+    expect(localStorage.getItem("glossadocs_user")).toBeNull();
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
   });
 
   it("getAuthenticatedUserFromBackend clears local auth when session is missing", async () => {

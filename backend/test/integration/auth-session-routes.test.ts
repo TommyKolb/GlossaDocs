@@ -126,12 +126,35 @@ describe("auth session routes", () => {
       settingsService: createTestSettingsService()
     } as any
   );
+  const appWithTrustProxyRateLimit = buildApp(
+    {
+      NODE_ENV: "test",
+      API_PORT: 4000,
+      CORS_ALLOWED_ORIGINS: "*",
+      API_TRUST_PROXY: true,
+      KEYCLOAK_TOKEN_URL: "http://localhost:8080/realms/glossadocs/protocol/openid-connect/token",
+      KEYCLOAK_CLIENT_ID: "glossadocs-api",
+      AUTH_SESSION_COOKIE_NAME: "glossadocs_session",
+      AUTH_SESSION_TTL_SECONDS: 3600,
+      AUTH_SESSION_SECURE_COOKIE: false,
+      AUTH_LOGIN_RATE_LIMIT_WINDOW_MS: 60_000,
+      AUTH_LOGIN_RATE_LIMIT_MAX_ATTEMPTS: 1
+    } as any,
+    {
+      tokenVerifier,
+      keycloakOidcClient: passwordLoginClient,
+      authSessionStore: new InMemoryAuthSessionStore(),
+      documentService: createTestDocumentService(),
+      settingsService: createTestSettingsService()
+    } as any
+  );
 
   beforeAll(async () => {
     await app.ready();
     await appWithoutOidc.ready();
     await appWithFailingDeleteStore.ready();
     await appWithStrictRateLimit.ready();
+    await appWithTrustProxyRateLimit.ready();
   });
 
   afterAll(async () => {
@@ -139,6 +162,7 @@ describe("auth session routes", () => {
     await appWithoutOidc.close();
     await appWithFailingDeleteStore.close();
     await appWithStrictRateLimit.close();
+    await appWithTrustProxyRateLimit.close();
   });
 
   it("GET /auth/login returns 405 (login is POST-only; browsers open links as GET)", async () => {
@@ -319,6 +343,36 @@ describe("auth session routes", () => {
     });
     expect(second.status).toBe(429);
     expect(second.body.code).toBe("AUTH_RATE_LIMITED");
+  });
+
+  it("POST /auth/login rate-limits per X-Forwarded-For client when API_TRUST_PROXY is true", async () => {
+    const first = await request(appWithTrustProxyRateLimit.server)
+      .post("/auth/login")
+      .set("X-Forwarded-For", "198.51.100.10")
+      .send({
+        username: "alice@example.com",
+        password: "secret"
+      });
+    expect(first.status).toBe(200);
+
+    const sameClient = await request(appWithTrustProxyRateLimit.server)
+      .post("/auth/login")
+      .set("X-Forwarded-For", "198.51.100.10")
+      .send({
+        username: "alice@example.com",
+        password: "secret"
+      });
+    expect(sameClient.status).toBe(429);
+    expect(sameClient.body.code).toBe("AUTH_RATE_LIMITED");
+
+    const otherClient = await request(appWithTrustProxyRateLimit.server)
+      .post("/auth/login")
+      .set("X-Forwarded-For", "198.51.100.11")
+      .send({
+        username: "alice@example.com",
+        password: "secret"
+      });
+    expect(otherClient.status).toBe(200);
   });
 
   it("POST /auth/login returns 500 when oidc login is not configured", async () => {

@@ -33,6 +33,48 @@ const SOURCE_SANS_LATIN_CATALOG: LanguageFontCatalogEntry = {
   ]
 };
 
+const SIMPLIFIED_CHINESE_CATALOG: LanguageFontCatalogEntry = {
+  defaultFamily: "Noto Sans SC",
+  fonts: [
+    {
+      family: "Noto Sans SC",
+      googleFontFamily: "Noto+Sans+SC:wght@400;500;700",
+      fallbackStack: "\"Microsoft YaHei\", \"PingFang SC\", \"Heiti SC\", sans-serif"
+    },
+    {
+      family: "Noto Serif SC",
+      googleFontFamily: "Noto+Serif+SC:wght@400;500;700",
+      fallbackStack: "\"Songti SC\", SimSun, serif"
+    },
+    {
+      family: "Ma Shan Zheng",
+      googleFontFamily: "Ma+Shan+Zheng",
+      fallbackStack: "\"Noto Sans SC\", \"Microsoft YaHei\", sans-serif"
+    }
+  ]
+};
+
+const TRADITIONAL_CHINESE_CATALOG: LanguageFontCatalogEntry = {
+  defaultFamily: "Noto Sans TC",
+  fonts: [
+    {
+      family: "Noto Sans TC",
+      googleFontFamily: "Noto+Sans+TC:wght@400;500;700",
+      fallbackStack: "\"Microsoft JhengHei\", \"PingFang TC\", \"Heiti TC\", sans-serif"
+    },
+    {
+      family: "Noto Serif TC",
+      googleFontFamily: "Noto+Serif+TC:wght@400;500;700",
+      fallbackStack: "\"Songti TC\", PMingLiU, serif"
+    },
+    {
+      family: "Zhi Mang Xing",
+      googleFontFamily: "Zhi+Mang+Xing",
+      fallbackStack: "\"Noto Sans TC\", \"Microsoft JhengHei\", sans-serif"
+    }
+  ]
+};
+
 export const LANGUAGE_FONT_CATALOG: Record<Language, LanguageFontCatalogEntry> = {
   en: {
     defaultFamily: "Inter",
@@ -76,7 +118,12 @@ export const LANGUAGE_FONT_CATALOG: Record<Language, LanguageFontCatalogEntry> =
         fallbackStack: "serif"
       }
     ]
-  }
+  },
+  id: SOURCE_SANS_LATIN_CATALOG,
+  sw: SOURCE_SANS_LATIN_CATALOG,
+  tl: SOURCE_SANS_LATIN_CATALOG,
+  "zh-Hans": SIMPLIFIED_CHINESE_CATALOG,
+  "zh-Hant": TRADITIONAL_CHINESE_CATALOG
 };
 
 export const SUPPORTED_FONT_FAMILIES = Array.from(

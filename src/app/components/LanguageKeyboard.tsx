@@ -1,7 +1,9 @@
 import { useState } from 'react';
 
-import { getLanguageName, type Language } from '../utils/languages';
+import { getLanguageName, isChineseLanguage, type Language } from '../utils/languages';
+import type { ChineseCandidate } from '../utils/chinesePinyin';
 import { getKeyboardLayout, type KeyboardLayoutOverrides } from '../utils/keyboardLayouts';
+import { ChinesePinyinInput } from './ChinesePinyinInput';
 import { KeyboardMappingDialog } from './KeyboardMappingDialog';
 import { Button } from './ui/button';
 
@@ -12,6 +14,11 @@ export interface LanguageKeyboardProps {
   onInsertCharacter: (character: string) => void;
   keyboardLayoutOverrides: KeyboardLayoutOverrides;
   onKeyboardLayoutOverridesChange: (next: KeyboardLayoutOverrides) => void;
+  pinyinBuffer?: string;
+  pinyinCandidates?: readonly ChineseCandidate[];
+  onPinyinBufferChange?: (next: string) => void;
+  onPinyinCandidateSelect?: (candidate: ChineseCandidate) => void;
+  onPinyinClear?: () => void;
   className?: string;
 }
 
@@ -22,11 +29,33 @@ export function LanguageKeyboard({
   onInsertCharacter,
   keyboardLayoutOverrides,
   onKeyboardLayoutOverridesChange,
+  pinyinBuffer = '',
+  pinyinCandidates = [],
+  onPinyinBufferChange = () => {},
+  onPinyinCandidateSelect = () => {},
+  onPinyinClear = () => {},
   className
 }: LanguageKeyboardProps) {
   const [customizeOpen, setCustomizeOpen] = useState(false);
-  const layout = getKeyboardLayout(language, keyboardLayoutOverrides);
   const languageName = getLanguageName(language);
+
+  if (isChineseLanguage(language)) {
+    return (
+      <ChinesePinyinInput
+        className={className}
+        language={language}
+        isVisible={isVisible}
+        onToggleVisibility={onToggleVisibility}
+        buffer={pinyinBuffer}
+        candidates={pinyinCandidates}
+        onBufferChange={onPinyinBufferChange}
+        onCandidateSelect={onPinyinCandidateSelect}
+        onClearBuffer={onPinyinClear}
+      />
+    );
+  }
+
+  const layout = getKeyboardLayout(language, keyboardLayoutOverrides);
 
   return (
     <section

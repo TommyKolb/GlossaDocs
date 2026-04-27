@@ -9,6 +9,7 @@ import {
   getKeyboardLayout,
   getOutputsWithDuplicatePhysicalKeys,
   getRemappedCharacter,
+  isKeyboardLayoutLanguage,
   normalizeKeyboardLayoutOverrides,
   normalizeSinglePhysicalKey,
   type KeyboardLayout,
@@ -23,7 +24,10 @@ const DEFAULT_LAYOUT_CHARACTER_CHECKS: { lang: Language; mustContain: string[] }
   { lang: "pt", mustContain: ["ã", "ç"] },
   { lang: "nl", mustContain: ["ë", "ü"] },
   { lang: "pl", mustContain: ["ą", "ł"] },
-  { lang: "uk", mustContain: ["ї", "ґ"] }
+  { lang: "uk", mustContain: ["ї", "ґ"] },
+  { lang: "id", mustContain: ["q", "m"] },
+  { lang: "sw", mustContain: ["q", "m"] },
+  { lang: "tl", mustContain: ["ñ"] }
 ];
 
 describe("getKeyboardLayout", () => {
@@ -63,9 +67,17 @@ describe("getKeyboardLayout", () => {
 describe("built-in default keyboard layouts", () => {
   it("use each physical key (typedWith) at most once per language", () => {
     for (const { value } of LANGUAGES) {
+      if (!isKeyboardLayoutLanguage(value)) {
+        continue;
+      }
       const layout = getDefaultKeyboardLayout(value);
       expect(getDuplicatePhysicalKeyError(layout)).toBeNull();
     }
+  });
+
+  it("does not register Chinese pinyin languages as fixed key-remap layouts", () => {
+    expect(getKeyboardLayout("zh-Hans")).toEqual([]);
+    expect(getKeyboardLayout("zh-Hant")).toEqual([]);
   });
 });
 

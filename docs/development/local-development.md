@@ -98,6 +98,8 @@ npm run dev:guest
 
 Open [http://localhost:5173](http://localhost:5173) and choose **Continue as Guest**. Data stays in the browser (IndexedDB / localStorage); there is no backend.
 
+The Chinese pinyin candidate dictionary is committed at `src/app/data/chinese-pinyin-dictionary.generated.ts`, so local development does not need to generate it. Run `npm run generate:chinese-pinyin` only when intentionally refreshing CC-CEDICT data or changing the generator, and keep `THIRD_PARTY_NOTICES.md` aligned with that data source.
+
 ## Full stack without Docker
 
 Requires Node 20+, local PostgreSQL, Keycloak, and manual env setup:

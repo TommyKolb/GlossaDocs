@@ -23,7 +23,7 @@ function languageCodesInArrayBlock(block) {
   if (!block) {
     return codes;
   }
-  const re = /value:\s*['"]([a-z]{2})['"]/g;
+  const re = /value:\s*['"]([a-z]{2}(?:-[A-Za-z]{4})?)['"]/g;
   let m;
   while ((m = re.exec(block)) !== null) {
     codes.add(m[1]);
@@ -36,7 +36,7 @@ function stringCodesInArrayBlock(block) {
   if (!block) {
     return codes;
   }
-  const re = /"([a-z]{2})"/g;
+  const re = /"([a-z]{2}(?:-[A-Za-z]{4})?)"/g;
   let m;
   while ((m = re.exec(block)) !== null) {
     codes.add(m[1]);

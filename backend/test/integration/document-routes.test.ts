@@ -138,6 +138,18 @@ describe("document routes", () => {
     }
   });
 
+  it("accepts Simplified and Traditional Chinese on create", async () => {
+    for (const language of ["zh-Hans", "zh-Hant"] as const) {
+      const response = await request(app.server)
+        .post("/documents")
+        .set("Authorization", "Bearer token-user-1")
+        .send({ title: `Doc ${language}`, content: "<p>x</p>", language });
+
+      expect(response.status).toBe(201);
+      expect(response.body.language).toBe(language);
+    }
+  });
+
   it("returns 400 for empty update payload", async () => {
     const created = await request(app.server)
       .post("/documents")

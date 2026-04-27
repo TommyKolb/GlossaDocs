@@ -19,6 +19,24 @@ const SOURCE_SANS_LATIN_CATALOG: LanguageFontCatalogEntry = {
   ]
 };
 
+const SIMPLIFIED_CHINESE_CATALOG: LanguageFontCatalogEntry = {
+  defaultFamily: "Noto Sans SC",
+  fonts: [
+    { family: "Noto Sans SC", googleFontFamily: "Noto+Sans+SC:wght@400;500;700" },
+    { family: "Noto Serif SC", googleFontFamily: "Noto+Serif+SC:wght@400;500;700" },
+    { family: "Ma Shan Zheng", googleFontFamily: "Ma+Shan+Zheng" }
+  ]
+};
+
+const TRADITIONAL_CHINESE_CATALOG: LanguageFontCatalogEntry = {
+  defaultFamily: "Noto Sans TC",
+  fonts: [
+    { family: "Noto Sans TC", googleFontFamily: "Noto+Sans+TC:wght@400;500;700" },
+    { family: "Noto Serif TC", googleFontFamily: "Noto+Serif+TC:wght@400;500;700" },
+    { family: "Zhi Mang Xing", googleFontFamily: "Zhi+Mang+Xing" }
+  ]
+};
+
 export const DOCUMENT_LANGUAGE_FONT_CATALOG: Record<DocumentLanguage, LanguageFontCatalogEntry> = {
   en: {
     defaultFamily: "Inter",
@@ -53,7 +71,9 @@ export const DOCUMENT_LANGUAGE_FONT_CATALOG: Record<DocumentLanguage, LanguageFo
   },
   id: SOURCE_SANS_LATIN_CATALOG,
   sw: SOURCE_SANS_LATIN_CATALOG,
-  tl: SOURCE_SANS_LATIN_CATALOG
+  tl: SOURCE_SANS_LATIN_CATALOG,
+  "zh-Hans": SIMPLIFIED_CHINESE_CATALOG,
+  "zh-Hant": TRADITIONAL_CHINESE_CATALOG
 };
 
 export const SUPPORTED_DOCUMENT_FONT_FAMILIES = [

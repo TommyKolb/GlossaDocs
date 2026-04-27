@@ -2,7 +2,6 @@ import * as React from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
-import type { Language } from '../utils/languages';
 import { getLanguageName } from '../utils/languages';
 import {
   applyOutputToTypedWithOverrides,
@@ -13,6 +12,7 @@ import {
   getOutputsWithDuplicatePhysicalKeys,
   normalizeSinglePhysicalKey,
   type KeyboardLayout,
+  type KeyboardLayoutLanguage,
   type KeyboardLayoutOverrides
 } from '../utils/keyboardLayouts';
 import {
@@ -40,21 +40,21 @@ import { cn } from './ui/utils';
 interface KeyboardMappingDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  language: Language;
+  language: KeyboardLayoutLanguage;
   keyboardLayoutOverrides: KeyboardLayoutOverrides;
   onSave: (next: KeyboardLayoutOverrides) => void;
 }
 
 type RowState = { output: string; typedWith: string };
 
-function rowsForLanguage(language: Language, overrides: KeyboardLayoutOverrides): RowState[] {
+function rowsForLanguage(language: KeyboardLayoutLanguage, overrides: KeyboardLayoutOverrides): RowState[] {
   return getKeyboardLayout(language, overrides).flat().map((k) => ({
     output: k.output,
     typedWith: k.typedWith
   }));
 }
 
-function buildEffectiveLayoutFromRows(language: Language, rows: RowState[]): KeyboardLayout {
+function buildEffectiveLayoutFromRows(language: KeyboardLayoutLanguage, rows: RowState[]): KeyboardLayout {
   const overrides = Object.fromEntries(rows.map((r) => [r.output, r.typedWith]));
   return applyOutputToTypedWithOverrides(getDefaultKeyboardLayout(language), overrides);
 }

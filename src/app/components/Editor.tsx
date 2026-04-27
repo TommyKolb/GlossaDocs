@@ -1,12 +1,12 @@
 import * as React from 'react';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { EditorToolbar } from './EditorToolbar';
 import { LanguageKeyboard } from './LanguageKeyboard';
 import type { Document } from '../models/document';
 import { generateDocumentId } from '../models/document';
 import { getAllFolders, getDocument, saveDocument } from '../data/document-repository';
 import { exportDocument, type ExportFormat } from '../utils/export';
-import { getLanguageName, type Language } from '../utils/languages';
+import { getLanguageName, isChineseLanguage, type Language } from '../utils/languages';
 import { getDefaultFontFamilyForLanguage, resolveDocumentFontFamily } from '../utils/language-fonts';
 import { EDITOR_CONFIG, UI_CONSTANTS } from '../utils/constants';
 import {
@@ -18,6 +18,13 @@ import {
 import { ensureSelectionInEditor } from '../utils/editor-selection';
 import type { KeyboardLayoutOverrides } from '../utils/keyboardLayouts';
 import { getRemappedCharacter } from '../utils/keyboardLayouts';
+import {
+  chineseLanguageToScript,
+  getChineseCandidates,
+  normalizePinyin,
+  resolveChinesePinyinKeyAction,
+  type ChineseCandidate
+} from '../utils/chinesePinyin';
 import { getEditorShortcutAction } from '../utils/keyboardShortcuts';
 import { useFormattingState } from '../hooks/useFormattingState';
 import { useAutoSave } from '../hooks/useAutoSave';
@@ -52,6 +59,7 @@ export function Editor({ documentId, initialDocument, onBack }: EditorProps) {
   const [isDocumentReady, setIsDocumentReady] = useState(false);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(true);
   const [keyboardLayoutOverrides, setKeyboardLayoutOverrides] = useState<KeyboardLayoutOverrides>({});
+  const [pinyinBuffer, setPinyinBuffer] = useState('');
   const keyboardLayoutSaveRequestRef = useRef(0);
   
   // Refs
@@ -68,6 +76,14 @@ export function Editor({ documentId, initialDocument, onBack }: EditorProps) {
   // Custom hooks
   const { formattingState, updateFormattingState } = useFormattingState();
   const activeLanguage = document?.language ?? EDITOR_CONFIG.DEFAULT_LANGUAGE;
+  const activeChineseScript = isChineseLanguage(activeLanguage) ? chineseLanguageToScript(activeLanguage) : null;
+  const pinyinCandidates = useMemo(
+    () =>
+      activeChineseScript
+        ? getChineseCandidates({ pinyin: pinyinBuffer, script: activeChineseScript })
+        : [],
+    [activeChineseScript, pinyinBuffer]
+  );
 
   const saveSelection = useCallback(() => {
     const selection = window.getSelection();
@@ -266,6 +282,7 @@ export function Editor({ documentId, initialDocument, onBack }: EditorProps) {
   const insertTextAtCursor = useCallback((text: string) => {
     if (!editorRef.current) return;
 
+    restoreSelection();
     editorRef.current.focus();
 
     // Prefer browser-native rich-text insertion so active styles (bold/italic/underline)
@@ -291,7 +308,20 @@ export function Editor({ documentId, initialDocument, onBack }: EditorProps) {
     setHasUnsavedChanges(true);
     saveSelection();
     updateFormattingState();
-  }, [saveSelection, updateFormattingState]);
+  }, [restoreSelection, saveSelection, updateFormattingState]);
+
+  const updatePinyinBuffer = useCallback((next: string) => {
+    setPinyinBuffer(normalizePinyin(next));
+  }, []);
+
+  const clearPinyinBuffer = useCallback(() => {
+    setPinyinBuffer('');
+  }, []);
+
+  const commitChineseCandidate = useCallback((candidate: ChineseCandidate) => {
+    insertTextAtCursor(candidate.text);
+    setPinyinBuffer('');
+  }, [insertTextAtCursor]);
 
   const handleFormat = useCallback((command: string) => {
     if (command.startsWith('fontSize:')) {
@@ -514,6 +544,12 @@ export function Editor({ documentId, initialDocument, onBack }: EditorProps) {
     });
   }, []);
 
+  useEffect(() => {
+    if ((!isChineseLanguage(activeLanguage) || !isKeyboardVisible) && pinyinBuffer) {
+      setPinyinBuffer('');
+    }
+  }, [activeLanguage, isKeyboardVisible, pinyinBuffer]);
+
   const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
     const isImageWrapper = (element: Element | null): element is HTMLElement =>
       element instanceof HTMLElement &&
@@ -538,6 +574,43 @@ export function Editor({ documentId, initialDocument, onBack }: EditorProps) {
       event.preventDefault();
       handleFormat(shortcutAction);
       return;
+    }
+
+    if (isKeyboardVisible && isChineseLanguage(activeLanguage)) {
+      const pinyinAction = resolveChinesePinyinKeyAction({
+        key: event.key,
+        buffer: pinyinBuffer,
+        candidates: pinyinCandidates,
+        ctrlKey: event.ctrlKey,
+        metaKey: event.metaKey,
+        altKey: event.altKey,
+        isComposing: event.nativeEvent.isComposing,
+        captureTextInput: true
+      });
+
+      if (pinyinAction.type === 'append') {
+        event.preventDefault();
+        setPinyinBuffer((current) => normalizePinyin(`${current}${pinyinAction.value}`));
+        return;
+      }
+
+      if (pinyinAction.type === 'delete') {
+        event.preventDefault();
+        setPinyinBuffer((current) => current.slice(0, -1));
+        return;
+      }
+
+      if (pinyinAction.type === 'clear') {
+        event.preventDefault();
+        clearPinyinBuffer();
+        return;
+      }
+
+      if (pinyinAction.type === 'commit') {
+        event.preventDefault();
+        commitChineseCandidate(pinyinAction.candidate);
+        return;
+      }
     }
 
     if (event.key === 'Backspace' && editorRef.current) {
@@ -620,7 +693,17 @@ export function Editor({ documentId, initialDocument, onBack }: EditorProps) {
         }
       }, 0);
     }
-  }, [activeLanguage, handleFormat, insertTextAtCursor, isKeyboardVisible, keyboardLayoutOverrides]);
+  }, [
+    activeLanguage,
+    clearPinyinBuffer,
+    commitChineseCandidate,
+    handleFormat,
+    insertTextAtCursor,
+    isKeyboardVisible,
+    keyboardLayoutOverrides,
+    pinyinBuffer,
+    pinyinCandidates
+  ]);
 
   const handleGlobalKeyDown = useCallback((event: KeyboardEvent) => {
     const shortcutAction = getEditorShortcutAction(event);
@@ -896,6 +979,11 @@ export function Editor({ documentId, initialDocument, onBack }: EditorProps) {
               onInsertCharacter={insertTextAtCursor}
               keyboardLayoutOverrides={keyboardLayoutOverrides}
               onKeyboardLayoutOverridesChange={persistKeyboardLayoutOverrides}
+              pinyinBuffer={pinyinBuffer}
+              pinyinCandidates={pinyinCandidates}
+              onPinyinBufferChange={updatePinyinBuffer}
+              onPinyinCandidateSelect={commitChineseCandidate}
+              onPinyinClear={clearPinyinBuffer}
             />
           </div>
         </div>

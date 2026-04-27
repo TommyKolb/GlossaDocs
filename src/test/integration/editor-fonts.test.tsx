@@ -49,6 +49,8 @@ describe("language font catalog", () => {
   it("returns language defaults through helper selectors", () => {
     expect(getDefaultFontFamilyForLanguage("en")).toBeDefined();
     expect(getFontsForLanguage("en").length).toBeGreaterThan(0);
+    expect(getDefaultFontFamilyForLanguage("zh-Hans")).toBe("Noto Sans SC");
+    expect(getDefaultFontFamilyForLanguage("zh-Hant")).toBe("Noto Sans TC");
   });
 
   it("falls back to the target language default when candidate is not allowed there", async () => {

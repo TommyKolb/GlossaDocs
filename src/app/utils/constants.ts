@@ -44,8 +44,6 @@ export const UI_CONSTANTS = {
   // Animation timings
   WELCOME_MESSAGE_INTERVAL_MS: 3000,
   WELCOME_LANGUAGE_BADGE_COUNT: 3,
-  /** Motion enter/exit duration for login language badges (seconds). */
-  LANGUAGE_BADGE_MOTION_DURATION_S: 0.8,
 } as const;
 
 // Block-level HTML tags for text formatting

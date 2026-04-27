@@ -212,7 +212,8 @@ export function buildApp(config: BuildAppConfig, options: BuildAppOptions = {}):
   const bodyLimit = config.API_BODY_LIMIT_BYTES ?? DEFAULT_BODY_LIMIT_BYTES;
   const app = Fastify({
     logger: config.NODE_ENV !== "test",
-    bodyLimit
+    bodyLimit,
+    trustProxy: config.API_TRUST_PROXY === true
   });
 
   app.decorateRequest("requestContext", null);
@@ -334,7 +335,11 @@ export function buildApp(config: BuildAppConfig, options: BuildAppOptions = {}):
     authSessionStore,
     passwordLoginClient
   });
-  void app.register(authRegisterRoutes, { authAdminClient });
+  void app.register(authRegisterRoutes, {
+    authAdminClient,
+    registerRateLimitWindowMs: config.AUTH_REGISTER_RATE_LIMIT_WINDOW_MS ?? 60_000,
+    registerRateLimitMaxAttempts: config.AUTH_REGISTER_RATE_LIMIT_MAX_ATTEMPTS ?? 20
+  });
   void app.register(authPasswordResetRoutes, {
     authAdminClient,
     authProvider,

@@ -78,6 +78,7 @@ describe("GlossaDocsStack", () => {
         Variables: Match.objectLike({
           APP_ENV: "prod",
           AUTH_PROVIDER: "cognito",
+          API_TRUST_PROXY: "true",
           AUTH_SESSION_STORE: "redis",
           AUTH_SESSION_SECURE_COOKIE: "true",
           AUTH_SESSION_ENCRYPTION_KEY: Match.anyValue()

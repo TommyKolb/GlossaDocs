@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 
+import { createInMemorySlidingWindowIpRateLimiter } from "../api-edge/in-memory-sliding-window-rate-limit.js";
 import { ApiError } from "../../shared/api-error.js";
 import { cognitoRegisterPasswordSchema } from "../../shared/cognito-password-policy.js";
 import { getAuthProviderErrorCode } from "./auth-provider-errors.js";
@@ -13,9 +14,18 @@ const registerSchema = z.object({
 
 interface AuthRegisterRoutesOptions {
   authAdminClient: Pick<AuthAdminClient, "createUser"> | null;
+  registerRateLimitWindowMs?: number;
+  registerRateLimitMaxAttempts?: number;
 }
 
 export const authRegisterRoutes: FastifyPluginAsync<AuthRegisterRoutesOptions> = async (app, options) => {
+  const registerRateLimitWindowMs = options.registerRateLimitWindowMs ?? 60_000;
+  const registerRateLimitMaxAttempts = options.registerRateLimitMaxAttempts ?? 20;
+  const registerRateLimit = createInMemorySlidingWindowIpRateLimiter({
+    windowMs: registerRateLimitWindowMs,
+    maxAttempts: registerRateLimitMaxAttempts,
+    tooManyMessage: "Too many sign-up attempts. Please wait before trying again."
+  });
   app.get("/auth/register", async (_request, reply) =>
     reply
       .status(405)
@@ -27,6 +37,8 @@ export const authRegisterRoutes: FastifyPluginAsync<AuthRegisterRoutesOptions> =
   );
 
   app.post("/auth/register", async (request, reply) => {
+    registerRateLimit.enforce(request.ip);
+
     if (!options.authAdminClient) {
       throw new ApiError(500, "CONFIG_AUTH_ADMIN_INCOMPLETE", "Auth admin provider is not configured");
     }

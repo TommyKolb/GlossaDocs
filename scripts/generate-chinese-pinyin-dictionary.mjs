@@ -142,6 +142,23 @@ function parseCedict(text) {
   return byPinyin;
 }
 
+/** Matches runtime prefix lookup in `chinesePinyin.ts` (length, then locale). */
+function buildFirstLetterIndex(keys) {
+  const sorted = [...keys].sort((a, b) => a.length - b.length || a.localeCompare(b));
+  const groups = {};
+  for (const key of sorted) {
+    const first = key[0];
+    if (!first) {
+      continue;
+    }
+    if (!groups[first]) {
+      groups[first] = [];
+    }
+    groups[first].push(key);
+  }
+  return groups;
+}
+
 function buildOutput(byPinyin) {
   const sortedKeys = [...byPinyin.keys()]
     .sort((a, b) => {
@@ -160,6 +177,7 @@ function buildOutput(byPinyin) {
     return [pinyin, candidates];
   });
 
+  const keysByFirstLetter = buildFirstLetterIndex(sortedKeys);
   const generatedAt = new Date().toISOString().slice(0, 10);
   return `/* eslint-disable */\n` +
     `/**\n` +
@@ -175,7 +193,9 @@ function buildOutput(byPinyin) {
     `  /** Short English gloss from CC-CEDICT. */\n` +
     `  g: string;\n` +
     `}\n\n` +
-    `export const CHINESE_PINYIN_DICTIONARY: Readonly<Record<string, readonly ChineseDictionaryEntry[]>> = ${JSON.stringify(Object.fromEntries(recordEntries), null, 2)} as const;\n`;
+    `export const CHINESE_PINYIN_DICTIONARY: Readonly<Record<string, readonly ChineseDictionaryEntry[]>> = ${JSON.stringify(Object.fromEntries(recordEntries), null, 2)} as const;\n\n` +
+    `/** Precomputed for prefix lookup; keep in sync with the dictionary keys above. */\n` +
+    `export const CHINESE_PINYIN_KEYS_BY_FIRST_LETTER: Readonly<Record<string, readonly string[]>> = ${JSON.stringify(keysByFirstLetter, null, 2)} as const;\n`;
 }
 
 async function main() {

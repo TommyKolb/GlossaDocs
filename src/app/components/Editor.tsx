@@ -22,6 +22,7 @@ import {
   chineseLanguageToScript,
   getChineseCandidates,
   normalizePinyin,
+  resolveChinesePinyinBufferEffect,
   resolveChinesePinyinKeyAction,
   type ChineseCandidate
 } from '../utils/chinesePinyin';
@@ -545,10 +546,13 @@ export function Editor({ documentId, initialDocument, onBack }: EditorProps) {
   }, []);
 
   useEffect(() => {
-    if ((!isChineseLanguage(activeLanguage) || !isKeyboardVisible) && pinyinBuffer) {
-      setPinyinBuffer('');
-    }
-  }, [activeLanguage, isKeyboardVisible, pinyinBuffer]);
+    setPinyinBuffer((prev) => {
+      if (!isChineseLanguage(activeLanguage) || !isKeyboardVisible) {
+        return prev ? '' : prev;
+      }
+      return prev;
+    });
+  }, [activeLanguage, isKeyboardVisible]);
 
   const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
     const isImageWrapper = (element: Element | null): element is HTMLElement =>
@@ -587,28 +591,23 @@ export function Editor({ documentId, initialDocument, onBack }: EditorProps) {
         isComposing: event.nativeEvent.isComposing,
         captureTextInput: true
       });
+      const bufferEffect = resolveChinesePinyinBufferEffect(pinyinAction, pinyinBuffer);
 
-      if (pinyinAction.type === 'append') {
+      if (bufferEffect.type === 'setBuffer') {
         event.preventDefault();
-        setPinyinBuffer((current) => normalizePinyin(`${current}${pinyinAction.value}`));
+        setPinyinBuffer(bufferEffect.value);
         return;
       }
 
-      if (pinyinAction.type === 'delete') {
-        event.preventDefault();
-        setPinyinBuffer((current) => current.slice(0, -1));
-        return;
-      }
-
-      if (pinyinAction.type === 'clear') {
+      if (bufferEffect.type === 'clear') {
         event.preventDefault();
         clearPinyinBuffer();
         return;
       }
 
-      if (pinyinAction.type === 'commit') {
+      if (bufferEffect.type === 'commit') {
         event.preventDefault();
-        commitChineseCandidate(pinyinAction.candidate);
+        commitChineseCandidate(bufferEffect.candidate);
         return;
       }
     }

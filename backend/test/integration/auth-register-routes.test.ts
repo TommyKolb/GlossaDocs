@@ -53,15 +53,32 @@ describe("POST /auth/register", () => {
       keycloakAdminClient: null
     } as any
   );
+  const appWithStrictRegisterLimit = buildApp(
+    {
+      NODE_ENV: "test",
+      API_PORT: 4000,
+      CORS_ALLOWED_ORIGINS: "*",
+      AUTH_REGISTER_RATE_LIMIT_WINDOW_MS: 60_000,
+      AUTH_REGISTER_RATE_LIMIT_MAX_ATTEMPTS: 1
+    } as any,
+    {
+      tokenVerifier,
+      documentService: createTestDocumentService(),
+      settingsService: createTestSettingsService(),
+      keycloakAdminClient: authAdminClient
+    } as any
+  );
 
   beforeAll(async () => {
     await app.ready();
     await appWithoutAdmin.ready();
+    await appWithStrictRegisterLimit.ready();
   });
 
   afterAll(async () => {
     await app.close();
     await appWithoutAdmin.close();
+    await appWithStrictRegisterLimit.close();
   });
 
   it("GET /auth/register returns 405 (registration is POST-only)", async () => {
@@ -142,6 +159,21 @@ describe("POST /auth/register", () => {
 
     expect(response.status).toBe(502);
     expect(response.body.code).toBe("AUTH_IDP_UNAVAILABLE");
+  });
+
+  it("returns 429 after exceeding per-IP sign-up rate limit", async () => {
+    const first = await request(appWithStrictRegisterLimit.server).post("/auth/register").send({
+      email: "rate.limit.a@example.com",
+      password: VALID_REGISTER_PASSWORD
+    });
+    expect(first.status).toBe(201);
+
+    const second = await request(appWithStrictRegisterLimit.server).post("/auth/register").send({
+      email: "rate.limit.b@example.com",
+      password: VALID_REGISTER_PASSWORD
+    });
+    expect(second.status).toBe(429);
+    expect(second.body.code).toBe("AUTH_RATE_LIMITED");
   });
 });
 

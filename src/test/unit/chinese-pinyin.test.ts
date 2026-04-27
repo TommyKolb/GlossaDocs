@@ -1,11 +1,30 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  CHINESE_PINYIN_DICTIONARY,
+  CHINESE_PINYIN_KEYS_BY_FIRST_LETTER
+} from "@/app/data/chinese-pinyin-dictionary.generated";
+import {
   chineseLanguageToScript,
   getChineseCandidates,
   normalizePinyin,
+  resolveChinesePinyinBufferEffect,
   resolveChinesePinyinKeyAction
 } from "@/app/utils/chinesePinyin";
+
+/** Mirrors `buildFirstLetterIndex` in `scripts/generate-chinese-pinyin-dictionary.mjs`. */
+function buildFirstLetterIndexExpected(keys: readonly string[]): Record<string, string[]> {
+  const sorted = [...keys].sort((a, b) => a.length - b.length || a.localeCompare(b));
+  const groups: Record<string, string[]> = {};
+  for (const key of sorted) {
+    const first = key[0];
+    if (!first) {
+      continue;
+    }
+    (groups[first] ??= []).push(key);
+  }
+  return groups;
+}
 
 describe("Chinese pinyin candidates", () => {
   it("normalizes spaces, tone marks, and tone numbers", () => {
@@ -68,5 +87,34 @@ describe("Chinese pinyin candidates", () => {
       .toEqual({ type: "commit", candidate: candidates[1] });
     expect(resolveChinesePinyinKeyAction({ key: "n", buffer: "", candidates, isComposing: true }))
       .toEqual({ type: "none" });
+  });
+
+  it("precomputed first-letter index matches dictionary keys (generator drift guard)", () => {
+    const expected = buildFirstLetterIndexExpected(Object.keys(CHINESE_PINYIN_DICTIONARY));
+    expect(CHINESE_PINYIN_KEYS_BY_FIRST_LETTER).toEqual(expected);
+  });
+
+  it("runtime normalizePinyin leaves every committed dictionary key unchanged", () => {
+    for (const key of Object.keys(CHINESE_PINYIN_DICTIONARY)) {
+      expect(normalizePinyin(key), `key ${key}`).toBe(key);
+    }
+  });
+
+  it("maps key actions to buffer effects for editor integration", () => {
+    const candidates = [{ pinyin: "ni", text: "你", gloss: "you" }];
+    expect(resolveChinesePinyinBufferEffect(
+      { type: "append", value: "n" },
+      ""
+    )).toEqual({ type: "setBuffer", value: "n" });
+    expect(resolveChinesePinyinBufferEffect(
+      { type: "delete" },
+      "ni"
+    )).toEqual({ type: "setBuffer", value: "n" });
+    expect(resolveChinesePinyinBufferEffect({ type: "clear" }, "ni")).toEqual({ type: "clear" });
+    expect(resolveChinesePinyinBufferEffect(
+      { type: "commit", candidate: candidates[0] },
+      "ni"
+    )).toEqual({ type: "commit", candidate: candidates[0] });
+    expect(resolveChinesePinyinBufferEffect({ type: "none" }, "ni")).toEqual({ type: "none" });
   });
 });

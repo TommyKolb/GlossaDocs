@@ -43,7 +43,6 @@ export const UI_CONSTANTS = {
   
   // Animation timings
   WELCOME_MESSAGE_INTERVAL_MS: 3000,
-  WELCOME_LANGUAGE_BADGE_COUNT: 3,
 } as const;
 
 // Block-level HTML tags for text formatting

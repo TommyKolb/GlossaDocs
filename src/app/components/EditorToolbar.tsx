@@ -6,7 +6,6 @@ import {
   Save, 
   Download, 
   ArrowLeft,
-  Languages,
   Type,
   Circle,
   Check,
@@ -32,7 +31,8 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import { Separator } from './ui/separator';
-import { LANGUAGES, isLanguage, type Language } from '../utils/languages';
+import { DocumentLanguagePicker } from './DocumentLanguagePicker';
+import { isBrowserSpellcheckEnabledForLanguage, type Language } from '../utils/languages';
 import { type ExportFormat } from '../utils/export';
 import { FONT_SIZE_OPTIONS } from '../utils/constants';
 import { type FormattingState } from '../utils/types';
@@ -77,10 +77,8 @@ export function EditorToolbar({
   const languageFonts = getFontsForLanguage(language);
   const effectiveFontFamily = resolveDocumentFontFamily(language, fontFamily);
 
-  const handleLanguageValueChange = (value: string) => {
-    if (isLanguage(value)) {
-      onLanguageChange(value);
-    }
+  const handleLanguageValueChange = (next: Language) => {
+    onLanguageChange(next);
   };
 
   return (
@@ -110,6 +108,7 @@ export function EditorToolbar({
           aria-label="Document title"
           dir="auto"
           lang={language}
+          spellCheck={isBrowserSpellcheckEnabledForLanguage(language)}
         />
 
         {/* Unsaved changes indicator */}
@@ -187,27 +186,10 @@ export function EditorToolbar({
         <div className="flex flex-wrap items-center gap-2 sm:gap-4">
           {/* Language selector */}
           <div className="flex items-center gap-2 flex-shrink-0">
-            <Languages className="size-4 text-gray-500" aria-hidden="true" />
-            <Select value={language} onValueChange={handleLanguageValueChange}>
-              <SelectTrigger className="w-[140px] sm:w-[180px]" aria-label="Select document language">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {LANGUAGES.map((lang) => (
-                  <SelectItem key={lang.value} value={lang.value}>
-                    <span className="flex items-center gap-2">
-                      <span
-                        className="tabular-nums min-w-[1.5rem] text-center text-[10px] font-semibold text-gray-600"
-                        aria-hidden="true"
-                      >
-                        {lang.listBadge}
-                      </span>
-                      <span>{lang.label}</span>
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <DocumentLanguagePicker
+              language={language}
+              onLanguageChange={handleLanguageValueChange}
+            />
           </div>
 
           <Separator orientation="vertical" className="h-6" aria-hidden="true" />

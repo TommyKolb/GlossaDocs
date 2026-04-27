@@ -28,6 +28,9 @@ const DEFAULT_LAYOUT_CHARACTER_CHECKS: { lang: Language; mustContain: string[] }
   { lang: "id", mustContain: ["q", "m"] },
   { lang: "sw", mustContain: ["q", "m"] },
   { lang: "tl", mustContain: ["ñ"] },
+  { lang: "sv", mustContain: ["å", "ä"] },
+  { lang: "nb", mustContain: ["å", "æ"] },
+  { lang: "tr", mustContain: ["ğ", "ı"] },
   { lang: "ar", mustContain: ["ض", "ق", "\u0644\u0627"] }
 ];
 
@@ -235,6 +238,28 @@ describe("getRemappedCharacter", () => {
         capsLock: false
       })
     ).toBe("é");
+  });
+
+  it("maps Swedish BracketLeft to å", () => {
+    expect(
+      getRemappedCharacter({
+        language: "sv",
+        key: "[",
+        shiftKey: false,
+        capsLock: false
+      })
+    ).toBe("å");
+  });
+
+  it("maps Turkish KeyI to dotless ı", () => {
+    expect(
+      getRemappedCharacter({
+        language: "tr",
+        key: "i",
+        shiftKey: false,
+        capsLock: false
+      })
+    ).toBe("ı");
   });
 
   it("falls back to event.code for physical-key remap when event.key is on another layout", () => {

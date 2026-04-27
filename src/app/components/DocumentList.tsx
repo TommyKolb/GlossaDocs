@@ -81,6 +81,7 @@ export function DocumentList({ user, onSelectDocument, listSyncRequestVersion = 
     updatePointerFromDragEvent
   } = useDocumentDragPreview(setDraggingDocumentId, setDropTargetFolderId);
 
+  // Empty deps: uses only stable setState + ref; do not add mutable values without reviewing requestId cancellation.
   const loadDocuments = useCallback(async (options: { showSpinner?: boolean } = {}) => {
     const requestId = ++latestLoadRequestRef.current;
     if (options.showSpinner !== false) {

@@ -144,7 +144,11 @@ export default function App() {
       </a>
       
       <main id="main-content">
-        <div hidden={selectedDocumentId !== undefined} className="contents">
+        <div
+          hidden={selectedDocumentId !== undefined}
+          className="contents"
+          inert={selectedDocumentId !== undefined || undefined}
+        >
           <DocumentList
             user={user}
             onSelectDocument={handleSelectDocument}

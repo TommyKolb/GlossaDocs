@@ -106,7 +106,7 @@ describe("Editor load-state handling", () => {
     );
 
     const editor = await screen.findByRole("textbox", { name: /From list/i });
-    expect(editor.innerHTML).toContain("body");
+    expect(editor.textContent).toMatch(/body/i);
     expect(getDocumentMock).not.toHaveBeenCalled();
   });
 

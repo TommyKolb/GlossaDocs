@@ -2,7 +2,7 @@
 
 **Code path:** `backend/src/modules/documents/`
 
-Owns **user-scoped rich-text documents and folders**: create, list, read, update, delete. Enforces **ownership** with `owner_id = actorSub` on every query. Applies **HTML sanitization** on write via `DocumentService` (`backend/src/shared/document-sanitizer.ts`). Optional **AES-GCM encryption** for document `title` and `content` at rest when `DOCUMENT_ENCRYPTION_KEY` is set (`PgDocumentRepository` + `backend/src/shared/document-encryption.ts`).
+Owns **user-scoped rich-text documents and folders**: create, list, read, update, delete. Enforces **ownership** with `owner_id = actorSub` on every query. Applies **HTML sanitization** on write via `DocumentService` (`backend/src/shared/document-sanitizer.ts`). Legacy `<font>` tags from rich-text commands allow **face** and **color** only (not **style**, to keep URL-based CSS vectors out of stored content). Optional **AES-GCM encryption** for document `title` and `content` at rest when `DOCUMENT_ENCRYPTION_KEY` is set (`PgDocumentRepository` + `backend/src/shared/document-encryption.ts`).
 
 ## Features
 

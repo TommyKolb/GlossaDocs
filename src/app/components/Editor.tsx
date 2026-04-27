@@ -22,9 +22,19 @@ import { getEditorShortcutAction } from '../utils/keyboardShortcuts';
 import { useFormattingState } from '../hooks/useFormattingState';
 import { useAutoSave } from '../hooks/useAutoSave';
 import { getUserSettings, languageToLocale, localeToLanguage, updateUserSettings } from '../data/settings-repository';
+import type { UserSettings } from '../api/contracts';
 import { DOCUMENT_PAYLOAD_TOO_LARGE_MESSAGE, isPayloadTooLargeError } from '../api/client';
 import { toast } from 'sonner';
 import { NEW_DOCUMENT_FOLDER_ID_STORAGE_KEY } from '../data/storage-keys';
+
+async function loadUserSettingsForEditor(): Promise<UserSettings | null> {
+  try {
+    return await getUserSettings();
+  } catch (error) {
+    console.error('Error loading user settings:', error);
+    return null;
+  }
+}
 
 interface EditorProps {
   documentId: string | null;
@@ -53,7 +63,8 @@ export function Editor({ documentId, initialDocument, onBack }: EditorProps) {
   const saveRequestedWhileRunningRef = useRef(false);
   const isMountedRef = useRef(true);
   const latestLoadRequestRef = useRef(0);
-  
+  const initialDocumentRef = useRef<Document | undefined>(undefined);
+
   // Custom hooks
   const { formattingState, updateFormattingState } = useFormattingState();
   const activeLanguage = document?.language ?? EDITOR_CONFIG.DEFAULT_LANGUAGE;
@@ -653,6 +664,14 @@ export function Editor({ documentId, initialDocument, onBack }: EditorProps) {
   }, []);
 
   useEffect(() => {
+    if (documentId && initialDocument?.id === documentId) {
+      initialDocumentRef.current = initialDocument;
+    } else {
+      initialDocumentRef.current = undefined;
+    }
+  }, [documentId, initialDocument]);
+
+  useEffect(() => {
     const requestId = ++latestLoadRequestRef.current;
     let cancelled = false;
     setLoadErrorMessage(null);
@@ -672,15 +691,15 @@ export function Editor({ documentId, initialDocument, onBack }: EditorProps) {
 
     async function loadDocument() {
       if (documentId) {
-        const settingsPromise = getUserSettings().catch((error) => {
-          console.error('Error loading user settings:', error);
-          return null;
-        });
+        const settingsPromise = loadUserSettingsForEditor();
 
-        const docPromise =
-          initialDocument && initialDocument.id === documentId
-            ? Promise.resolve(initialDocument)
-            : getDocument(documentId);
+        const initialFromList =
+          initialDocumentRef.current && initialDocumentRef.current.id === documentId
+            ? initialDocumentRef.current
+            : undefined;
+        const docPromise = initialFromList
+          ? Promise.resolve(initialFromList)
+          : getDocument(documentId);
 
         try {
           const [settings, doc] = await Promise.all([settingsPromise, docPromise]);
@@ -712,15 +731,13 @@ export function Editor({ documentId, initialDocument, onBack }: EditorProps) {
       }
 
       let lastUsedLocale: string | null = null;
-      try {
-        const settings = await getUserSettings();
+      const settings = await loadUserSettingsForEditor();
+      if (settings) {
         applyIfCurrent(() => {
           setIsKeyboardVisible(settings.keyboardVisible);
           setKeyboardLayoutOverrides(settings.keyboardLayoutOverrides ?? {});
         });
         lastUsedLocale = settings.lastUsedLocale;
-      } catch (error) {
-        console.error('Error loading user settings:', error);
       }
 
       let preferredLanguage: Language = EDITOR_CONFIG.DEFAULT_LANGUAGE;
@@ -763,7 +780,7 @@ export function Editor({ documentId, initialDocument, onBack }: EditorProps) {
     return () => {
       cancelled = true;
     };
-  }, [documentId, initialDocument]);
+  }, [documentId, initialDocument?.id]);
 
   // Keep the editable DOM synchronized with loaded/saved document content.
   // Guard against unnecessary resets so we do not disturb caret/selection.

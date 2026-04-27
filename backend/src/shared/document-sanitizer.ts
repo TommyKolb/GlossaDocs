@@ -30,7 +30,8 @@ const ALLOWED_CONTENT_ATTRIBUTES: Record<string, string[]> = {
   div: ["style"],
   p: ["style"],
   /** Legacy output from execCommand(fontName) in some browsers; face is the font family. */
-  font: ["face", "color", "style"],
+  // Do not allow `style` on `font` — it bypassed sanitize-html's usual CSS hardening in url() cases.
+  font: ["face", "color"],
   img: ["src", "alt", "width", "height", "style"]
 };
 

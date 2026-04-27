@@ -197,9 +197,3 @@
     line-height: 1.5;
   }
 }
-
-/* Regional-indicator “flag” emoji need an emoji-capable font; Inter-only stacks show empty boxes on some Windows setups. */
-.glossadocs-lang-flag-emoji {
-  font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", system-ui, sans-serif;
-  font-variant-emoji: emoji;
-}

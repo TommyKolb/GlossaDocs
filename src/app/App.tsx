@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { DocumentList } from './components/DocumentList';
 import { Editor } from './components/Editor';
 import { Login } from './components/Login';
@@ -18,6 +18,8 @@ export default function App() {
   const [listSyncVersion, setListSyncVersion] = useState(0);
   const [authView, setAuthView] = useState<'login' | 'signup' | 'forgot' | 'reset-confirm'>('login');
   const [passwordResetEmail, setPasswordResetEmail] = useState('');
+
+  const documentListInertRef = useRef<HTMLDivElement | null>(null);
 
   // Check for existing user session on mount (never leave loading if hydrate throws or hangs)
   useEffect(() => {
@@ -49,6 +51,13 @@ export default function App() {
     }
     setSessionOverride(user);
   }, [user]);
+
+  useLayoutEffect(() => {
+    const el = documentListInertRef.current;
+    if (el) {
+      el.inert = selectedDocumentId !== undefined;
+    }
+  }, [selectedDocumentId, user]);
 
   const handleLoginSuccess = (loggedInUser: User) => {
     setUser(loggedInUser);
@@ -145,9 +154,9 @@ export default function App() {
       
       <main id="main-content">
         <div
+          ref={documentListInertRef}
           hidden={selectedDocumentId !== undefined}
           className="contents"
-          inert={selectedDocumentId !== undefined || undefined}
         >
           <DocumentList
             user={user}

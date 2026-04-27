@@ -196,8 +196,11 @@ export function EditorToolbar({
                 {LANGUAGES.map((lang) => (
                   <SelectItem key={lang.value} value={lang.value}>
                     <span className="flex items-center gap-2">
-                      <span className="glossadocs-lang-flag-emoji" aria-hidden="true">
-                        {lang.flag}
+                      <span
+                        className="tabular-nums min-w-[1.5rem] text-center text-[10px] font-semibold text-gray-600"
+                        aria-hidden="true"
+                      >
+                        {lang.listBadge}
                       </span>
                       <span>{lang.label}</span>
                     </span>

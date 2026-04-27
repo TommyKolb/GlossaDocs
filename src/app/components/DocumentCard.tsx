@@ -91,8 +91,11 @@ export function DocumentCard({
               className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded-full flex items-center gap-1"
               aria-label={`Document language: ${languageInfo.label}`}
             >
-              <span className="glossadocs-lang-flag-emoji" aria-hidden="true">
-                {languageInfo.flag}
+              <span
+                className="tabular-nums min-w-[1.5rem] shrink-0 text-center text-[10px] font-semibold text-gray-600"
+                aria-hidden="true"
+              >
+                {languageInfo.listBadge}
               </span>
               <span>{languageInfo.label}</span>
             </span>

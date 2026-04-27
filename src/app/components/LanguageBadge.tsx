@@ -11,11 +11,11 @@ export function LanguageBadge({ language }: LanguageBadgeProps) {
       aria-label={language.label}
     >
       <span
-        className="glossadocs-lang-flag-emoji text-lg sm:text-xl flex shrink-0 items-center justify-center"
+        className="tabular-nums min-w-[1.5rem] shrink-0 text-center text-sm sm:text-base font-semibold text-gray-600"
         style={{ lineHeight: 1 }}
         aria-hidden="true"
       >
-        {language.flag}
+        {language.listBadge}
       </span>
       <span 
         className="min-w-0 truncate text-xs sm:text-sm font-medium text-gray-700"

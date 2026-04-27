@@ -6,7 +6,6 @@ import { Input } from './ui/input';
 import { loginWithCredentials, continueAsGuest, type User } from '../utils/auth';
 import { LANGUAGES } from '../utils/languages';
 import { LanguageBadge } from './LanguageBadge';
-import { ProjectDisclaimer } from './ProjectDisclaimer';
 import { UI_CONSTANTS } from '../utils/constants';
 import { toast } from 'sonner';
 
@@ -125,7 +124,7 @@ export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: Log
 
           {/* Language badges with animation */}
           <ul
-            className="grid grid-cols-3 items-stretch gap-2 sm:gap-3 mb-4 sm:mb-5 list-none p-0 m-0"
+            className="grid grid-cols-3 items-stretch gap-2 sm:gap-3 mb-6 sm:mb-8 list-none p-0 m-0"
             aria-label="Supported languages"
           >
             {visibleLanguages.map((language, index) => (
@@ -134,20 +133,6 @@ export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: Log
               </li>
             ))}
           </ul>
-
-          <div
-            className="rounded-xl border border-indigo-200/80 bg-white/90 px-4 py-3 sm:px-5 sm:py-4 shadow-sm backdrop-blur-sm"
-            aria-label="Editor capabilities"
-          >
-            <p className="text-sm sm:text-base font-semibold text-gray-900">
-              Multi-language document editor
-            </p>
-            <p className="text-xs sm:text-sm text-gray-700 mt-2 leading-relaxed text-start">
-              {LANGUAGES.map((l) => l.label).join(' · ')}
-            </p>
-          </div>
-
-          <ProjectDisclaimer className="mt-4 text-xs sm:text-sm text-gray-600 text-start leading-relaxed max-w-lg mx-auto px-1" />
         </div>
 
         {/* Login Card */}
@@ -303,6 +288,31 @@ export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: Log
             </p>
           ) : null}
         </div>
+
+        <footer className="mt-6 sm:mt-8 max-w-lg mx-auto text-center px-1">
+          <p className="text-sm sm:text-base font-semibold text-gray-800">
+            Multi-language document editor
+          </p>
+          <p className="text-xs sm:text-sm text-gray-700 mt-2 leading-snug break-words">
+            {LANGUAGES.map((l) => l.label).join(' · ')}
+          </p>
+          <p className="text-xs sm:text-sm text-gray-600 mt-3 leading-relaxed">
+            GlossaDocs is free, ad-free, and independent. Language
+            defaults, typography, and keyboard
+            helpers may contain mistakes. If you notice something wrong, please email{' '}
+            <a
+              href={
+                'mailto:glossadocs@gmail.com?subject=' +
+                encodeURIComponent('GlossaDocs feedback')
+              }
+              className="text-blue-600 underline underline-offset-2 hover:text-blue-800"
+            >
+              glossadocs@gmail.com
+            </a>{' '}
+            with a short description of the issue and, if you can, a link or screenshot so it can be
+            fixed.
+          </p>
+        </footer>
       </div>
     </div>
   );

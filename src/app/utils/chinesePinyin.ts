@@ -1,5 +1,9 @@
 import type { ChineseLanguage } from './languages';
-import { CHINESE_PINYIN_DICTIONARY, type ChineseDictionaryEntry } from '../data/chinese-pinyin-dictionary.generated';
+import {
+  CHINESE_PINYIN_DICTIONARY,
+  CHINESE_PINYIN_KEYS_BY_FIRST_LETTER,
+  type ChineseDictionaryEntry
+} from '../data/chinese-pinyin-dictionary.generated';
 
 export type ChineseScript = 'simplified' | 'traditional';
 
@@ -63,16 +67,8 @@ const TONE_MARKS: Readonly<Record<string, string>> = {
   ü: 'u'
 };
 
-const PINYIN_KEYS_BY_FIRST_LETTER = Object.keys(CHINESE_PINYIN_DICTIONARY)
-  .sort((a, b) => a.length - b.length || a.localeCompare(b))
-  .reduce<Record<string, string[]>>((groups, key) => {
-    const firstLetter = key[0];
-    if (!firstLetter) {
-      return groups;
-    }
-    (groups[firstLetter] ??= []).push(key);
-    return groups;
-  }, {});
+const PINYIN_KEYS_BY_FIRST_LETTER: Readonly<Record<string, readonly string[]>> =
+  CHINESE_PINYIN_KEYS_BY_FIRST_LETTER;
 
 export function chineseLanguageToScript(language: ChineseLanguage): ChineseScript {
   return language === 'zh-Hans' ? 'simplified' : 'traditional';
@@ -97,7 +93,7 @@ function toCandidate(entry: ChineseDictionaryEntry, pinyin: string, script: Chin
 
 function getPrefixCandidates(normalized: string, script: ChineseScript, remaining: number): ChineseCandidate[] {
   const matches: ChineseCandidate[] = [];
-  const keys = PINYIN_KEYS_BY_FIRST_LETTER[normalized[0]] ?? [];
+  const keys: readonly string[] = PINYIN_KEYS_BY_FIRST_LETTER[normalized[0]] ?? [];
 
   for (const key of keys) {
     if (key === normalized || !key.startsWith(normalized)) {
@@ -144,6 +140,32 @@ export function getChineseCandidates({
       return true;
     })
     .slice(0, limit);
+}
+
+export type ChinesePinyinBufferEffect =
+  | { type: 'none' }
+  | { type: 'setBuffer'; value: string }
+  | { type: 'clear' }
+  | { type: 'commit'; candidate: ChineseCandidate };
+
+/** Maps a key action to buffer updates for editor / on-screen pinyin integration. */
+export function resolveChinesePinyinBufferEffect(
+  action: ChinesePinyinKeyAction,
+  buffer: string
+): ChinesePinyinBufferEffect {
+  if (action.type === 'append') {
+    return { type: 'setBuffer', value: normalizePinyin(`${buffer}${action.value}`) };
+  }
+  if (action.type === 'delete') {
+    return { type: 'setBuffer', value: buffer.slice(0, -1) };
+  }
+  if (action.type === 'clear') {
+    return { type: 'clear' };
+  }
+  if (action.type === 'commit') {
+    return { type: 'commit', candidate: action.candidate };
+  }
+  return { type: 'none' };
 }
 
 export function resolveChinesePinyinKeyAction({

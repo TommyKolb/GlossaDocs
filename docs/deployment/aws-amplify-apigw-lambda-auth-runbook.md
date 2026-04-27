@@ -86,8 +86,10 @@ Optional and auto-derived when omitted in Cognito mode:
 - `OIDC_JWKS_URL` (derived as `${OIDC_ISSUER_URL}/.well-known/jwks.json`)
 - `AUTH_LOGIN_RATE_LIMIT_WINDOW_MS` / `AUTH_LOGIN_RATE_LIMIT_MAX_ATTEMPTS` (defaults: 60s / 20 attempts per IP)
 - `AUTH_PASSWORD_RESET_RATE_LIMIT_WINDOW_MS` / `AUTH_PASSWORD_RESET_RATE_LIMIT_MAX_ATTEMPTS` (defaults: 60s / 20 attempts per IP across reset request + confirm endpoints)
+- `AUTH_REGISTER_RATE_LIMIT_WINDOW_MS` / `AUTH_REGISTER_RATE_LIMIT_MAX_ATTEMPTS` (defaults: 60s / 20 sign-up POSTs per IP)
+- `API_TRUST_PROXY` — set **`true`** in production behind **API Gateway** (or another trusted reverse proxy) so `request.ip` follows **`X-Forwarded-For`** and per-IP limits apply to **end clients**. The CDK stack sets this on the API Lambda. Use **`false`** for local direct connections.
 
-**In-process rate limits (login, password reset):** The API enforces per-IP sliding windows in the Fastify process. On **AWS Lambda** those counters are **per execution environment**, reset on **cold start**, and are **not** a substitute for **API Gateway throttling** (already set on the REST API in CDK) or **WAF** for edge-wide protection.
+**In-process rate limits (login, registration, password reset):** The API enforces per-IP sliding windows in the Fastify process. On **AWS Lambda** those counters are **per execution environment**, reset on **cold start**, and are **not** a substitute for **API Gateway throttling** (already set on the REST API in CDK) or **WAF** for edge-wide protection.
 
 Frontend (Amplify env vars):
 

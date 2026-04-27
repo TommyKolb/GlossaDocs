@@ -5,6 +5,8 @@ logs/
 
 # --- Node / TypeScript (common for web apps) ---
 node_modules/
+# Vitest/Vite cache (sometimes surfaced as untracked paths)
+**/node_modules/.vite/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

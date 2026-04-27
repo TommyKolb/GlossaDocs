@@ -362,6 +362,8 @@ export class GlossaDocsStack extends cdk.Stack {
         APP_ENV: config.appEnv,
         NODE_ENV: "production",
         AUTH_PROVIDER: "cognito",
+        // Per-IP auth rate limits use X-Forwarded-For from API Gateway when true.
+        API_TRUST_PROXY: "true",
         AUTH_SESSION_STORE: "redis",
         AUTH_SESSION_SECURE_COOKIE: "true",
         CORS_ALLOWED_ORIGINS: config.backendCorsOrigin,

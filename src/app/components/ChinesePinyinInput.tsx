@@ -2,7 +2,11 @@ import type { KeyboardEvent } from 'react';
 
 import type { ChineseLanguage } from '../utils/languages';
 import { getLanguageName } from '../utils/languages';
-import { resolveChinesePinyinKeyAction, type ChineseCandidate } from '../utils/chinesePinyin';
+import {
+  resolveChinesePinyinBufferEffect,
+  resolveChinesePinyinKeyAction,
+  type ChineseCandidate
+} from '../utils/chinesePinyin';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 
@@ -41,13 +45,14 @@ export function ChinesePinyinInput({
       altKey: event.altKey,
       isComposing: event.nativeEvent.isComposing
     });
+    const effect = resolveChinesePinyinBufferEffect(action, buffer);
 
-    if (action.type === 'clear') {
+    if (effect.type === 'clear') {
       event.preventDefault();
       onClearBuffer();
-    } else if (action.type === 'commit') {
+    } else if (effect.type === 'commit') {
       event.preventDefault();
-      onCandidateSelect(action.candidate);
+      onCandidateSelect(effect.candidate);
     }
   };
 

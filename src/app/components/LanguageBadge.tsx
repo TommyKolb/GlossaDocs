@@ -8,6 +8,7 @@ export function LanguageBadge({ language }: LanguageBadgeProps) {
   return (
     <div
       className="w-full min-w-0 flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2 bg-white rounded-full shadow-sm border border-gray-200"
+      aria-label={language.label}
     >
       <span
         className="text-lg sm:text-xl flex shrink-0 items-center justify-center"

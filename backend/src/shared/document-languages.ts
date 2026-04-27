@@ -11,7 +11,9 @@ export const SUPPORTED_DOCUMENT_LANGUAGES = [
   "uk",
   "id",
   "sw",
-  "tl"
+  "tl",
+  "zh-Hans",
+  "zh-Hant"
 ] as const;
 
 export type DocumentLanguage = (typeof SUPPORTED_DOCUMENT_LANGUAGES)[number];

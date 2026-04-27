@@ -3,7 +3,7 @@
 ## Header
 - **Story**: As a multilingual writer, I want an integrated on-screen keyboard for a non-Latin alphabet so that I can type special characters directly inside the editor.
 - **V1 product focus**: Russian Cyrillic using a **Latin-key phonetic mapping** (type Latin letters; get Cyrillic output). The same UI component also shows **Latin layouts** (English, German, Spanish, and other supported Latin-script languages) when those document languages are selected.
-- **Status**: **Core behavior implemented** in the editor (panel, per-language layouts, physical-key remapping when the keyboard is enabled, visibility toggle + persistence, **user-customizable per-key mappings** with reset to defaults, persisted in user settings). **Not implemented**: long-press variant picker; dedicated layout IDs (e.g. `ru-phonetic-v1`) separate from the `Language` enum.
+- **Status**: **Core behavior implemented** in the editor (panel, per-language layouts, physical-key remapping when the keyboard is enabled, visibility toggle + persistence, **user-customizable per-key mappings** with reset to defaults, persisted in user settings). Chinese pinyin input is handled as a separate composition-style panel rather than a fixed key-remap layout, but it is only a starter learner dictionary and not a complete Mandarin IME. **Not implemented**: long-press variant picker; dedicated layout IDs (e.g. `ru-phonetic-v1`) separate from the `Language` enum.
 - **Depends on**:
   - [`docs/architecture/backend-architecture.md`](../architecture/backend-architecture.md)
   - [`user-story-1-basic-editor-spec.md`](user-story-1-basic-editor-spec.md) (document save path and dual guest/auth persistence)
@@ -80,6 +80,11 @@ Guest mode uses the same shape in local storage via `settings-repository.ts`.
 ## Extensibility (current vs future)
 - **Today**: Add a new `Language` in `languages.ts`, register a default layout in `LANGUAGE_KEYBOARD_LAYOUTS` in `keyboardLayouts.ts`, extend locale mapping in `settings-repository.ts`, and add the language to the backend Zod schema for `keyboardLayoutOverrides` (`keyboard-layout-overrides-schema.ts`). User-stored overrides are JSON; no migration for a new language once the schema allows its code.
 - **Future**: Extract a layout registry (id → key map), decouple “document language” from “active keyboard layout”, and add long-press variants without bloating `LanguageKeyboard.tsx`.
+- **Chinese input**: `zh-Hans` and `zh-Hant` intentionally skip `LANGUAGE_KEYBOARD_LAYOUTS`; they use a pinyin buffer and script-aware starter candidate list because Mandarin input is many Latin keystrokes → one or more Hanzi, not one physical key → one output glyph. This supports common learner words only; users still need an OS/browser Chinese IME for unrestricted Chinese typing.
+
+### Chinese pinyin limitations
+
+The in-app Chinese panel is deliberately scoped below a full IME. It does not contain every character or word, does not rank candidates using sentence context, does not learn from the user, and does not perform broad phrase segmentation. Future work could replace or augment `src/app/utils/chinesePinyin.ts` with licensed/open dictionary data plus a ranking layer.
 
 ## Acceptance criteria (mapped to implementation)
 

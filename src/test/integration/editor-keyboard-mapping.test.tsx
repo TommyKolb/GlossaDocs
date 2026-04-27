@@ -84,6 +84,58 @@ describe("Editor keyboard mapping integration", () => {
     expect(composingEvent.defaultPrevented).toBe(false);
   });
 
+  it("composes Simplified Chinese from pinyin typed in the editor", async () => {
+    getUserSettingsMock.mockResolvedValueOnce({
+      lastUsedLocale: "zh-CN",
+      keyboardVisible: true,
+      keyboardLayoutOverrides: {}
+    });
+    render(<Editor documentId={null} onBack={() => {}} />);
+    const textbox = await screen.findByRole("textbox", { name: /Document editor for/i });
+
+    for (const key of ["n", "i", "h", "a", "o"]) {
+      const event = createEvent.keyDown(textbox, { key, code: `Key${key.toUpperCase()}` });
+      fireEvent(textbox, event);
+      expect(event.defaultPrevented).toBe(true);
+    }
+
+    expect(screen.getByRole("textbox", { name: /Pinyin buffer/i })).toHaveValue("nihao");
+
+    const acceptFirst = createEvent.keyDown(textbox, { key: " " });
+    fireEvent(textbox, acceptFirst);
+
+    expect(acceptFirst.defaultPrevented).toBe(true);
+    expect(window.document.execCommand).toHaveBeenCalledWith("insertText", false, "你好");
+  });
+
+  it("selects Traditional Chinese candidates by number and lets composition events pass through", async () => {
+    getUserSettingsMock.mockResolvedValueOnce({
+      lastUsedLocale: "zh-TW",
+      keyboardVisible: true,
+      keyboardLayoutOverrides: {}
+    });
+    render(<Editor documentId={null} onBack={() => {}} />);
+    const textbox = await screen.findByRole("textbox", { name: /Document editor for/i });
+
+    const composingEvent = createEvent.keyDown(textbox, {
+      key: "x",
+      code: "KeyX",
+      isComposing: true
+    });
+    fireEvent(textbox, composingEvent);
+    expect(composingEvent.defaultPrevented).toBe(false);
+
+    for (const key of ["x", "i", "e", "x", "i", "e"]) {
+      fireEvent.keyDown(textbox, { key, code: `Key${key.toUpperCase()}` });
+    }
+
+    const chooseFirst = createEvent.keyDown(textbox, { key: "1" });
+    fireEvent(textbox, chooseFirst);
+
+    expect(chooseFirst.defaultPrevented).toBe(true);
+    expect(window.document.execCommand).toHaveBeenCalledWith("insertText", false, "謝謝");
+  });
+
   it("shows an error and restores previous mappings when saving overrides fails", async () => {
     const { toast } = await import("sonner");
     const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});

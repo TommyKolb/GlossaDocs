@@ -1,4 +1,4 @@
-import { isLanguage, type Language } from './languages';
+import { isLanguage, isChineseLanguage, type Language } from './languages';
 
 export interface KeyboardKey {
   output: string;
@@ -7,6 +7,7 @@ export interface KeyboardKey {
 }
 
 export type KeyboardLayout = readonly (readonly KeyboardKey[])[];
+export type KeyboardLayoutLanguage = Exclude<Language, 'zh-Hans' | 'zh-Hant'>;
 
 /**
  * Per-language overrides: **alphabet letter (output)** → **physical key label** (`typedWith`).
@@ -104,7 +105,7 @@ const TAGALOG_LAYOUT: KeyboardLayout = [
   [key('z', 'z'), key('x', 'x'), key('c', 'c'), key('v', 'v'), key('b', 'b'), key('n', 'n'), key('m', 'm')]
 ];
 
-const LANGUAGE_KEYBOARD_LAYOUTS: Readonly<Record<Language, KeyboardLayout>> = {
+const LANGUAGE_KEYBOARD_LAYOUTS: Readonly<Record<KeyboardLayoutLanguage, KeyboardLayout>> = {
   en: ENGLISH_LAYOUT,
   de: GERMAN_LAYOUT,
   ru: RUSSIAN_LAYOUT,
@@ -120,8 +121,12 @@ const LANGUAGE_KEYBOARD_LAYOUTS: Readonly<Record<Language, KeyboardLayout>> = {
   tl: TAGALOG_LAYOUT
 };
 
+export function isKeyboardLayoutLanguage(language: Language): language is KeyboardLayoutLanguage {
+  return !isChineseLanguage(language);
+}
+
 /** Built-in layout for the language (no user overrides). */
-export function getDefaultKeyboardLayout(language: Language): KeyboardLayout {
+export function getDefaultKeyboardLayout(language: KeyboardLayoutLanguage): KeyboardLayout {
   return LANGUAGE_KEYBOARD_LAYOUTS[language];
 }
 
@@ -147,6 +152,9 @@ export function applyOutputToTypedWithOverrides(
 }
 
 export function getKeyboardLayout(language: Language, overrides?: KeyboardLayoutOverrides): KeyboardLayout {
+  if (!isKeyboardLayoutLanguage(language)) {
+    return [];
+  }
   const base = LANGUAGE_KEYBOARD_LAYOUTS[language];
   const langOverrides = overrides?.[language];
   if (!langOverrides || Object.keys(langOverrides).length === 0) {
@@ -159,7 +167,7 @@ export function getKeyboardLayout(language: Language, overrides?: KeyboardLayout
  * Returns **output → typedWith** entries that differ from the built-in layout (for persistence).
  */
 export function diffKeyboardLayoutAgainstLanguageDefaults(
-  language: Language,
+  language: KeyboardLayoutLanguage,
   effective: KeyboardLayout
 ): Record<string, string> {
   const defFlat = getDefaultKeyboardLayout(language).flat();

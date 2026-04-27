@@ -9,10 +9,13 @@ import { LoadingSpinner } from './components/LoadingSpinner';
 import { Toaster } from './components/ui/sonner';
 import { getAuthenticatedUserFromBackend, setSessionOverride, type User } from './utils/auth';
 import { UI_CONSTANTS } from './utils/constants';
+import type { Document } from './models/document';
 
 export default function App() {
   const [user, setUser] = useState<User | null | undefined>(undefined);
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null | undefined>(undefined);
+  const [editorInitialDocument, setEditorInitialDocument] = useState<Document | undefined>(undefined);
+  const [listSyncVersion, setListSyncVersion] = useState(0);
   const [authView, setAuthView] = useState<'login' | 'signup' | 'forgot' | 'reset-confirm'>('login');
   const [passwordResetEmail, setPasswordResetEmail] = useState('');
 
@@ -51,12 +54,19 @@ export default function App() {
     setUser(loggedInUser);
   };
 
-  const handleSelectDocument = (id: string | null) => {
+  const handleSelectDocument = (id: string | null, initialDocument?: Document) => {
     setSelectedDocumentId(id);
+    if (id && initialDocument && initialDocument.id === id) {
+      setEditorInitialDocument(initialDocument);
+    } else {
+      setEditorInitialDocument(undefined);
+    }
   };
 
   const handleBackToList = () => {
     setSelectedDocumentId(undefined);
+    setEditorInitialDocument(undefined);
+    setListSyncVersion((v) => v + 1);
   };
 
   // Loading state while checking authentication
@@ -134,10 +144,23 @@ export default function App() {
       </a>
       
       <main id="main-content">
-        {selectedDocumentId === undefined ? (
-          <DocumentList user={user} onSelectDocument={handleSelectDocument} />
-        ) : (
-          <Editor documentId={selectedDocumentId} onBack={handleBackToList} />
+        <div
+          hidden={selectedDocumentId !== undefined}
+          className="contents"
+          inert={selectedDocumentId !== undefined || undefined}
+        >
+          <DocumentList
+            user={user}
+            onSelectDocument={handleSelectDocument}
+            listSyncRequestVersion={listSyncVersion}
+          />
+        </div>
+        {selectedDocumentId !== undefined && (
+          <Editor
+            documentId={selectedDocumentId}
+            initialDocument={editorInitialDocument}
+            onBack={handleBackToList}
+          />
         )}
       </main>
       <Toaster />

@@ -2,6 +2,8 @@
 
 This guide is for **developers** who want to run GlossaDocs on their machine. End users only need a browser and the app URL your deployment provides.
 
+**Pull requests:** open them against the **`develop`** branch so reviewers see a small, relevant diff. Set the base branch in GitHub when you open the PR.
+
 ## Choose a path
 
 | Path | When to use |

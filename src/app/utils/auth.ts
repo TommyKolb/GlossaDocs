@@ -76,9 +76,6 @@ export async function loginWithCredentials(credentials: LoginCredentials): Promi
  * Guest mode remains local-only by design so users can run the app without backend services.
  */
 export async function continueAsGuest(): Promise<User> {
-  // Simulate API call delay
-  await new Promise((resolve) => setTimeout(resolve, 500));
-
   const guestUser: User = {
     id: `guest_${Date.now()}`,
     username: "Guest",
@@ -94,10 +91,15 @@ export async function continueAsGuest(): Promise<User> {
 }
 
 export async function logout(): Promise<void> {
-  try {
-    await authApi.logout();
-  } catch {
-    // Ignore network errors and still clear local state.
+  const effectiveUser = getEffectiveUser();
+  const isGuestSession = effectiveUser?.isGuest === true;
+
+  if (!isGuestSession) {
+    try {
+      await authApi.logout();
+    } catch {
+      // Ignore network errors and still clear local state.
+    }
   }
 
   clearClientAuthState();

@@ -23,6 +23,10 @@ export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: Log
   const [isLoading, setIsLoading] = useState(false);
   const [currentWelcomeIndex, setCurrentWelcomeIndex] = useState(0);
   const [formErrors, setFormErrors] = useState<{ username?: string; password?: string; general?: string }>({});
+  const visibleLanguages = Array.from(
+    { length: UI_CONSTANTS.WELCOME_LANGUAGE_BADGE_COUNT },
+    (_, offset) => LANGUAGES[(currentWelcomeIndex + offset) % LANGUAGES.length]
+  );
 
   // Cycle through welcome messages
   useEffect(() => {
@@ -125,7 +129,7 @@ export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: Log
             aria-label="Supported languages"
           >
             <AnimatePresence mode="sync">
-              {LANGUAGES.map((language) => (
+              {visibleLanguages.map((language) => (
                 <li key={language.value}>
                   <LanguageBadge language={language} />
                 </li>

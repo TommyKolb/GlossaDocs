@@ -15,6 +15,8 @@ Use this checklist so fonts, keyboard defaults, locale mapping, and tests stay a
 6. **Tests** — Update or add:
 
    - `src/test/integration/editor-fonts.test.tsx` (font catalog coverage)
+   - `src/test/unit/keyboard-layouts.test.ts` for alphabet-style on-screen layouts
+   - `src/test/unit/chinese-pinyin.test.ts`, `src/test/integration/language-keyboard.test.tsx`, and `src/test/integration/editor-keyboard-mapping.test.tsx` for composition-style pinyin input
    - `backend/test/integration/document-routes.test.ts` / `backend/test/unit/document-service.test.ts` if document language validation changes
 
 See also [docs/testing.md](../testing.md) for how to run the test suites.
@@ -25,4 +27,4 @@ Simplified (`zh-Hans`) and Traditional (`zh-Hant`) Chinese use a separate pinyin
 
 CC-CEDICT is licensed under Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0). If you regenerate or modify this dictionary-derived data, preserve attribution and review share-alike obligations before shipping. Keep the repo-level notice in `THIRD_PARTY_NOTICES.md` aligned with the generated data source and transformation.
 
-Run `npm run generate:chinese-pinyin` to refresh the compact generated dictionary from the current CC-CEDICT export. The generator caps candidates per pinyin key and uses lightweight heuristics; it is broader than a hand-written starter list, but it is still not a complete Mandarin IME. A production-grade IME needs stronger segmentation for multi-syllable input, frequency/context candidate ranking, punctuation behavior, and ideally user learning. Installed OS/browser Chinese input methods should continue to work through native composition events and remain the fallback for unrestricted Chinese typing.
+The generated dictionary is committed so normal installs and production builds do not depend on downloading CC-CEDICT. Run `npm run generate:chinese-pinyin` only when refreshing the source data or changing the generation heuristics, then review the generator changes more carefully than the large generated diff. The generator caps candidates per pinyin key and uses lightweight heuristics; it is broader than a hand-written starter list, but it is still not a complete Mandarin IME. A production-grade IME needs stronger segmentation for multi-syllable input, frequency/context candidate ranking, punctuation behavior, and ideally user learning. Installed OS/browser Chinese input methods should continue to work through native composition events and remain the fallback for unrestricted Chinese typing.

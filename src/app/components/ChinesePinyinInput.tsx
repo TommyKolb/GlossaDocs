@@ -2,7 +2,7 @@ import type { KeyboardEvent } from 'react';
 
 import type { ChineseLanguage } from '../utils/languages';
 import { getLanguageName } from '../utils/languages';
-import type { ChineseCandidate } from '../utils/chinesePinyin';
+import { resolveChinesePinyinKeyAction, type ChineseCandidate } from '../utils/chinesePinyin';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 
@@ -31,34 +31,23 @@ export function ChinesePinyinInput({
 }: ChinesePinyinInputProps) {
   const languageName = getLanguageName(language);
 
-  const selectCandidate = (candidate: ChineseCandidate) => {
-    onCandidateSelect(candidate);
-  };
-
   const handleInputKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.ctrlKey || event.metaKey || event.altKey || event.nativeEvent.isComposing) {
-      return;
-    }
+    const action = resolveChinesePinyinKeyAction({
+      key: event.key,
+      buffer,
+      candidates,
+      ctrlKey: event.ctrlKey,
+      metaKey: event.metaKey,
+      altKey: event.altKey,
+      isComposing: event.nativeEvent.isComposing
+    });
 
-    if (event.key === 'Escape' && buffer) {
+    if (action.type === 'clear') {
       event.preventDefault();
       onClearBuffer();
-      return;
-    }
-
-    const firstCandidate = candidates[0];
-    if ((event.key === 'Enter' || event.key === ' ') && firstCandidate) {
+    } else if (action.type === 'commit') {
       event.preventDefault();
-      selectCandidate(firstCandidate);
-      return;
-    }
-
-    if (/^[1-9]$/.test(event.key)) {
-      const candidate = candidates[Number(event.key) - 1];
-      if (candidate) {
-        event.preventDefault();
-        selectCandidate(candidate);
-      }
+      onCandidateSelect(action.candidate);
     }
   };
 
@@ -109,7 +98,7 @@ export function ChinesePinyinInput({
               </p>
             </div>
 
-            <div className="space-y-2" role="listbox" aria-label={`${languageName} candidate choices`}>
+            <div className="space-y-2" role="group" aria-label={`${languageName} candidate choices`}>
               {candidates.length > 0 ? (
                 candidates.map((candidate, index) => (
                   <Button
@@ -119,9 +108,8 @@ export function ChinesePinyinInput({
                     size="sm"
                     className="w-full justify-start gap-2"
                     onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => selectCandidate(candidate)}
-                    role="option"
-                    aria-label={`Choose ${candidate.text}, ${candidate.gloss}`}
+                    onClick={() => onCandidateSelect(candidate)}
+                    aria-label={`Choose candidate ${index + 1}: ${candidate.text}`}
                   >
                     <span className="font-mono text-xs text-gray-500">{index + 1}</span>
                     <span className="text-base font-semibold">{candidate.text}</span>

@@ -136,6 +136,30 @@ describe("Editor keyboard mapping integration", () => {
     expect(window.document.execCommand).toHaveBeenCalledWith("insertText", false, "謝謝");
   });
 
+  it("clears the Chinese pinyin buffer when the input panel is hidden", async () => {
+    getUserSettingsMock.mockResolvedValueOnce({
+      lastUsedLocale: "zh-CN",
+      keyboardVisible: true,
+      keyboardLayoutOverrides: {}
+    });
+    render(<Editor documentId={null} onBack={() => {}} />);
+    const textbox = await screen.findByRole("textbox", { name: /Document editor for/i });
+    const user = userEvent.setup();
+
+    for (const key of ["n", "i"]) {
+      fireEvent.keyDown(textbox, { key, code: `Key${key.toUpperCase()}` });
+    }
+    expect(screen.getByRole("textbox", { name: /Pinyin buffer/i })).toHaveValue("ni");
+
+    await user.click(screen.getByRole("button", { name: /Hide pinyin input/i }));
+    expect(screen.queryByRole("textbox", { name: /Pinyin buffer/i })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Show pinyin input/i }));
+    await waitFor(() => {
+      expect(screen.getByRole("textbox", { name: /Pinyin buffer/i })).toHaveValue("");
+    });
+  });
+
   it("shows an error and restores previous mappings when saving overrides fails", async () => {
     const { toast } = await import("sonner");
     const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});

@@ -19,9 +19,12 @@ Requires **Node.js 20+** and dependencies (`npm run setup:dev` at the repo root,
 - Backend coverage: `npm run test:backend:coverage` → `coverage/backend/`
 - Infrastructure checks: `npm --prefix infrastructure run typecheck && npm --prefix infrastructure run lint && npm --prefix infrastructure run test && npm --prefix infrastructure run synth`
 - E2E: `npm run test:e2e` (first time: `npm run test:e2e:install` for Chromium)
+- Chinese pinyin dictionary refresh: `npm run generate:chinese-pinyin` downloads CC-CEDICT and rewrites the committed generated dictionary. Run it only when refreshing that data or changing generation heuristics; normal tests and builds use the committed file.
 - **Deployed integration:** `npm run test:deployed` — Playwright against the live Amplify app and API (`playwright.deployed.config.ts`, specs in `e2e/deployed/`). Specification: [docs/specs/test/deployed-integration.test-spec.md](specs/test/deployed-integration.test-spec.md).
 
 `test:frontend` / `test:backend` alone do not run `check:font-catalogs` or `check:language-codes`; use `npm test` for the full gate.
+
+Composition-style language changes, such as Chinese pinyin input, should include focused frontend coverage in `src/test/unit/chinese-pinyin.test.ts`, `src/test/integration/language-keyboard.test.tsx`, and `src/test/integration/editor-keyboard-mapping.test.tsx` in addition to language-code, font, and backend validation checks.
 
 ### Deployed integration environment
 

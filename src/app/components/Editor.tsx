@@ -22,6 +22,7 @@ import {
   chineseLanguageToScript,
   getChineseCandidates,
   normalizePinyin,
+  resolveChinesePinyinKeyAction,
   type ChineseCandidate
 } from '../utils/chinesePinyin';
 import { getEditorShortcutAction } from '../utils/keyboardShortcuts';
@@ -544,10 +545,10 @@ export function Editor({ documentId, initialDocument, onBack }: EditorProps) {
   }, []);
 
   useEffect(() => {
-    if (!isChineseLanguage(activeLanguage) && pinyinBuffer) {
+    if ((!isChineseLanguage(activeLanguage) || !isKeyboardVisible) && pinyinBuffer) {
       setPinyinBuffer('');
     }
-  }, [activeLanguage, pinyinBuffer]);
+  }, [activeLanguage, isKeyboardVisible, pinyinBuffer]);
 
   const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
     const isImageWrapper = (element: Element | null): element is HTMLElement =>
@@ -575,39 +576,40 @@ export function Editor({ documentId, initialDocument, onBack }: EditorProps) {
       return;
     }
 
-    if (isKeyboardVisible && isChineseLanguage(activeLanguage) && !event.ctrlKey && !event.metaKey && !event.altKey && !event.nativeEvent.isComposing) {
-      if (/^[a-zA-Z]$/.test(event.key)) {
+    if (isKeyboardVisible && isChineseLanguage(activeLanguage)) {
+      const pinyinAction = resolveChinesePinyinKeyAction({
+        key: event.key,
+        buffer: pinyinBuffer,
+        candidates: pinyinCandidates,
+        ctrlKey: event.ctrlKey,
+        metaKey: event.metaKey,
+        altKey: event.altKey,
+        isComposing: event.nativeEvent.isComposing,
+        captureTextInput: true
+      });
+
+      if (pinyinAction.type === 'append') {
         event.preventDefault();
-        setPinyinBuffer((current) => normalizePinyin(`${current}${event.key}`));
+        setPinyinBuffer((current) => normalizePinyin(`${current}${pinyinAction.value}`));
         return;
       }
 
-      if (event.key === 'Backspace' && pinyinBuffer) {
+      if (pinyinAction.type === 'delete') {
         event.preventDefault();
         setPinyinBuffer((current) => current.slice(0, -1));
         return;
       }
 
-      if (event.key === 'Escape' && pinyinBuffer) {
+      if (pinyinAction.type === 'clear') {
         event.preventDefault();
         clearPinyinBuffer();
         return;
       }
 
-      const firstChineseCandidate = pinyinCandidates[0];
-      if ((event.key === ' ' || event.key === 'Enter') && firstChineseCandidate) {
+      if (pinyinAction.type === 'commit') {
         event.preventDefault();
-        commitChineseCandidate(firstChineseCandidate);
+        commitChineseCandidate(pinyinAction.candidate);
         return;
-      }
-
-      if (/^[1-9]$/.test(event.key)) {
-        const candidate = pinyinCandidates[Number(event.key) - 1];
-        if (candidate) {
-          event.preventDefault();
-          commitChineseCandidate(candidate);
-          return;
-        }
       }
     }
 

@@ -10,12 +10,19 @@ interface DocumentListHeroProps {
   onUploadDocument: () => void;
 }
 
+function canReloadWindow(): boolean {
+  return !globalThis.navigator?.userAgent.toLowerCase().includes('jsdom');
+}
+
 export function DocumentListHero({ user, onCreateDocument, onUploadDocument }: DocumentListHeroProps) {
   const handleResetSession = async () => {
     try {
       await logout();
-      // Reload the page to reset app state. jsdom throws on reload (navigation not implemented).
+      // Reload the page to reset app state after auth/session storage has been cleared.
       setTimeout(() => {
+        if (!canReloadWindow()) {
+          return;
+        }
         try {
           globalThis.window?.location?.reload?.();
         } catch {

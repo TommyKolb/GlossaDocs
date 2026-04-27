@@ -84,7 +84,7 @@ Guest mode uses the same shape in local storage via `settings-repository.ts`.
 
 ### Chinese pinyin limitations
 
-The in-app Chinese panel is deliberately scoped below a full IME. It does not contain every character or word, does not rank candidates using sentence context, does not learn from the user, and does not perform broad phrase segmentation. Future work could replace or augment `src/app/utils/chinesePinyin.ts` with licensed/open dictionary data plus a ranking layer.
+The in-app Chinese panel is deliberately scoped below a full IME. Candidate data is generated from CC-CEDICT (CC BY-SA 4.0) with `npm run generate:chinese-pinyin`, then looked up through `src/app/utils/chinesePinyin.ts`. Attribution and the ShareAlike boundary for the generated dictionary data are documented in `THIRD_PARTY_NOTICES.md`. It has broad dictionary coverage compared with the original starter list, but it does not rank candidates using sentence context, does not learn from the user, and does not perform broad phrase segmentation. Future work could add a licensed frequency source or a stronger ranking/segmentation layer.
 
 ## Acceptance criteria (mapped to implementation)
 

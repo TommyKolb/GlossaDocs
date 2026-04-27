@@ -18,7 +18,7 @@ GlossaDocs is a **browser-based writing app** built for **many languages and scr
 
 3. **Work with documents** — Create documents, organize them in **folders**, and edit in the main editor. Changes are **saved automatically** when you are online and using a synced account (or saved locally for guest mode, depending on your browser).
 
-4. **Language and typing** — Pick the **language** (and fonts where offered) for a document when the app provides those options. If you work in a script that does not match your keyboard, use the **on-screen keyboard**, key remapping, or Chinese **starter pinyin candidate input** when those features appear, so you can type supported characters and words. The Chinese pinyin helper is not a full IME; installed browser/OS Chinese keyboards should still be used for unrestricted Chinese typing.
+4. **Language and typing** — Pick the **language** (and fonts where offered) for a document when the app provides those options. If you work in a script that does not match your keyboard, use the **on-screen keyboard**, key remapping, or Chinese **starter pinyin candidate input** when those features appear, so you can type supported characters and words. The Chinese pinyin helper is not a full IME; installed browser/OS Chinese keyboards should still be used for unrestricted Chinese typing. Chinese candidate data is derived from [CC-CEDICT](https://cc-cedict.org/) under the [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) license; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 5. **Import and export** — Use the app’s menus for **import** or **export** if your host has enabled them, so you can move content in or out of GlossaDocs.
 
@@ -40,5 +40,6 @@ Technical setup, tests, architecture, and **AWS deployment** (Amplify, API Gatew
 | Deploy from a fork / your AWS account | [docs/deployment/aws-fork-bootstrap.md](docs/deployment/aws-fork-bootstrap.md) |
 | Cognito email limits and optional SES | [docs/deployment/cognito-email-and-ses.md](docs/deployment/cognito-email-and-ses.md) |
 | Add a new language (code, fonts, keyboards, tests) | [docs/development/adding-a-language.md](docs/development/adding-a-language.md) |
+| Third-party notices and data licenses | [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) |
 
 Quick commands for contributors: **`npm test`** (quality gate), **`npm run dev:docker`** (full local stack—see local-development doc).

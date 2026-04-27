@@ -21,6 +21,8 @@ See also [docs/testing.md](../testing.md) for how to run the test suites.
 
 ## Chinese pinyin input caveat
 
-Simplified (`zh-Hans`) and Traditional (`zh-Hant`) Chinese use a separate pinyin candidate panel instead of fixed key remapping. It currently supports a checked-in starter list of common learner words in `src/app/utils/chinesePinyin.ts`.
+Simplified (`zh-Hans`) and Traditional (`zh-Hant`) Chinese use a separate pinyin candidate panel instead of fixed key remapping. Candidate data is generated from CC-CEDICT into `src/app/data/chinese-pinyin-dictionary.generated.ts`; lookup behavior lives in `src/app/utils/chinesePinyin.ts`.
 
-Do not describe this as a complete Mandarin IME. A production-grade IME needs a much larger dictionary, segmentation for multi-syllable input, candidate ranking, script-specific conversion, punctuation behavior, and ideally context-aware ranking or user learning. Installed OS/browser Chinese input methods should continue to work through native composition events and remain the fallback for unrestricted Chinese typing.
+CC-CEDICT is licensed under Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0). If you regenerate or modify this dictionary-derived data, preserve attribution and review share-alike obligations before shipping. Keep the repo-level notice in `THIRD_PARTY_NOTICES.md` aligned with the generated data source and transformation.
+
+Run `npm run generate:chinese-pinyin` to refresh the compact generated dictionary from the current CC-CEDICT export. The generator caps candidates per pinyin key and uses lightweight heuristics; it is broader than a hand-written starter list, but it is still not a complete Mandarin IME. A production-grade IME needs stronger segmentation for multi-syllable input, frequency/context candidate ranking, punctuation behavior, and ideally user learning. Installed OS/browser Chinese input methods should continue to work through native composition events and remain the fallback for unrestricted Chinese typing.

@@ -47,6 +47,7 @@ describe("LanguageKeyboard", () => {
 
     expect(screen.getByRole("textbox", { name: /Pinyin buffer/i })).toHaveValue("nihao");
     expect(screen.getByText(/not a full Chinese IME/i)).toBeInTheDocument();
+    expect(screen.getByText(/CC-CEDICT/i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Customize/i })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("option", { name: /Choose 你好/i }));

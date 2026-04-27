@@ -1,4 +1,5 @@
 import type { ChineseLanguage } from './languages';
+import { CHINESE_PINYIN_DICTIONARY, type ChineseDictionaryEntry } from '../data/chinese-pinyin-dictionary.generated';
 
 export type ChineseScript = 'simplified' | 'traditional';
 
@@ -44,71 +45,7 @@ const TONE_MARKS: Readonly<Record<string, string>> = {
   ü: 'u'
 };
 
-const SIMPLIFIED_CANDIDATES: readonly ChineseCandidate[] = [
-  { pinyin: 'nihao', text: '你好', gloss: 'hello' },
-  { pinyin: 'xiexie', text: '谢谢', gloss: 'thank you' },
-  { pinyin: 'zaijian', text: '再见', gloss: 'goodbye' },
-  { pinyin: 'qing', text: '请', gloss: 'please' },
-  { pinyin: 'wen', text: '问', gloss: 'ask' },
-  { pinyin: 'ma', text: '吗', gloss: 'question particle' },
-  { pinyin: 'wo', text: '我', gloss: 'I; me' },
-  { pinyin: 'ni', text: '你', gloss: 'you' },
-  { pinyin: 'ta', text: '他', gloss: 'he; him' },
-  { pinyin: 'ta', text: '她', gloss: 'she; her' },
-  { pinyin: 'shi', text: '是', gloss: 'to be' },
-  { pinyin: 'de', text: '的', gloss: 'possessive particle' },
-  { pinyin: 'bu', text: '不', gloss: 'not' },
-  { pinyin: 'zai', text: '在', gloss: 'at; in' },
-  { pinyin: 'you', text: '有', gloss: 'to have' },
-  { pinyin: 'mei', text: '没', gloss: 'not have; did not' },
-  { pinyin: 'hao', text: '好', gloss: 'good' },
-  { pinyin: 'ren', text: '人', gloss: 'person' },
-  { pinyin: 'ai', text: '爱', gloss: 'love' },
-  { pinyin: 'yao', text: '要', gloss: 'want; need' },
-  { pinyin: 'zhongguo', text: '中国', gloss: 'China' },
-  { pinyin: 'zhongwen', text: '中文', gloss: 'Chinese language' },
-  { pinyin: 'hanyu', text: '汉语', gloss: 'Mandarin; Chinese language' },
-  { pinyin: 'putonghua', text: '普通话', gloss: 'Mandarin Chinese' },
-  { pinyin: 'laoshi', text: '老师', gloss: 'teacher' },
-  { pinyin: 'xuesheng', text: '学生', gloss: 'student' },
-  { pinyin: 'pengyou', text: '朋友', gloss: 'friend' },
-  { pinyin: 'jintian', text: '今天', gloss: 'today' },
-  { pinyin: 'mingtian', text: '明天', gloss: 'tomorrow' },
-  { pinyin: 'shenme', text: '什么', gloss: 'what' }
-];
-
-const TRADITIONAL_CANDIDATES: readonly ChineseCandidate[] = [
-  { pinyin: 'nihao', text: '你好', gloss: 'hello' },
-  { pinyin: 'xiexie', text: '謝謝', gloss: 'thank you' },
-  { pinyin: 'zaijian', text: '再見', gloss: 'goodbye' },
-  { pinyin: 'qing', text: '請', gloss: 'please' },
-  { pinyin: 'wen', text: '問', gloss: 'ask' },
-  { pinyin: 'ma', text: '嗎', gloss: 'question particle' },
-  { pinyin: 'wo', text: '我', gloss: 'I; me' },
-  { pinyin: 'ni', text: '你', gloss: 'you' },
-  { pinyin: 'ta', text: '他', gloss: 'he; him' },
-  { pinyin: 'ta', text: '她', gloss: 'she; her' },
-  { pinyin: 'shi', text: '是', gloss: 'to be' },
-  { pinyin: 'de', text: '的', gloss: 'possessive particle' },
-  { pinyin: 'bu', text: '不', gloss: 'not' },
-  { pinyin: 'zai', text: '在', gloss: 'at; in' },
-  { pinyin: 'you', text: '有', gloss: 'to have' },
-  { pinyin: 'mei', text: '沒', gloss: 'not have; did not' },
-  { pinyin: 'hao', text: '好', gloss: 'good' },
-  { pinyin: 'ren', text: '人', gloss: 'person' },
-  { pinyin: 'ai', text: '愛', gloss: 'love' },
-  { pinyin: 'yao', text: '要', gloss: 'want; need' },
-  { pinyin: 'zhongguo', text: '中國', gloss: 'China' },
-  { pinyin: 'zhongwen', text: '中文', gloss: 'Chinese language' },
-  { pinyin: 'hanyu', text: '漢語', gloss: 'Mandarin; Chinese language' },
-  { pinyin: 'putonghua', text: '普通話', gloss: 'Mandarin Chinese' },
-  { pinyin: 'laoshi', text: '老師', gloss: 'teacher' },
-  { pinyin: 'xuesheng', text: '學生', gloss: 'student' },
-  { pinyin: 'pengyou', text: '朋友', gloss: 'friend' },
-  { pinyin: 'jintian', text: '今天', gloss: 'today' },
-  { pinyin: 'mingtian', text: '明天', gloss: 'tomorrow' },
-  { pinyin: 'shenme', text: '什麼', gloss: 'what' }
-];
+const PINYIN_KEYS = Object.keys(CHINESE_PINYIN_DICTIONARY);
 
 export function chineseLanguageToScript(language: ChineseLanguage): ChineseScript {
   return language === 'zh-Hans' ? 'simplified' : 'traditional';
@@ -123,6 +60,14 @@ export function normalizePinyin(value: string): string {
     .replace(/[^a-z]/g, '');
 }
 
+function toCandidate(entry: ChineseDictionaryEntry, pinyin: string, script: ChineseScript): ChineseCandidate {
+  return {
+    text: script === 'simplified' ? entry.s : entry.t,
+    pinyin,
+    gloss: entry.g
+  };
+}
+
 export function getChineseCandidates({
   pinyin,
   script,
@@ -133,13 +78,26 @@ export function getChineseCandidates({
     return [];
   }
 
-  const candidates = script === 'simplified' ? SIMPLIFIED_CANDIDATES : TRADITIONAL_CANDIDATES;
-  return candidates
-    .filter((candidate) => candidate.pinyin === normalized || candidate.pinyin.startsWith(normalized))
-    .sort((a, b) => {
-      if (a.pinyin === normalized && b.pinyin !== normalized) return -1;
-      if (a.pinyin !== normalized && b.pinyin === normalized) return 1;
-      return a.pinyin.length - b.pinyin.length || a.text.localeCompare(b.text);
+  const exact = CHINESE_PINYIN_DICTIONARY[normalized] ?? [];
+  const prefixMatches = exact.length >= limit
+    ? []
+    : PINYIN_KEYS
+        .filter((key) => key !== normalized && key.startsWith(normalized))
+        .sort((a, b) => a.length - b.length || a.localeCompare(b))
+        .flatMap((key) => (CHINESE_PINYIN_DICTIONARY[key] ?? []).map((entry) => toCandidate(entry, key, script)));
+
+  const seen = new Set<string>();
+  return [
+    ...exact.map((entry) => toCandidate(entry, normalized, script)),
+    ...prefixMatches
+  ]
+    .filter((candidate) => {
+      const key = `${candidate.text}:${candidate.pinyin}`;
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
     })
     .slice(0, limit);
 }

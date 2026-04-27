@@ -22,6 +22,16 @@ describe("Chinese pinyin candidates", () => {
     expect(candidates[0]?.text).toBe("謝謝");
   });
 
+  it("uses the generated CC-CEDICT dictionary beyond the original starter list", () => {
+    const candidates = getChineseCandidates({ pinyin: "tushuguan", script: "simplified" });
+    expect(candidates.some((candidate) => candidate.text === "图书馆")).toBe(true);
+  });
+
+  it("returns prefix matches when the pinyin buffer is incomplete", () => {
+    const candidates = getChineseCandidates({ pinyin: "zhongw", script: "traditional" });
+    expect(candidates.some((candidate) => candidate.text === "中文")).toBe(true);
+  });
+
   it("maps Chinese document language variants to candidate scripts", () => {
     expect(chineseLanguageToScript("zh-Hans")).toBe("simplified");
     expect(chineseLanguageToScript("zh-Hant")).toBe("traditional");

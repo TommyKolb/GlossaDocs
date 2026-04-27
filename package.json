@@ -29,6 +29,7 @@
     "test:e2e:install": "playwright install --with-deps chromium",
     "check:font-catalogs": "node scripts/check-font-catalogs.mjs",
     "check:language-codes": "node scripts/check-language-codes.mjs",
+    "generate:chinese-pinyin": "node scripts/generate-chinese-pinyin-dictionary.mjs",
     "test:infrastructure": "npm --prefix infrastructure run typecheck && npm --prefix infrastructure run lint && npm --prefix infrastructure run test",
     "synth:infrastructure": "npm --prefix infrastructure run build && npm --prefix infrastructure run synth"
   },

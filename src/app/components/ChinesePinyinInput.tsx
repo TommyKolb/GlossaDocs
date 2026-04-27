@@ -104,6 +104,9 @@ export function ChinesePinyinInput({
               <p id={`${language}-pinyin-help`} className="text-[11px] text-gray-500">
                 Tone marks and numbers are optional. If a word is missing, use your system Chinese keyboard or expand the candidate dictionary.
               </p>
+              <p className="text-[11px] text-gray-500">
+                Candidate data is derived from CC-CEDICT (CC BY-SA 4.0) and lightly ranked for this app.
+              </p>
             </div>
 
             <div className="space-y-2" role="listbox" aria-label={`${languageName} candidate choices`}>

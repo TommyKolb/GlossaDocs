@@ -76,7 +76,7 @@ export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: Log
       const user = await continueAsGuest();
       toast.success('Welcome, Guest! Your documents are saved locally.');
       onLoginSuccess(user);
-    } catch (error) {
+    } catch {
       toast.error('Failed to continue as guest. Please try again.');
     } finally {
       setIsLoading(false);
@@ -84,10 +84,12 @@ export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: Log
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 flex items-center justify-center px-4 sm:px-6 md:px-10 lg:px-12 py-8">
-      <div className="w-full max-w-xl sm:max-w-2xl md:max-w-3xl lg:max-w-4xl">
-        {/* Hero Section */}
-        <div className="mb-8 sm:mb-12 text-center relative">
+    <div
+      className={`min-h-screen ${UI_CONSTANTS.GRADIENT_BACKGROUND} flex items-center justify-center px-4 sm:px-6 md:px-10 lg:px-12 py-8`}
+    >
+      <div className="w-full max-w-xl sm:max-w-2xl md:max-w-3xl lg:max-w-4xl flex flex-col gap-7 sm:gap-8">
+        {/* Hero: even vertical rhythm (title / welcome / badges) */}
+        <div className="text-center relative flex flex-col gap-5 sm:gap-6">
           {/* Background decorative elements */}
           <div className="absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
             <div className="absolute -top-10 left-1/4 text-5xl sm:text-7xl font-serif text-blue-100/40 select-none">
@@ -98,18 +100,18 @@ export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: Log
             </div>
           </div>
 
-          {/* Main heading */}
-          <div className="mb-4 sm:mb-6">
-            <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-2">
+          {/* Main heading + subtitle */}
+          <div>
+            <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-1.5 sm:mb-2">
               GlossaDocs
             </h1>
-            <div className="text-xs sm:text-sm text-gray-500 italic font-serif">
+            <div className="text-sm sm:text-base text-gray-500 italic font-serif">
               γλῶσσα • tongue • language
             </div>
           </div>
 
           {/* Animated welcome message */}
-          <div className="mb-4 sm:mb-6 h-16 sm:h-10" aria-live="polite" aria-atomic="true">
+          <div className="min-h-[2.75rem] sm:min-h-[2.5rem]" aria-live="polite" aria-atomic="true">
             <p className="text-xl sm:text-2xl font-medium text-gray-700 transition-all duration-500">
               {LANGUAGES[currentWelcomeIndex].welcomeText}
             </p>
@@ -120,7 +122,7 @@ export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: Log
 
           {/* Language badges — infinite horizontal marquee (duplicated row for seamless loop) */}
           <div
-            className="relative mb-6 sm:mb-8 w-screen max-w-[100vw] left-1/2 -translate-x-1/2 overflow-hidden motion-reduce:overflow-x-auto [mask-image:linear-gradient(to_right,transparent,black_6%,black_94%,transparent)] motion-reduce:[mask-image:none]"
+            className="relative w-screen max-w-[100vw] left-1/2 -translate-x-1/2 overflow-hidden motion-reduce:overflow-x-auto [mask-image:linear-gradient(to_right,transparent,black_6%,black_94%,transparent)] motion-reduce:[mask-image:none]"
             role="region"
             aria-label="Supported languages"
           >
@@ -296,7 +298,7 @@ export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: Log
           ) : null}
         </div>
 
-        <footer className="mt-6 sm:mt-8 w-full text-center px-1 sm:px-2">
+        <footer className="w-full text-center px-1 sm:px-2">
           <p className="text-sm sm:text-base font-semibold text-gray-800">
             Multi-language document editor
           </p>

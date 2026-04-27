@@ -57,8 +57,7 @@ describe("Login signup + reset entrypoints", () => {
     );
 
     const user = userEvent.setup();
-    const createButtons = screen.getAllByTestId("create-account-button");
-    await user.click(createButtons[createButtons.length - 1]);
+    await user.click(screen.getByTestId("create-account-button"));
 
     expect(onCreateAccount).toHaveBeenCalledTimes(1);
   });
@@ -74,8 +73,7 @@ describe("Login signup + reset entrypoints", () => {
     );
 
     const user = userEvent.setup();
-    const forgotButtons = screen.getAllByTestId("forgot-password-button");
-    await user.click(forgotButtons[forgotButtons.length - 1]);
+    await user.click(screen.getByTestId("forgot-password-button"));
 
     expect(onForgotPassword).toHaveBeenCalledTimes(1);
   });
@@ -111,6 +109,7 @@ describe("Login signup + reset entrypoints", () => {
       vi.advanceTimersByTime(UI_CONSTANTS.WELCOME_MESSAGE_INTERVAL_MS);
     });
 
-    expect(screen.getByText("Willkommen")).toBeInTheDocument();
+    expect(screen.getByText(LANGUAGES[1].welcomeText)).toBeInTheDocument();
+    expect(screen.getByText(LANGUAGES[1].welcomeLabel)).toBeInTheDocument();
   });
 });

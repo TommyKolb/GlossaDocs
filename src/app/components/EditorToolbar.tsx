@@ -32,7 +32,7 @@ import {
 } from './ui/dropdown-menu';
 import { Separator } from './ui/separator';
 import { DocumentLanguagePicker } from './DocumentLanguagePicker';
-import type { Language } from '../utils/languages';
+import { isBrowserSpellcheckEnabledForLanguage, type Language } from '../utils/languages';
 import { type ExportFormat } from '../utils/export';
 import { FONT_SIZE_OPTIONS } from '../utils/constants';
 import { type FormattingState } from '../utils/types';
@@ -108,7 +108,7 @@ export function EditorToolbar({
           aria-label="Document title"
           dir="auto"
           lang={language}
-          spellCheck={language === 'en'}
+          spellCheck={isBrowserSpellcheckEnabledForLanguage(language)}
         />
 
         {/* Unsaved changes indicator */}

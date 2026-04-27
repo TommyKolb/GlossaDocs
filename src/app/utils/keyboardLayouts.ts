@@ -107,7 +107,7 @@ const TAGALOG_LAYOUT: KeyboardLayout = [
   [key('z', 'z'), key('x', 'x'), key('c', 'c'), key('v', 'v'), key('b', 'b'), key('n', 'n'), key('m', 'm')]
 ];
 
-/** Swedish — å, ä, ö on US-style punctuation positions (Windows Swedish 101). */
+/** Swedish — å, ä, ö; on-screen keys are letters only (punctuation is typed on the physical keyboard). */
 const SWEDISH_LAYOUT: KeyboardLayout = [
   [
     key('q', 'q'),
@@ -142,14 +142,11 @@ const SWEDISH_LAYOUT: KeyboardLayout = [
     key('v', 'v'),
     key('b', 'b'),
     key('n', 'n'),
-    key('m', 'm'),
-    key(',', ','),
-    key('.', '.'),
-    key('-', '-')
+    key('m', 'm')
   ]
 ];
 
-/** Norwegian Bokmål — å, æ, ø (Windows Norwegian 101). */
+/** Norwegian Bokmål — å, æ, ø; on-screen keys are letters only. */
 const NORWEGIAN_LAYOUT: KeyboardLayout = [
   [
     key('q', 'q'),
@@ -184,14 +181,11 @@ const NORWEGIAN_LAYOUT: KeyboardLayout = [
     key('v', 'v'),
     key('b', 'b'),
     key('n', 'n'),
-    key('m', 'm'),
-    key(',', ','),
-    key('.', '.'),
-    key('-', '-')
+    key('m', 'm')
   ]
 ];
 
-/** Turkish Q — dotless ı on the US I key; dotted i on quote; ğ ü ş ö ç (Windows Turkish Q). */
+/** Turkish Q — ğ, ü, ş, ö, ç, ı, i; on-screen keys are letters only (no period row). */
 const TURKISH_LAYOUT: KeyboardLayout = [
   [
     key('q', 'q'),
@@ -229,8 +223,7 @@ const TURKISH_LAYOUT: KeyboardLayout = [
     key('n', 'n'),
     key('m', 'm'),
     key('ö', ','),
-    key('ç', '.'),
-    key('.', '-')
+    key('ç', '.')
   ]
 ];
 

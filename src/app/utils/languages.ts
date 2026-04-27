@@ -78,7 +78,7 @@ export const LANGUAGES = [
   {
     value: 'uk',
     label: 'Ukrainian',
-    listBadge: 'UK',
+    listBadge: 'UA',
     welcomeText: 'Ласкаво просимо',
     welcomeLabel: 'Українська',
     pickerGroup: 'Cyrillic' as const
@@ -123,6 +123,7 @@ export const LANGUAGES = [
     welcomeLabel: 'Kiswahili',
     pickerGroup: 'Latin' as const
   },
+  // BCP 47: `tl` = Tagalog; `fil` (Filipino) is a related code. We use `tl` for common locale/keyboard interop.
   {
     value: 'tl',
     label: 'Tagalog',
@@ -197,4 +198,12 @@ export function isChineseLanguage(language: Language): language is ChineseLangua
 /** Document languages that use a right-to-left primary script (editor/title `dir`). */
 export function isRTLLanguage(language: Language): boolean {
   return language === 'ar';
+}
+
+/**
+ * Whether the browser’s native spellcheck should run for this document language.
+ * Product rule: on for English only; off elsewhere (see README) so other languages are not swamped with false underlines.
+ */
+export function isBrowserSpellcheckEnabledForLanguage(language: Language): boolean {
+  return language === 'en';
 }

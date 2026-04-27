@@ -6,7 +6,13 @@ import type { Document } from '../models/document';
 import { generateDocumentId } from '../models/document';
 import { getAllFolders, getDocument, saveDocument } from '../data/document-repository';
 import { exportDocument, type ExportFormat } from '../utils/export';
-import { getLanguageName, isChineseLanguage, isRTLLanguage, type Language } from '../utils/languages';
+import {
+  getLanguageName,
+  isBrowserSpellcheckEnabledForLanguage,
+  isChineseLanguage,
+  isRTLLanguage,
+  type Language
+} from '../utils/languages';
 import { getDefaultFontFamilyForLanguage, resolveDocumentFontFamily } from '../utils/language-fonts';
 import { EDITOR_CONFIG, UI_CONSTANTS } from '../utils/constants';
 import {
@@ -960,7 +966,7 @@ export function Editor({ documentId, initialDocument, onBack }: EditorProps) {
               <div
                 ref={editorRef}
                 contentEditable
-                spellCheck={document.language === 'en'}
+                spellCheck={isBrowserSpellcheckEnabledForLanguage(document.language)}
                 className="min-h-[calc(100vh-190px)] min-h-[calc(100dvh-190px)] bg-white p-4 sm:p-8 md:p-12 shadow-lg rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                 style={{
                   lineHeight: '1.15',

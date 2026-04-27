@@ -156,6 +156,7 @@ export function Editor({ documentId, initialDocument, onBack }: EditorProps) {
     if (editorRef.current) {
       const isRTL = false; // None of the current languages are RTL, but keeping this for future
       editorRef.current.dir = isRTL ? 'rtl' : 'ltr';
+      editorRef.current.style.fontFamily = nextFontFamily;
     }
 
     toast.success(`Language changed to ${getLanguageName(newLanguage)}`);
@@ -180,6 +181,17 @@ export function Editor({ documentId, initialDocument, onBack }: EditorProps) {
         return;
       }
 
+      // Compute before execCommand mutates the DOM or moves the caret.
+      let selectionCoversEntireDocument = false;
+      if (selection.rangeCount > 0 && editorElement) {
+        const selectedRange = selection.getRangeAt(0).cloneRange();
+        const editorRange = window.document.createRange();
+        editorRange.selectNodeContents(editorElement);
+        selectionCoversEntireDocument =
+          selectedRange.compareBoundaryPoints(Range.START_TO_START, editorRange) === 0 &&
+          selectedRange.compareBoundaryPoints(Range.END_TO_END, editorRange) === 0;
+      }
+
       // Ask the browser to keep formatting as CSS spans when possible.
       window.document.execCommand('styleWithCSS', false, 'true');
       const applied = window.document.execCommand('fontName', false, resolvedFontFamily);
@@ -200,21 +212,6 @@ export function Editor({ documentId, initialDocument, onBack }: EditorProps) {
         }
       }
 
-      const hasRangeSelection =
-        selection !== null &&
-        selection.rangeCount > 0 &&
-        !selection.getRangeAt(0).collapsed;
-
-      let selectionCoversEntireDocument = false;
-      if (selection && selection.rangeCount > 0 && editorElement) {
-        const selectedRange = selection.getRangeAt(0).cloneRange();
-        const editorRange = window.document.createRange();
-        editorRange.selectNodeContents(editorElement);
-        selectionCoversEntireDocument =
-          selectedRange.compareBoundaryPoints(Range.START_TO_START, editorRange) === 0 &&
-          selectedRange.compareBoundaryPoints(Range.END_TO_END, editorRange) === 0;
-      }
-
       if (!applied && (!selection || selection.rangeCount === 0 || selection.isCollapsed)) {
         if (selection && selection.rangeCount > 0) {
           const range = selection.getRangeAt(0);
@@ -230,8 +227,13 @@ export function Editor({ documentId, initialDocument, onBack }: EditorProps) {
         }
       }
 
-      // Keep toolbar value in sync with the most recently chosen font.
-      // This does not force existing text to re-render in that font.
+      // Keep toolbar / persisted default in sync. Only change the editor root font when the
+      // whole document is targeted (like changing default in Word); partial selections use
+      // inline markup only so unstyled paragraphs keep the previous default.
+      if (selectionCoversEntireDocument) {
+        editorElement.style.fontFamily = resolvedFontFamily;
+      }
+
       setDocument((current) => {
         if (!current) {
           return current;
@@ -773,13 +775,15 @@ export function Editor({ documentId, initialDocument, onBack }: EditorProps) {
     }
   }, [document?.id, document?.content]);
 
+  // Default font for the editor surface (new text / unstyled blocks). Do not tie this to
+  // document.fontFamily on every toolbar change — that re-styled the whole document and
+  // fought partial execCommand(fontName) results. Language changes set root font explicitly;
+  // full-document font picks set it inside handleFontFamilyChange.
   useEffect(() => {
     if (document && editorRef.current) {
-      if (editorRef.current.style.fontFamily !== document.fontFamily) {
-        editorRef.current.style.fontFamily = document.fontFamily;
-      }
+      editorRef.current.style.fontFamily = document.fontFamily;
     }
-  }, [document?.id, document?.fontFamily]);
+  }, [document?.id]);
 
   useEffect(() => {
     documentRef.current = document;

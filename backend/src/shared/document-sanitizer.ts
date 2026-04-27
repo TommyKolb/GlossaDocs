@@ -15,6 +15,7 @@ const ALLOWED_CONTENT_TAGS = [
   "div",
   "br",
   "span",
+  "font",
   "strong",
   "b",
   "em",
@@ -28,6 +29,8 @@ const ALLOWED_CONTENT_ATTRIBUTES: Record<string, string[]> = {
   span: ["style"],
   div: ["style"],
   p: ["style"],
+  /** Legacy output from execCommand(fontName) in some browsers; face is the font family. */
+  font: ["face", "color", "style"],
   img: ["src", "alt", "width", "height", "style"]
 };
 

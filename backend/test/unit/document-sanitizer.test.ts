@@ -44,6 +44,14 @@ describe("sanitizeDocumentContent", () => {
     expect(sanitizeDocumentContent(safe)).toBe(safe);
   });
 
+  it("preserves legacy font tags from rich-text commands", () => {
+    const legacy = '<p><font face="Georgia">Hola</font></p>';
+    const out = sanitizeDocumentContent(legacy);
+    expect(out).toContain("<font");
+    expect(out).toContain('face=');
+    expect(out).toContain("Hola");
+  });
+
   it("preserves br and span with style", () => {
     const withBr = "<p>Line one<br>Line two</p>";
     const outBr = sanitizeDocumentContent(withBr);

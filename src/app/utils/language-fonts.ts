@@ -54,6 +54,27 @@ const SIMPLIFIED_CHINESE_CATALOG: LanguageFontCatalogEntry = {
   ]
 };
 
+const ARABIC_CATALOG: LanguageFontCatalogEntry = {
+  defaultFamily: "Noto Sans Arabic",
+  fonts: [
+    {
+      family: "Noto Sans Arabic",
+      googleFontFamily: "Noto+Sans+Arabic:wght@400;500;700",
+      fallbackStack: "\"Segoe UI\", \"Arial Unicode MS\", Tahoma, sans-serif"
+    },
+    {
+      family: "Noto Naskh Arabic",
+      googleFontFamily: "Noto+Naskh+Arabic:wght@400;500;700",
+      fallbackStack: "\"Traditional Arabic\", \"Arabic Typesetting\", serif"
+    },
+    {
+      family: "Amiri",
+      googleFontFamily: "Amiri:wght@400;700",
+      fallbackStack: "\"Times New Roman\", serif"
+    }
+  ]
+};
+
 const TRADITIONAL_CHINESE_CATALOG: LanguageFontCatalogEntry = {
   defaultFamily: "Noto Sans TC",
   fonts: [
@@ -122,6 +143,7 @@ export const LANGUAGE_FONT_CATALOG: Record<Language, LanguageFontCatalogEntry> =
   id: SOURCE_SANS_LATIN_CATALOG,
   sw: SOURCE_SANS_LATIN_CATALOG,
   tl: SOURCE_SANS_LATIN_CATALOG,
+  ar: ARABIC_CATALOG,
   "zh-Hans": SIMPLIFIED_CHINESE_CATALOG,
   "zh-Hant": TRADITIONAL_CHINESE_CATALOG
 };

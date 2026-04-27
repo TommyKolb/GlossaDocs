@@ -105,6 +105,53 @@ const TAGALOG_LAYOUT: KeyboardLayout = [
   [key('z', 'z'), key('x', 'x'), key('c', 'c'), key('v', 'v'), key('b', 'b'), key('n', 'n'), key('m', 'm')]
 ];
 
+/**
+ * Windows Arabic (101), KBDA1.dll, KLID 00000401 (ar-SA). Unshifted/shift pairs per Microsoft layout;
+ * explicit shiftOutput on every key (Arabic letters have no case; Shift selects harakat and punctuation).
+ */
+const ARABIC_LAYOUT: KeyboardLayout = [
+  [
+    key("ض", "q", "\u064e"),
+    key("ص", "w", "\u064b"),
+    key("ث", "e", "\u064f"),
+    key("ق", "r", "\u064c"),
+    key("ف", "t", "\u0644\u0625"),
+    key("غ", "y", "\u0625"),
+    key("ع", "u", "'"),
+    key("ه", "i", "\u00f7"),
+    key("خ", "o", "\u00d7"),
+    key("ح", "p", "\u061b"),
+    key("ج", "[", "<"),
+    key("د", "]", ">")
+  ],
+  [
+    key("ش", "a", "\u0650"),
+    key("س", "s", "\u064d"),
+    key("ي", "d", "]"),
+    key("ب", "f", "["),
+    key("ل", "g", "\u0644\u0623"),
+    key("ا", "h", "\u0623"),
+    key("ت", "j", "\u0640"),
+    key("ن", "k", "\u060c"),
+    key("م", "l", "/"),
+    key("ك", ";", ":"),
+    key("ط", "'", '"'),
+    key("\\", "\\", "|")
+  ],
+  [
+    key("ئ", "z", "~"),
+    key("ء", "x", "}"),
+    key("ؤ", "c", "{"),
+    key("ر", "v", "\u0644\u0622"),
+    key("\u0644\u0627", "b", "\u0622"),
+    key("ى", "n", "\u2019"),
+    key("ة", "m", ","),
+    key("و", ",", "."),
+    key("ز", ".", "\u061f"),
+    key("ظ", "/", "/")
+  ]
+];
+
 const LANGUAGE_KEYBOARD_LAYOUTS: Readonly<Record<KeyboardLayoutLanguage, KeyboardLayout>> = {
   en: ENGLISH_LAYOUT,
   de: GERMAN_LAYOUT,
@@ -118,7 +165,8 @@ const LANGUAGE_KEYBOARD_LAYOUTS: Readonly<Record<KeyboardLayoutLanguage, Keyboar
   uk: UKRAINIAN_LAYOUT,
   id: INDONESIAN_LAYOUT,
   sw: SWAHILI_LAYOUT,
-  tl: TAGALOG_LAYOUT
+  tl: TAGALOG_LAYOUT,
+  ar: ARABIC_LAYOUT
 };
 
 export function isKeyboardLayoutLanguage(language: Language): language is KeyboardLayoutLanguage {
@@ -263,7 +311,11 @@ export function normalizeKeyboardLayoutOverrides(raw: unknown): KeyboardLayoutOv
   return result;
 }
 
-function shouldUseShiftedCharacter(shiftKey: boolean, capsLock: boolean): boolean {
+function shouldUseShiftedCharacter(shiftKey: boolean, capsLock: boolean, language: Language): boolean {
+  // Arabic shift layer is harakat/punctuation, not “uppercase”; Caps Lock must not flip that layer.
+  if (language === "ar") {
+    return shiftKey;
+  }
   return shiftKey !== capsLock;
 }
 
@@ -336,7 +388,7 @@ export function getRemappedCharacter({
     return null;
   }
 
-  return shouldUseShiftedCharacter(shiftKey, capsLock)
+  return shouldUseShiftedCharacter(shiftKey, capsLock, language)
     ? remap.shiftOutput ?? remap.output
     : remap.output;
 }

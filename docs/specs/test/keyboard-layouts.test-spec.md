@@ -24,7 +24,7 @@ This module defines per-language on-screen keyboard layouts and maps physical ke
 | Function | Summary |
 | -------- | ------- |
 | `key(output, typedWith, shiftOutput?)` | Builds one `KeyboardKey` (base output, physical `typedWith`, optional `shiftOutput`). |
-| `shouldUseShiftedCharacter(shiftKey, capsLock)` | Returns whether the shift layer is active (`shiftKey !== capsLock`). |
+| `shouldUseShiftedCharacter(shiftKey, capsLock, language)` | Returns whether the shift layer is active (`shiftKey !== capsLock`), except for Arabic where only `shiftKey` counts so Caps Lock does not swap in harakat. |
 | `buildRemapTable(layout)` | Flattens layout rows into a map from `typedWith.toLowerCase()` to `{ output, shiftOutput }`, with `shiftOutput` defaulting to `output.toUpperCase()` when omitted. |
 
 ---

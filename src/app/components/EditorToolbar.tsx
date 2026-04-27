@@ -32,7 +32,7 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import { Separator } from './ui/separator';
-import { LANGUAGES, isLanguage, type Language } from '../utils/languages';
+import { LANGUAGES, isLanguage, isRTLLanguage, type Language } from '../utils/languages';
 import { type ExportFormat } from '../utils/export';
 import { FONT_SIZE_OPTIONS } from '../utils/constants';
 import { type FormattingState } from '../utils/types';
@@ -105,6 +105,8 @@ export function EditorToolbar({
           placeholder="Untitled Document"
           className="flex-1 text-base sm:text-lg font-semibold bg-transparent border-none outline-none focus:bg-gray-50 px-2 py-1 rounded min-w-0"
           aria-label="Document title"
+          dir={isRTLLanguage(language) ? 'rtl' : 'ltr'}
+          lang={language}
         />
 
         {/* Unsaved changes indicator */}

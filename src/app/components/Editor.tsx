@@ -6,7 +6,7 @@ import type { Document } from '../models/document';
 import { generateDocumentId } from '../models/document';
 import { getAllFolders, getDocument, saveDocument } from '../data/document-repository';
 import { exportDocument, type ExportFormat } from '../utils/export';
-import { getLanguageName, isChineseLanguage, type Language } from '../utils/languages';
+import { getLanguageName, isChineseLanguage, isRTLLanguage, type Language } from '../utils/languages';
 import { getDefaultFontFamilyForLanguage, resolveDocumentFontFamily } from '../utils/language-fonts';
 import { EDITOR_CONFIG, UI_CONSTANTS } from '../utils/constants';
 import {
@@ -180,10 +180,8 @@ export function Editor({ documentId, initialDocument, onBack }: EditorProps) {
     setDocument({ ...document, language: newLanguage, fontFamily: nextFontFamily });
     setHasUnsavedChanges(true);
     
-    // Apply text direction based on language (future-proofing for RTL languages)
     if (editorRef.current) {
-      const isRTL = false; // None of the current languages are RTL, but keeping this for future
-      editorRef.current.dir = isRTL ? 'rtl' : 'ltr';
+      editorRef.current.dir = isRTLLanguage(newLanguage) ? 'rtl' : 'ltr';
       editorRef.current.style.fontFamily = nextFontFamily;
     }
 
@@ -734,8 +732,8 @@ export function Editor({ documentId, initialDocument, onBack }: EditorProps) {
     updateFormattingState();
   }, [saveSelection, updateFormattingState]);
 
-  // Current supported languages are LTR.
-  const languageDir: 'ltr' | 'rtl' = 'ltr';
+  const languageDir: 'ltr' | 'rtl' =
+    document && isRTLLanguage(document.language) ? 'rtl' : 'ltr';
 
   // Load document on mount
   useEffect(() => {
@@ -883,6 +881,12 @@ export function Editor({ documentId, initialDocument, onBack }: EditorProps) {
       editorRef.current.style.fontFamily = document.fontFamily;
     }
   }, [document?.id]);
+
+  useEffect(() => {
+    if (document && editorRef.current) {
+      editorRef.current.dir = isRTLLanguage(document.language) ? 'rtl' : 'ltr';
+    }
+  }, [document?.id, document?.language]);
 
   useEffect(() => {
     documentRef.current = document;

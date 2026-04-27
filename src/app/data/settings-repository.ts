@@ -26,6 +26,7 @@ type LocaleCode =
   | "id-ID"
   | "sw-KE"
   | "tl-PH"
+  | "ar-SA"
   | "zh-CN"
   | "zh-TW";
 
@@ -43,6 +44,7 @@ const LANGUAGE_TO_LOCALE: Record<Language, LocaleCode> = {
   id: "id-ID",
   sw: "sw-KE",
   tl: "tl-PH",
+  ar: "ar-SA",
   "zh-Hans": "zh-CN",
   "zh-Hant": "zh-TW"
 };
@@ -60,6 +62,7 @@ const LOCALE_PREFIX_TO_LANGUAGE: Array<{ prefix: string; language: Language }> =
   { prefix: "id", language: "id" },
   { prefix: "sw", language: "sw" },
   { prefix: "tl", language: "tl" },
+  { prefix: "ar", language: "ar" },
   { prefix: "zh-hans", language: "zh-Hans" },
   { prefix: "zh-cn", language: "zh-Hans" },
   { prefix: "zh-sg", language: "zh-Hans" },

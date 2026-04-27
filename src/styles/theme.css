@@ -197,3 +197,25 @@
     line-height: 1.5;
   }
 }
+
+@keyframes login-lang-marquee {
+  from {
+    transform: translate3d(-50%, 0, 0);
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@layer utilities {
+  .animate-login-lang-marquee {
+    animation: login-lang-marquee 50s linear infinite;
+    will-change: transform;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-login-lang-marquee {
+      animation: none;
+    }
+  }
+}

@@ -108,6 +108,7 @@ export function EditorToolbar({
           aria-label="Document title"
           dir="auto"
           lang={language}
+          spellCheck={language === 'en'}
         />
 
         {/* Unsaved changes indicator */}

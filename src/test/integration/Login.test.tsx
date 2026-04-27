@@ -5,6 +5,7 @@ import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { Login } from "@/app/components/Login";
+import { LANGUAGES } from "@/app/utils/languages";
 import { UI_CONSTANTS } from "@/app/utils/constants";
 
 vi.mock("sonner", () => ({
@@ -90,17 +91,19 @@ describe("Login signup + reset entrypoints", () => {
     expect(screen.getByLabelText(/^Password$/i)).toBeInTheDocument();
   });
 
-  it("shows only three supported language badges at a time", () => {
+  it("renders all supported languages in a looping marquee row", () => {
     render(<Login onLoginSuccess={() => {}} onCreateAccount={() => {}} onForgotPassword={() => {}} />);
 
     const supportedLanguages = screen.getByLabelText("Supported languages");
     const badges = within(supportedLanguages).getAllByTestId("LanguageBadge");
 
-    expect(badges).toHaveLength(UI_CONSTANTS.WELCOME_LANGUAGE_BADGE_COUNT);
-    expect(badges.map((badge) => badge.getAttribute("data-language"))).toEqual(["en", "de", "ru"]);
+    expect(badges).toHaveLength(LANGUAGES.length * 2);
+    const codes = badges.map((badge) => badge.getAttribute("data-language"));
+    expect(codes.slice(0, LANGUAGES.length)).toEqual(LANGUAGES.map((l) => l.value));
+    expect(codes.slice(LANGUAGES.length)).toEqual(LANGUAGES.map((l) => l.value));
   });
 
-  it("rotates the supported language badges with the welcome message", () => {
+  it("rotates the welcome message on an interval", () => {
     vi.useFakeTimers();
     render(<Login onLoginSuccess={() => {}} onCreateAccount={() => {}} onForgotPassword={() => {}} />);
 
@@ -108,10 +111,6 @@ describe("Login signup + reset entrypoints", () => {
       vi.advanceTimersByTime(UI_CONSTANTS.WELCOME_MESSAGE_INTERVAL_MS);
     });
 
-    const supportedLanguages = screen.getByLabelText("Supported languages");
-    const badges = within(supportedLanguages).getAllByTestId("LanguageBadge");
-
     expect(screen.getByText("Willkommen")).toBeInTheDocument();
-    expect(badges.map((badge) => badge.getAttribute("data-language"))).toEqual(["de", "ru", "es"]);
   });
 });

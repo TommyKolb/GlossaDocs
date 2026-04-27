@@ -1,13 +1,18 @@
+import { cn } from './ui/utils';
 import { LanguageInfo } from '../utils/languages';
 
 interface LanguageBadgeProps {
   language: LanguageInfo;
+  className?: string;
 }
 
-export function LanguageBadge({ language }: LanguageBadgeProps) {
+export function LanguageBadge({ language, className }: LanguageBadgeProps) {
   return (
     <div
-      className="w-full min-w-0 flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2 bg-white rounded-full shadow-sm border border-gray-200"
+      className={cn(
+        'w-full min-w-0 flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2 bg-white rounded-full shadow-sm border border-gray-200',
+        className
+      )}
       aria-label={language.label}
     >
       <span

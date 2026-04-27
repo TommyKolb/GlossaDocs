@@ -88,8 +88,11 @@ export function Editor({ documentId, initialDocument, onBack }: EditorProps) {
 
   const saveSelection = useCallback(() => {
     const selection = window.getSelection();
-    if (selection && selection.rangeCount > 0) {
-      savedSelectionRef.current = selection.getRangeAt(0);
+    if (selection && selection.rangeCount > 0 && editorRef.current) {
+      const range = selection.getRangeAt(0);
+      if (editorRef.current.contains(range.startContainer) && editorRef.current.contains(range.endContainer)) {
+        savedSelectionRef.current = range.cloneRange();
+      }
     }
   }, []);
 
@@ -281,8 +284,8 @@ export function Editor({ documentId, initialDocument, onBack }: EditorProps) {
   const insertTextAtCursor = useCallback((text: string) => {
     if (!editorRef.current) return;
 
-    restoreSelection();
     editorRef.current.focus();
+    restoreSelection();
 
     // Prefer browser-native rich-text insertion so active styles (bold/italic/underline)
     // apply to remapped and on-screen-keyboard input as expected.
@@ -605,6 +608,7 @@ export function Editor({ documentId, initialDocument, onBack }: EditorProps) {
 
       if (bufferEffect.type === 'commit') {
         event.preventDefault();
+        event.stopPropagation();
         commitChineseCandidate(bufferEffect.candidate);
         return;
       }

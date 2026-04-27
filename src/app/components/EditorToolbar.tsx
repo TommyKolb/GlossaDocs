@@ -32,7 +32,7 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import { Separator } from './ui/separator';
-import { LANGUAGES, isLanguage, isRTLLanguage, type Language } from '../utils/languages';
+import { LANGUAGES, isLanguage, type Language } from '../utils/languages';
 import { type ExportFormat } from '../utils/export';
 import { FONT_SIZE_OPTIONS } from '../utils/constants';
 import { type FormattingState } from '../utils/types';
@@ -86,7 +86,10 @@ export function EditorToolbar({
   return (
     <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
       {/* Top bar with back button and document title */}
-      <div className="px-3 sm:px-6 py-2 sm:py-3 flex items-center gap-2 sm:gap-4">
+      <div
+        className="px-3 sm:px-6 py-2 sm:py-3 flex items-center gap-2 sm:gap-4"
+        dir="ltr"
+      >
         <Button 
           variant="ghost" 
           size="sm" 
@@ -103,9 +106,9 @@ export function EditorToolbar({
           value={title}
           onChange={(e) => onTitleChange(e.target.value)}
           placeholder="Untitled Document"
-          className="flex-1 text-base sm:text-lg font-semibold bg-transparent border-none outline-none focus:bg-gray-50 px-2 py-1 rounded min-w-0"
+          className="flex-1 min-w-0 text-base sm:text-lg font-semibold bg-transparent border-none outline-none focus:bg-gray-50 px-2 py-1 rounded text-start"
           aria-label="Document title"
-          dir={isRTLLanguage(language) ? 'rtl' : 'ltr'}
+          dir="auto"
           lang={language}
         />
 

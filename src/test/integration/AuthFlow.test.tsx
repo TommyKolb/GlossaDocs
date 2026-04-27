@@ -50,8 +50,8 @@ describe("App auth flow screens", () => {
     render(<App />);
     const user = userEvent.setup();
 
-    const createButtons = await screen.findAllByTestId("create-account-button");
-    await user.click(createButtons.at(-1)!);
+    const createButton = await screen.findByTestId("create-account-button");
+    await user.click(createButton);
 
     expect(screen.getByRole("heading", { name: /Create your account/i })).toBeInTheDocument();
   });
@@ -60,8 +60,8 @@ describe("App auth flow screens", () => {
     render(<App />);
     const user = userEvent.setup();
 
-    const forgotButtons = await screen.findAllByTestId("forgot-password-button");
-    await user.click(forgotButtons.at(-1)!);
+    const forgotButton = await screen.findByTestId("forgot-password-button");
+    await user.click(forgotButton);
 
     expect(screen.getByRole("heading", { name: /Reset your password/i })).toBeInTheDocument();
   });
@@ -77,8 +77,8 @@ describe("App auth flow screens", () => {
     render(<App />);
     const user = userEvent.setup();
 
-    const forgotButtons = await screen.findAllByTestId("forgot-password-button");
-    await user.click(forgotButtons.at(-1)!);
+    const forgotButton = await screen.findByTestId("forgot-password-button");
+    await user.click(forgotButton);
 
     await user.type(screen.getByLabelText(/^Email$/i), "user@example.com");
     await user.click(screen.getByRole("button", { name: /Send reset email/i }));

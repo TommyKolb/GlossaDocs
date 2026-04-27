@@ -150,6 +150,16 @@ describe("document routes", () => {
     }
   });
 
+  it("accepts Arabic on create", async () => {
+    const response = await request(app.server)
+      .post("/documents")
+      .set("Authorization", "Bearer token-user-1")
+      .send({ title: "Doc ar", content: "<p>x</p>", language: "ar" });
+
+    expect(response.status).toBe(201);
+    expect(response.body.language).toBe("ar");
+  });
+
   it("returns 400 for empty update payload", async () => {
     const created = await request(app.server)
       .post("/documents")

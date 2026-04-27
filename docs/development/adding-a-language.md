@@ -10,7 +10,7 @@ Use this checklist so fonts, keyboard defaults, locale mapping, and tests stay a
 
 4. **Input defaults** — For alphabet-style languages, register a built-in layout in `src/app/utils/keyboardLayouts.ts`: define a `KeyboardLayout` constant and add it to `LANGUAGE_KEYBOARD_LAYOUTS`. Each key has fixed `output` (the letter shown) and default `typedWith` (physical key). Add at least one unit test in `src/test/unit/keyboard-layouts.test.ts` for that layout. For composition-style input such as Simplified / Traditional Chinese pinyin, do **not** force the language into `LANGUAGE_KEYBOARD_LAYOUTS`; add a dedicated input component and candidate utility instead. The current Chinese helper is a starter learner dictionary, not a full IME, so UI and docs must avoid claiming unrestricted Chinese typing. Add the new code to `SUPPORTED_DOCUMENT_LANGUAGES` in `backend/src/shared/document-languages.ts`; the Zod schema in `keyboard-layout-overrides-schema.ts` builds its strict top-level keys from that list—no separate hand-edit of the Zod key list. Also add a matching migration to extend `documents_language_check` if the new code is not already allowed by the latest constraint.
 
-5. **User keyboard overrides** — Persisted as JSON: per alphabet-style language, **output letter → physical key** (`typedWith`). No separate “shift” mapping; Shift still uses `toUpperCase()` of the letter. Composition-style input modes such as Chinese pinyin do not use these physical-key overrides. No extra DB migration when adding a language—only the Zod allowlist and built-in layout/input behavior.
+5. **User keyboard overrides** — Persisted as JSON: per alphabet-style language, **output character → physical key** (`typedWith`). There is no separate persisted “shift” map: for Latin/Cyrillic-style layouts, Shift + key uses `toUpperCase()` of the mapped output when the built-in key has no explicit `shiftOutput`. **Arabic is different:** the built-in layout uses explicit `shiftOutput` per key (harakat and punctuation, not letter case); overrides must only change `typedWith`—the implementation preserves `shiftOutput` from the built-in key so remapping does not break the Shift layer. Composition-style input (Chinese pinyin) does not use these physical-key overrides. No extra DB migration when adding a language—only the Zod allowlist and built-in layout/input behavior.
 
 6. **Tests** — Update or add:
 
@@ -20,6 +20,10 @@ Use this checklist so fonts, keyboard defaults, locale mapping, and tests stay a
    - `backend/test/integration/document-routes.test.ts` / `backend/test/unit/document-service.test.ts` if document language validation changes
 
 See also [docs/testing.md](../testing.md) for how to run the test suites.
+
+## Arabic layout and on-screen keyboard
+
+The built-in Arabic map matches a common Windows Arabic (101) logical layout. **On-screen keys** insert the unshifted `output` only; the Shift layer (harakat, extra punctuation) is available when typing with the physical keyboard and key remapping, not as separate on-screen buttons—see `LanguageKeyboard` and `getRemappedCharacter` in `src/app/utils/keyboardLayouts.ts`. Documents in Arabic use a right-to-left **editor** surface (`dir="rtl"`) via `isRTLLanguage` in `src/app/utils/languages.ts`.
 
 ## Chinese pinyin input caveat
 

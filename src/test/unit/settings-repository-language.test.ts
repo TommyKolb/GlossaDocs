@@ -14,4 +14,10 @@ describe("settings language locale mapping", () => {
     expect(localeToLanguage("zh-TW")).toBe("zh-Hant");
     expect(localeToLanguage("zh-HK")).toBe("zh-Hant");
   });
+
+  it("maps Arabic to ar-SA and regional ar-* locales back to ar", () => {
+    expect(languageToLocale("ar")).toBe("ar-SA");
+    expect(localeToLanguage("ar-SA")).toBe("ar");
+    expect(localeToLanguage("ar-EG")).toBe("ar");
+  });
 });

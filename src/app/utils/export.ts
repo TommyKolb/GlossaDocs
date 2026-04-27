@@ -345,26 +345,12 @@ export function exportAsText(doc: AppDocument): void {
  */
 export async function exportAsDocx(doc: AppDocument): Promise<void> {
   const paragraphs = htmlToDocxParagraphs(doc.content);
-  
+
   const docxDoc = new DocxDocument({
     sections: [
       {
         properties: {},
-        children: [
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: doc.title,
-                bold: true,
-                size: 32, // 16pt
-              }),
-            ],
-            spacing: {
-              after: 400,
-            },
-          }),
-          ...paragraphs,
-        ],
+        children: paragraphs,
       },
     ],
   });

@@ -6,7 +6,13 @@ import type { Document } from '../models/document';
 import { generateDocumentId } from '../models/document';
 import { getAllFolders, getDocument, saveDocument } from '../data/document-repository';
 import { exportDocument, type ExportFormat } from '../utils/export';
-import { getLanguageName, isChineseLanguage, type Language } from '../utils/languages';
+import {
+  getLanguageName,
+  isBrowserSpellcheckEnabledForLanguage,
+  isChineseLanguage,
+  isRTLLanguage,
+  type Language
+} from '../utils/languages';
 import { getDefaultFontFamilyForLanguage, resolveDocumentFontFamily } from '../utils/language-fonts';
 import { EDITOR_CONFIG, UI_CONSTANTS } from '../utils/constants';
 import {
@@ -88,8 +94,11 @@ export function Editor({ documentId, initialDocument, onBack }: EditorProps) {
 
   const saveSelection = useCallback(() => {
     const selection = window.getSelection();
-    if (selection && selection.rangeCount > 0) {
-      savedSelectionRef.current = selection.getRangeAt(0);
+    if (selection && selection.rangeCount > 0 && editorRef.current) {
+      const range = selection.getRangeAt(0);
+      if (editorRef.current.contains(range.startContainer) && editorRef.current.contains(range.endContainer)) {
+        savedSelectionRef.current = range.cloneRange();
+      }
     }
   }, []);
 
@@ -180,10 +189,8 @@ export function Editor({ documentId, initialDocument, onBack }: EditorProps) {
     setDocument({ ...document, language: newLanguage, fontFamily: nextFontFamily });
     setHasUnsavedChanges(true);
     
-    // Apply text direction based on language (future-proofing for RTL languages)
     if (editorRef.current) {
-      const isRTL = false; // None of the current languages are RTL, but keeping this for future
-      editorRef.current.dir = isRTL ? 'rtl' : 'ltr';
+      editorRef.current.dir = isRTLLanguage(newLanguage) ? 'rtl' : 'ltr';
       editorRef.current.style.fontFamily = nextFontFamily;
     }
 
@@ -283,8 +290,8 @@ export function Editor({ documentId, initialDocument, onBack }: EditorProps) {
   const insertTextAtCursor = useCallback((text: string) => {
     if (!editorRef.current) return;
 
-    restoreSelection();
     editorRef.current.focus();
+    restoreSelection();
 
     // Prefer browser-native rich-text insertion so active styles (bold/italic/underline)
     // apply to remapped and on-screen-keyboard input as expected.
@@ -607,6 +614,7 @@ export function Editor({ documentId, initialDocument, onBack }: EditorProps) {
 
       if (bufferEffect.type === 'commit') {
         event.preventDefault();
+        event.stopPropagation();
         commitChineseCandidate(bufferEffect.candidate);
         return;
       }
@@ -734,8 +742,8 @@ export function Editor({ documentId, initialDocument, onBack }: EditorProps) {
     updateFormattingState();
   }, [saveSelection, updateFormattingState]);
 
-  // Current supported languages are LTR.
-  const languageDir: 'ltr' | 'rtl' = 'ltr';
+  const languageDir: 'ltr' | 'rtl' =
+    document && isRTLLanguage(document.language) ? 'rtl' : 'ltr';
 
   // Load document on mount
   useEffect(() => {
@@ -885,6 +893,12 @@ export function Editor({ documentId, initialDocument, onBack }: EditorProps) {
   }, [document?.id]);
 
   useEffect(() => {
+    if (document && editorRef.current) {
+      editorRef.current.dir = isRTLLanguage(document.language) ? 'rtl' : 'ltr';
+    }
+  }, [document?.id, document?.language]);
+
+  useEffect(() => {
     documentRef.current = document;
   }, [document]);
 
@@ -952,9 +966,9 @@ export function Editor({ documentId, initialDocument, onBack }: EditorProps) {
               <div
                 ref={editorRef}
                 contentEditable
+                spellCheck={isBrowserSpellcheckEnabledForLanguage(document.language)}
                 className="min-h-[calc(100vh-190px)] min-h-[calc(100dvh-190px)] bg-white p-4 sm:p-8 md:p-12 shadow-lg rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                 style={{
-                  direction: languageDir,
                   lineHeight: '1.15',
                 }}
                 dir={languageDir}

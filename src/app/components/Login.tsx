@@ -22,10 +22,6 @@ export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: Log
   const [isLoading, setIsLoading] = useState(false);
   const [currentWelcomeIndex, setCurrentWelcomeIndex] = useState(0);
   const [formErrors, setFormErrors] = useState<{ username?: string; password?: string; general?: string }>({});
-  const visibleLanguages = Array.from(
-    { length: UI_CONSTANTS.WELCOME_LANGUAGE_BADGE_COUNT },
-    (_, offset) => LANGUAGES[(currentWelcomeIndex + offset) % LANGUAGES.length]
-  );
 
   // Cycle through welcome messages
   useEffect(() => {
@@ -80,7 +76,7 @@ export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: Log
       const user = await continueAsGuest();
       toast.success('Welcome, Guest! Your documents are saved locally.');
       onLoginSuccess(user);
-    } catch (error) {
+    } catch {
       toast.error('Failed to continue as guest. Please try again.');
     } finally {
       setIsLoading(false);
@@ -88,10 +84,12 @@ export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: Log
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 flex items-center justify-center px-4 sm:px-6 py-8">
-      <div className="w-full max-w-md">
-        {/* Hero Section */}
-        <div className="mb-8 sm:mb-12 text-center relative">
+    <div
+      className={`min-h-screen ${UI_CONSTANTS.GRADIENT_BACKGROUND} flex items-center justify-center px-4 sm:px-6 md:px-10 lg:px-12 py-8`}
+    >
+      <div className="w-full max-w-xl sm:max-w-2xl md:max-w-3xl lg:max-w-4xl flex flex-col gap-7 sm:gap-8">
+        {/* Hero: even vertical rhythm (title / welcome / badges) */}
+        <div className="text-center relative flex flex-col gap-5 sm:gap-6">
           {/* Background decorative elements */}
           <div className="absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
             <div className="absolute -top-10 left-1/4 text-5xl sm:text-7xl font-serif text-blue-100/40 select-none">
@@ -102,18 +100,18 @@ export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: Log
             </div>
           </div>
 
-          {/* Main heading */}
-          <div className="mb-4 sm:mb-6">
-            <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-2">
+          {/* Main heading + subtitle */}
+          <div>
+            <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-1.5 sm:mb-2">
               GlossaDocs
             </h1>
-            <div className="text-xs sm:text-sm text-gray-500 italic font-serif">
+            <div className="text-sm sm:text-base text-gray-500 italic font-serif">
               γλῶσσα • tongue • language
             </div>
           </div>
 
           {/* Animated welcome message */}
-          <div className="mb-4 sm:mb-6 h-16 sm:h-10" aria-live="polite" aria-atomic="true">
+          <div className="min-h-[2.75rem] sm:min-h-[2.5rem]" aria-live="polite" aria-atomic="true">
             <p className="text-xl sm:text-2xl font-medium text-gray-700 transition-all duration-500">
               {LANGUAGES[currentWelcomeIndex].welcomeText}
             </p>
@@ -122,21 +120,32 @@ export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: Log
             </p>
           </div>
 
-          {/* Language badges with animation */}
-          <ul
-            className="grid grid-cols-3 items-stretch gap-2 sm:gap-3 mb-6 sm:mb-8 list-none p-0 m-0"
+          {/* Language badges — infinite horizontal marquee (duplicated row for seamless loop) */}
+          <div
+            className="relative w-screen max-w-[100vw] left-1/2 -translate-x-1/2 overflow-hidden motion-reduce:overflow-x-auto [mask-image:linear-gradient(to_right,transparent,black_6%,black_94%,transparent)] motion-reduce:[mask-image:none]"
+            role="region"
             aria-label="Supported languages"
           >
-            {visibleLanguages.map((language, index) => (
-              <li key={`language-slot-${index}`} className="min-w-0">
-                <LanguageBadge language={language} />
-              </li>
-            ))}
-          </ul>
+            <div className="flex w-max gap-2 sm:gap-3 py-1 animate-login-lang-marquee motion-reduce:animate-none">
+              {[0, 1].map((track) => (
+                <div
+                  key={track}
+                  className={track === 1 ? 'flex shrink-0 gap-2 sm:gap-3 motion-reduce:hidden' : 'flex shrink-0 gap-2 sm:gap-3'}
+                  aria-hidden={track === 1}
+                >
+                  {LANGUAGES.map((language) => (
+                    <div key={`${track}-${language.value}`} className="shrink-0">
+                      <LanguageBadge language={language} className="w-max max-w-[14rem] sm:max-w-[16rem]" />
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
-        {/* Login Card */}
-        <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8 border border-gray-200">
+        {/* Login Card — capped width so fields stay comfortable on wide layouts */}
+        <div className="mx-auto w-full max-w-md bg-white rounded-2xl shadow-xl p-6 sm:p-8 border border-gray-200">
           <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-2 sm:mb-4 text-center">
             Sign in to continue
           </h2>
@@ -289,16 +298,30 @@ export function Login({ onLoginSuccess, onCreateAccount, onForgotPassword }: Log
           ) : null}
         </div>
 
-        {/* Footer note */}
-        <div className="mt-4 sm:mt-6 text-center text-sm text-gray-600">
-          <p>Multi-language document editor</p>
-          <p
-            className="text-xs text-gray-500 mt-1 max-w-lg mx-auto px-1 leading-snug break-words"
-            aria-hidden="true"
-          >
+        <footer className="w-full text-center px-1 sm:px-2">
+          <p className="text-sm sm:text-base font-semibold text-gray-800">
+            Multi-language document editor
+          </p>
+          <p className="text-xs sm:text-sm text-gray-700 mt-2 leading-snug text-pretty">
             {LANGUAGES.map((l) => l.label).join(' · ')}
           </p>
-        </div>
+          <p className="text-xs sm:text-sm text-gray-600 mt-3 leading-relaxed text-pretty">
+            GlossaDocs is free, ad-free, and independent. Language
+            defaults, typography, and keyboard
+            helpers may contain mistakes. If you notice something wrong, please email{' '}
+            <a
+              href={
+                'mailto:glossadocs@gmail.com?subject=' +
+                encodeURIComponent('GlossaDocs feedback')
+              }
+              className="text-blue-600 underline underline-offset-2 hover:text-blue-800"
+            >
+              glossadocs@gmail.com
+            </a>{' '}
+            with a short description of the issue and, if you can, a link or screenshot so it can be
+            fixed.
+          </p>
+        </footer>
       </div>
     </div>
   );

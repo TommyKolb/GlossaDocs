@@ -23,9 +23,13 @@ type LocaleCode =
   | "nl-NL"
   | "pl-PL"
   | "uk-UA"
+  | "sv-SE"
+  | "nb-NO"
+  | "tr-TR"
   | "id-ID"
   | "sw-KE"
   | "tl-PH"
+  | "ar-SA"
   | "zh-CN"
   | "zh-TW";
 
@@ -40,9 +44,13 @@ const LANGUAGE_TO_LOCALE: Record<Language, LocaleCode> = {
   nl: "nl-NL",
   pl: "pl-PL",
   uk: "uk-UA",
+  sv: "sv-SE",
+  nb: "nb-NO",
+  tr: "tr-TR",
   id: "id-ID",
   sw: "sw-KE",
   tl: "tl-PH",
+  ar: "ar-SA",
   "zh-Hans": "zh-CN",
   "zh-Hant": "zh-TW"
 };
@@ -57,9 +65,13 @@ const LOCALE_PREFIX_TO_LANGUAGE: Array<{ prefix: string; language: Language }> =
   { prefix: "nl", language: "nl" },
   { prefix: "pl", language: "pl" },
   { prefix: "uk", language: "uk" },
+  { prefix: "sv", language: "sv" },
+  { prefix: "nb", language: "nb" },
+  { prefix: "tr", language: "tr" },
   { prefix: "id", language: "id" },
   { prefix: "sw", language: "sw" },
   { prefix: "tl", language: "tl" },
+  { prefix: "ar", language: "ar" },
   { prefix: "zh-hans", language: "zh-Hans" },
   { prefix: "zh-cn", language: "zh-Hans" },
   { prefix: "zh-sg", language: "zh-Hans" },

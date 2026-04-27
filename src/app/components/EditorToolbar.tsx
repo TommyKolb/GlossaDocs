@@ -6,7 +6,6 @@ import {
   Save, 
   Download, 
   ArrowLeft,
-  Languages,
   Type,
   Circle,
   Check,
@@ -32,7 +31,8 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import { Separator } from './ui/separator';
-import { LANGUAGES, isLanguage, type Language } from '../utils/languages';
+import { DocumentLanguagePicker } from './DocumentLanguagePicker';
+import { isBrowserSpellcheckEnabledForLanguage, type Language } from '../utils/languages';
 import { type ExportFormat } from '../utils/export';
 import { FONT_SIZE_OPTIONS } from '../utils/constants';
 import { type FormattingState } from '../utils/types';
@@ -77,16 +77,17 @@ export function EditorToolbar({
   const languageFonts = getFontsForLanguage(language);
   const effectiveFontFamily = resolveDocumentFontFamily(language, fontFamily);
 
-  const handleLanguageValueChange = (value: string) => {
-    if (isLanguage(value)) {
-      onLanguageChange(value);
-    }
+  const handleLanguageValueChange = (next: Language) => {
+    onLanguageChange(next);
   };
 
   return (
     <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
       {/* Top bar with back button and document title */}
-      <div className="px-3 sm:px-6 py-2 sm:py-3 flex items-center gap-2 sm:gap-4">
+      <div
+        className="px-3 sm:px-6 py-2 sm:py-3 flex items-center gap-2 sm:gap-4"
+        dir="ltr"
+      >
         <Button 
           variant="ghost" 
           size="sm" 
@@ -103,8 +104,11 @@ export function EditorToolbar({
           value={title}
           onChange={(e) => onTitleChange(e.target.value)}
           placeholder="Untitled Document"
-          className="flex-1 text-base sm:text-lg font-semibold bg-transparent border-none outline-none focus:bg-gray-50 px-2 py-1 rounded min-w-0"
+          className="flex-1 min-w-0 text-base sm:text-lg font-semibold bg-transparent border-none outline-none focus:bg-gray-50 px-2 py-1 rounded text-start"
           aria-label="Document title"
+          dir="auto"
+          lang={language}
+          spellCheck={isBrowserSpellcheckEnabledForLanguage(language)}
         />
 
         {/* Unsaved changes indicator */}
@@ -182,22 +186,10 @@ export function EditorToolbar({
         <div className="flex flex-wrap items-center gap-2 sm:gap-4">
           {/* Language selector */}
           <div className="flex items-center gap-2 flex-shrink-0">
-            <Languages className="size-4 text-gray-500" aria-hidden="true" />
-            <Select value={language} onValueChange={handleLanguageValueChange}>
-              <SelectTrigger className="w-[140px] sm:w-[180px]" aria-label="Select document language">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {LANGUAGES.map((lang) => (
-                  <SelectItem key={lang.value} value={lang.value}>
-                    <span className="flex items-center gap-2">
-                      <span aria-hidden="true">{lang.flag}</span>
-                      <span>{lang.label}</span>
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <DocumentLanguagePicker
+              language={language}
+              onLanguageChange={handleLanguageValueChange}
+            />
           </div>
 
           <Separator orientation="vertical" className="h-6" aria-hidden="true" />

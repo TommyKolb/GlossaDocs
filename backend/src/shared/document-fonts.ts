@@ -28,6 +28,15 @@ const SIMPLIFIED_CHINESE_CATALOG: LanguageFontCatalogEntry = {
   ]
 };
 
+const ARABIC_CATALOG: LanguageFontCatalogEntry = {
+  defaultFamily: "Noto Sans Arabic",
+  fonts: [
+    { family: "Noto Sans Arabic", googleFontFamily: "Noto+Sans+Arabic:wght@400;500;700" },
+    { family: "Noto Naskh Arabic", googleFontFamily: "Noto+Naskh+Arabic:wght@400;500;700" },
+    { family: "Amiri", googleFontFamily: "Amiri:wght@400;700" }
+  ]
+};
+
 const TRADITIONAL_CHINESE_CATALOG: LanguageFontCatalogEntry = {
   defaultFamily: "Noto Sans TC",
   fonts: [
@@ -70,8 +79,12 @@ export const DOCUMENT_LANGUAGE_FONT_CATALOG: Record<DocumentLanguage, LanguageFo
     ]
   },
   id: SOURCE_SANS_LATIN_CATALOG,
+  sv: SOURCE_SANS_LATIN_CATALOG,
+  nb: SOURCE_SANS_LATIN_CATALOG,
+  tr: SOURCE_SANS_LATIN_CATALOG,
   sw: SOURCE_SANS_LATIN_CATALOG,
   tl: SOURCE_SANS_LATIN_CATALOG,
+  ar: ARABIC_CATALOG,
   "zh-Hans": SIMPLIFIED_CHINESE_CATALOG,
   "zh-Hant": TRADITIONAL_CHINESE_CATALOG
 };

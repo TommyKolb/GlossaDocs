@@ -9,9 +9,13 @@ export const SUPPORTED_DOCUMENT_LANGUAGES = [
   "nl",
   "pl",
   "uk",
+  "sv",
+  "nb",
+  "tr",
   "id",
   "sw",
   "tl",
+  "ar",
   "zh-Hans",
   "zh-Hant"
 ] as const;

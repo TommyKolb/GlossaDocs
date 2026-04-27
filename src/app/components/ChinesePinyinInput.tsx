@@ -52,6 +52,7 @@ export function ChinesePinyinInput({
       onClearBuffer();
     } else if (effect.type === 'commit') {
       event.preventDefault();
+      event.stopPropagation();
       onCandidateSelect(effect.candidate);
     }
   };

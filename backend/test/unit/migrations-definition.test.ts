@@ -68,8 +68,8 @@ describe("migration file definitions", () => {
     expect(text).toContain("jsonb");
   });
 
-  it("010 up() CHECK constraint matches SUPPORTED_DOCUMENT_LANGUAGES", async () => {
-    const text = await migrationText("010_extend_documents_language_check_for_chinese.js");
+  it("012 up() CHECK constraint matches SUPPORTED_DOCUMENT_LANGUAGES", async () => {
+    const text = await migrationText("012_extend_documents_language_check_for_sv_nb_tr.js");
     expect(text).toContain('dropConstraint("documents", "documents_language_check")');
     const listInParens = `(${SUPPORTED_DOCUMENT_LANGUAGES.map((l) => `'${l}'`).join(",")})`;
     expect(text).toContain(`language in ${listInParens}`);

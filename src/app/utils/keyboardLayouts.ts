@@ -107,6 +107,133 @@ const TAGALOG_LAYOUT: KeyboardLayout = [
   [key('z', 'z'), key('x', 'x'), key('c', 'c'), key('v', 'v'), key('b', 'b'), key('n', 'n'), key('m', 'm')]
 ];
 
+/** Swedish — å, ä, ö on US-style punctuation positions (Windows Swedish 101). */
+const SWEDISH_LAYOUT: KeyboardLayout = [
+  [
+    key('q', 'q'),
+    key('w', 'w'),
+    key('e', 'e'),
+    key('r', 'r'),
+    key('t', 't'),
+    key('y', 'y'),
+    key('u', 'u'),
+    key('i', 'i'),
+    key('o', 'o'),
+    key('p', 'p'),
+    key('å', '[')
+  ],
+  [
+    key('a', 'a'),
+    key('s', 's'),
+    key('d', 'd'),
+    key('f', 'f'),
+    key('g', 'g'),
+    key('h', 'h'),
+    key('j', 'j'),
+    key('k', 'k'),
+    key('l', 'l'),
+    key('ö', ';'),
+    key('ä', "'")
+  ],
+  [
+    key('z', 'z'),
+    key('x', 'x'),
+    key('c', 'c'),
+    key('v', 'v'),
+    key('b', 'b'),
+    key('n', 'n'),
+    key('m', 'm'),
+    key(',', ','),
+    key('.', '.'),
+    key('-', '-')
+  ]
+];
+
+/** Norwegian Bokmål — å, æ, ø (Windows Norwegian 101). */
+const NORWEGIAN_LAYOUT: KeyboardLayout = [
+  [
+    key('q', 'q'),
+    key('w', 'w'),
+    key('e', 'e'),
+    key('r', 'r'),
+    key('t', 't'),
+    key('y', 'y'),
+    key('u', 'u'),
+    key('i', 'i'),
+    key('o', 'o'),
+    key('p', 'p'),
+    key('å', '[')
+  ],
+  [
+    key('a', 'a'),
+    key('s', 's'),
+    key('d', 'd'),
+    key('f', 'f'),
+    key('g', 'g'),
+    key('h', 'h'),
+    key('j', 'j'),
+    key('k', 'k'),
+    key('l', 'l'),
+    key('ø', ';'),
+    key('æ', "'")
+  ],
+  [
+    key('z', 'z'),
+    key('x', 'x'),
+    key('c', 'c'),
+    key('v', 'v'),
+    key('b', 'b'),
+    key('n', 'n'),
+    key('m', 'm'),
+    key(',', ','),
+    key('.', '.'),
+    key('-', '-')
+  ]
+];
+
+/** Turkish Q — dotless ı on the US I key; dotted i on quote; ğ ü ş ö ç (Windows Turkish Q). */
+const TURKISH_LAYOUT: KeyboardLayout = [
+  [
+    key('q', 'q'),
+    key('w', 'w'),
+    key('e', 'e'),
+    key('r', 'r'),
+    key('t', 't'),
+    key('y', 'y'),
+    key('u', 'u'),
+    key('ı', 'i'),
+    key('o', 'o'),
+    key('p', 'p'),
+    key('ğ', '['),
+    key('ü', ']')
+  ],
+  [
+    key('a', 'a'),
+    key('s', 's'),
+    key('d', 'd'),
+    key('f', 'f'),
+    key('g', 'g'),
+    key('h', 'h'),
+    key('j', 'j'),
+    key('k', 'k'),
+    key('l', 'l'),
+    key('ş', ';'),
+    key('i', "'")
+  ],
+  [
+    key('z', 'z'),
+    key('x', 'x'),
+    key('c', 'c'),
+    key('v', 'v'),
+    key('b', 'b'),
+    key('n', 'n'),
+    key('m', 'm'),
+    key('ö', ','),
+    key('ç', '.'),
+    key('.', '-')
+  ]
+];
+
 /**
  * Windows Arabic (101), KBDA1.dll, KLID 00000401 (ar-SA). Unshifted/shift pairs per Microsoft layout;
  * explicit shiftOutput on every key (Arabic letters have no case; Shift selects harakat and punctuation).
@@ -166,6 +293,9 @@ const LANGUAGE_KEYBOARD_LAYOUTS: Readonly<Record<KeyboardLayoutLanguage, Keyboar
   pl: POLISH_LAYOUT,
   uk: UKRAINIAN_LAYOUT,
   id: INDONESIAN_LAYOUT,
+  sv: SWEDISH_LAYOUT,
+  nb: NORWEGIAN_LAYOUT,
+  tr: TURKISH_LAYOUT,
   sw: SWAHILI_LAYOUT,
   tl: TAGALOG_LAYOUT,
   ar: ARABIC_LAYOUT

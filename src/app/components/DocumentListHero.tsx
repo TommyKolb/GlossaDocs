@@ -3,6 +3,8 @@ import { CreateDocumentButton } from './CreateDocumentButton';
 import { Button } from './ui/button';
 import { logout, type User } from '../utils/auth';
 import { toast } from 'sonner';
+import { LANGUAGES } from '../utils/languages';
+import { ProjectDisclaimer } from './ProjectDisclaimer';
 
 interface DocumentListHeroProps {
   user: User;
@@ -44,6 +46,10 @@ export function DocumentListHero({ user, onCreateDocument, onUploadDocument }: D
         </h1>
         <p className="text-base sm:text-lg text-gray-600 max-w-2xl mx-auto px-4">
           Create, edit, and manage your documents with multi-language support
+        </p>
+        <p className="text-xs sm:text-sm text-gray-600 max-w-2xl mx-auto px-4 mt-2 leading-relaxed">
+          Languages include{' '}
+          <span className="text-gray-800">{LANGUAGES.map((l) => l.label).join(' · ')}</span>.
         </p>
       </div>
 
@@ -110,6 +116,8 @@ export function DocumentListHero({ user, onCreateDocument, onUploadDocument }: D
           </Button>
         </div>
       )}
+
+      <ProjectDisclaimer className="mt-8 sm:mt-10 max-w-xl mx-auto px-4 text-xs text-gray-500 text-center leading-relaxed" />
     </div>
   );
 }

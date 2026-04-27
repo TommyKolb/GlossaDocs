@@ -10,6 +10,8 @@ Requires **Node.js 20+** and dependencies (`npm run setup:dev` at the repo root,
 | **Integration** | Frontend: React Testing Library + jsdom. Backend: Supertest + in-process Fastify + in-memory fakes | `src/test/integration/`, `backend/test/integration/` |
 | **End-to-end** | Playwright against a production build (`vite preview`); guest-mode smoke | `e2e/` |
 
+**Pull request scope:** Favor small, reviewable changesets. Mixing unrelated concerns (for example Arabic editor work, Chinese pinyin data generation, auth/Cognito hardening, and new E2E jobs) in a single PR makes review harder and increases merge risk. When possible, stack branches or open separate PRs so each can be reverted or cherry-picked independently. See [local development](development/local-development.md) for the default target branch when opening a PR.
+
 ## Commands (local)
 
 - Full gate (font + language-code catalog checks + frontend + backend Vitest): `npm test` / `npm run test:all`

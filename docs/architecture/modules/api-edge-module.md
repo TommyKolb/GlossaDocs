@@ -13,7 +13,8 @@ This module is the HTTP **cross-cutting surface** for consistent errors and plat
 **What it does not do**
 - Authentication, authorization, or session handling (see [Identity and Access Module](identity-access-module.md)).
 - Domain rules for documents or settings.
-- Rate limiting, request tracing middleware, or idempotency storage (none of these are implemented in the current codebase).
+- **Auth route rate limiting** is implemented in-process (sliding window per IP) under `backend/src/modules/api-edge/in-memory-sliding-window-rate-limit.ts` and used from identity route plugins—not in this folder. It is per process, not distributed; see [system.md](../system.md) and the [AWS deployment runbook](../../deployment/aws-amplify-apigw-lambda-auth-runbook.md).
+- Request tracing middleware or idempotency storage.
 - Audit persistence (see [Operational Store Module](operational-store-module.md); wired separately in `app.ts`).
 
 ## Internal architecture

@@ -196,7 +196,9 @@ export function EditorToolbar({
                 {LANGUAGES.map((lang) => (
                   <SelectItem key={lang.value} value={lang.value}>
                     <span className="flex items-center gap-2">
-                      <span aria-hidden="true">{lang.flag}</span>
+                      <span className="glossadocs-lang-flag-emoji" aria-hidden="true">
+                        {lang.flag}
+                      </span>
                       <span>{lang.label}</span>
                     </span>
                   </SelectItem>

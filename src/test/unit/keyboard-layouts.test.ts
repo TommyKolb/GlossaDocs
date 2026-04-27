@@ -85,6 +85,31 @@ describe("getKeyboardLayout", () => {
     ).toBe("ض");
   });
 
+  it("preserves Arabic shiftOutput when output→typedWith overrides remap a key", () => {
+    // Map ض (default physical `q`) to `1` — no other Arabic key uses typedWith `1`, so remap is unambiguous.
+    const overrides: KeyboardLayoutOverrides = { ar: { "\u0636": "1" } };
+    expect(
+      getRemappedCharacter({
+        language: "ar",
+        key: "1",
+        code: "Digit1",
+        shiftKey: false,
+        capsLock: false,
+        keyboardLayoutOverrides: overrides
+      })
+    ).toBe("ض");
+    expect(
+      getRemappedCharacter({
+        language: "ar",
+        key: "1",
+        code: "Digit1",
+        shiftKey: true,
+        capsLock: false,
+        keyboardLayoutOverrides: overrides
+      })
+    ).toBe("\u064e");
+  });
+
   it("changes only typedWith when overrides swap two letters’ physical keys (no duplicate keys)", () => {
     const overrides: KeyboardLayoutOverrides = {
       ru: { й: "k", к: "j" }

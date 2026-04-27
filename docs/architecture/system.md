@@ -84,7 +84,9 @@ flowchart LR
 - HTML sanitization on document write path (see [Document Module](modules/document-module.md)).
 - Mutating requests logged to **`api_audit_events`** (see [Operational Store Module](modules/operational-store-module.md)).
 
-**Not implemented in this backend:** application-level rate limiting, idempotency key storage, or request body size overrides beyond Fastify defaults.
+**Rate limiting (auth routes only):** Login, registration, and password-reset endpoints use **in-process** sliding-window limits per client IP (`backend/src/modules/api-edge/in-memory-sliding-window-rate-limit.ts`, wired from `buildApp`). Counters are **per server process** and are **not shared** across horizontally scaled instances (for example multiple Lambda execution environments). Treat **API Gateway throttling** and **WAF** as the primary edge-wide controls; see [AWS deployment runbook](../deployment/aws-amplify-apigw-lambda-auth-runbook.md#in-process-rate-limits-auth). A shared store (for example Redis) would be needed for strict global limits.
+
+**Not implemented in this backend:** idempotency key storage, or request body size overrides beyond Fastify defaults.
 
 ## Capacity Baseline
 

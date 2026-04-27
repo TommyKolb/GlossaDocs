@@ -10,9 +10,11 @@ export type KeyboardLayout = readonly (readonly KeyboardKey[])[];
 export type KeyboardLayoutLanguage = Exclude<Language, 'zh-Hans' | 'zh-Hant'>;
 
 /**
- * Per-language overrides: **alphabet letter (output)** → **physical key label** (`typedWith`).
- * On-screen letters stay as in the built-in layout; only which key you type with changes.
- * Shift + key uses the same mapping; the shifted character is always `output.toUpperCase()` (existing remap rules).
+ * Per-language overrides: **output character** → **physical key label** (`typedWith`).
+ * On-screen glyphs stay as in the built-in layout; only which key you type with changes.
+ * Shifted output depends on language: Latin/Cyrillic use `output.toUpperCase()` when no explicit
+ * `shiftOutput` is set; Arabic uses explicit `shiftOutput` (harakat / punctuation) per key—see
+ * `shouldUseShiftedCharacter` and `getRemappedCharacter`.
  */
 export type KeyboardLayoutOverrides = Partial<Record<Language, Record<string, string>>>;
 
@@ -179,8 +181,9 @@ export function getDefaultKeyboardLayout(language: KeyboardLayoutLanguage): Keyb
 }
 
 /**
- * Apply **output → typedWith** overrides: each built-in letter keeps its display `output`;
- * only `typedWith` changes. Unknown output keys in the override map are ignored.
+ * Apply **output → typedWith** overrides: each built-in key keeps its display `output`;
+ * only `typedWith` changes. Explicit `shiftOutput` (e.g. Arabic harakat) is preserved so remapping
+ * a key does not drop the Shift layer. Unknown output keys in the override map are ignored.
  */
 export function applyOutputToTypedWithOverrides(
   layout: KeyboardLayout,
@@ -192,9 +195,7 @@ export function applyOutputToTypedWithOverrides(
       if (typedWith === undefined) {
         return layoutKey;
       }
-      const next: KeyboardKey = { ...layoutKey, typedWith };
-      delete next.shiftOutput;
-      return next;
+      return { ...layoutKey, typedWith };
     })
   ) as KeyboardLayout;
 }

@@ -11,7 +11,7 @@ export function LanguageBadge({ language }: LanguageBadgeProps) {
       aria-label={language.label}
     >
       <span
-        className="text-lg sm:text-xl flex shrink-0 items-center justify-center"
+        className="glossadocs-lang-flag-emoji text-lg sm:text-xl flex shrink-0 items-center justify-center"
         style={{ lineHeight: 1 }}
         aria-hidden="true"
       >

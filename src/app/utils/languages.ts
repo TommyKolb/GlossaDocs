@@ -12,7 +12,7 @@ export const LANGUAGES = [
   { value: 'id', label: 'Indonesian', flag: '🇮🇩', welcomeText: 'Selamat datang', welcomeLabel: 'Bahasa Indonesia' },
   { value: 'sw', label: 'Swahili', flag: '🇰🇪', welcomeText: 'Karibu', welcomeLabel: 'Kiswahili' },
   { value: 'tl', label: 'Tagalog', flag: '🇵🇭', welcomeText: 'Maligayang pagdating', welcomeLabel: 'Filipino' },
-  { value: 'ar', label: 'Arabic', flag: '🇸🇦', welcomeText: 'أهلاً وسهلاً', welcomeLabel: 'العربية' },
+  { value: 'ar', label: 'Arabic', flag: '🌐', welcomeText: 'أهلاً وسهلاً', welcomeLabel: 'العربية' },
   { value: 'zh-Hans', label: 'Chinese (Simplified)', flag: '🇨🇳', welcomeText: '欢迎', welcomeLabel: '简体中文' },
   { value: 'zh-Hant', label: 'Chinese (Traditional)', flag: '🇹🇼', welcomeText: '歡迎', welcomeLabel: '繁體中文' }
 ] as const;

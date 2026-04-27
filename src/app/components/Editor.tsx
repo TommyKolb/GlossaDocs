@@ -962,7 +962,6 @@ export function Editor({ documentId, initialDocument, onBack }: EditorProps) {
                 contentEditable
                 className="min-h-[calc(100vh-190px)] min-h-[calc(100dvh-190px)] bg-white p-4 sm:p-8 md:p-12 shadow-lg rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                 style={{
-                  direction: languageDir,
                   lineHeight: '1.15',
                 }}
                 dir={languageDir}
